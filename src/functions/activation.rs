@@ -1,8 +1,10 @@
 use pyo3::prelude::*;
 use crate::structures::tensor::Tensor;
+use ndarray::parallel::prelude::*;
 
 pub trait ActivationFunction: Send + Sync {
     fn function(&self, t: Tensor) -> Tensor;
+    fn par_function(&self, t: Tensor) -> Tensor;
     fn derivative(&self, t: Tensor) -> Tensor;
 }
 
@@ -17,8 +19,19 @@ pub enum Activation {
 
 pub struct Relu;
 impl ActivationFunction for Relu {
-    fn function(&self, t: Tensor) -> Tensor {
-        t
+    fn function(&self, mut t: Tensor) -> Tensor {
+        let dimension = 1;
+        let shape = t.shape;
+        t.data.mapv_inplace(|x| x.max(0.0));
+
+        Tensor { dimension, shape, data: t.data }
+    }
+    fn par_function(&self, mut t: Tensor) -> Tensor {
+        let dimension = 1;
+        let shape = t.shape;
+        t.data.par_mapv_inplace(|x| x.max(0.0));
+
+        Tensor { dimension, shape, data: t.data }
     }
     fn derivative(&self, t: Tensor) -> Tensor {
         todo!()
@@ -27,8 +40,17 @@ impl ActivationFunction for Relu {
 
 pub struct Sigmoid;
 impl ActivationFunction for Sigmoid {
-    fn function(&self, t: Tensor) -> Tensor {
-        t
+    fn function(&self, mut t: Tensor) -> Tensor {
+        let dimension = 1;
+        let shape = t.shape;
+        t.data.mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
+        Tensor { dimension, shape, data: t.data }
+    }
+    fn par_function(&self, mut t: Tensor) -> Tensor {
+        let dimension = 1;
+        let shape = t.shape;
+        t.data.par_mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
+        Tensor { dimension, shape, data: t.data }
     }
     fn derivative(&self, t: Tensor) -> Tensor {
         todo!()
@@ -37,8 +59,17 @@ impl ActivationFunction for Sigmoid {
 
 pub struct Tanh;
 impl ActivationFunction for Tanh {
-    fn function(&self, t: Tensor) -> Tensor {
-        todo!()
+    fn function(&self, mut t: Tensor) -> Tensor {
+        let dimension = 1;
+        let shape = t.shape;
+        t.data.mapv_inplace(|x| x.tanh());
+        Tensor { dimension, shape, data: t.data }
+    }
+    fn par_function(&self, mut t: Tensor) -> Tensor {
+        let dimension = 1;
+        let shape = t.shape;
+        t.data.par_mapv_inplace(|x| x.tanh());
+        Tensor { dimension, shape, data: t.data }
     }
     fn derivative(&self, t: Tensor) -> Tensor {
         todo!()
@@ -47,8 +78,19 @@ impl ActivationFunction for Tanh {
 
 pub struct Softmax;
 impl ActivationFunction for Softmax {
-    fn function(&self, t: Tensor) -> Tensor {
-        todo!()
+    fn function(&self, mut t: Tensor) -> Tensor {
+        let dimension = 1;
+        let shape = t.shape;
+        let denom = t.data.mapv(|x| x.exp()).sum();
+        t.data.mapv_inplace(|x| x.exp() / denom);
+        Tensor { dimension, shape, data: t.data }
+    }
+    fn par_function(&self, mut t: Tensor) -> Tensor {
+        let dimension = 1;
+        let shape = t.shape;
+        let denom = t.data.mapv(|x| x.exp()).sum();
+        t.data.par_mapv_inplace(|x| x.exp() / denom);
+        Tensor { dimension, shape, data: t.data }
     }
     fn derivative(&self, t: Tensor) -> Tensor {
         todo!()

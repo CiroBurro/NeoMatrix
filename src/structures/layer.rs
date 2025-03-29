@@ -13,10 +13,10 @@ use crate::functions::activation::*;
 ///
 /// Fields:
 /// -nodes: number of neurons in the layer
-/// -input: a 1D tensor holding the input data
-/// -output: a 1D tensor holding the output data
-/// -weights: a 2D tensor holding the weights of the layer
-/// -biases: a 1D tensor holding the biases of the layer
+/// -input: a 1D tensor storing the input data
+/// -output: a 1D tensor storing the output data
+/// -weights: a 2D tensor storing the weights of the layer
+/// -biases: a 1D tensor storing the biases of the layer
 /// -activation: struct to specify the activation function of the layer
 #[pyclass(module = "neomatrix", get_all, set_all)]
 #[derive(Clone, Debug)]
@@ -36,7 +36,7 @@ impl Layer {
     ///
     /// Parameters:
     /// -nodes: number of neurons in the layer
-    /// -input: a 1D tensor holding the input data
+    /// -input: a 1D tensor storing the input data
     /// activation: struct to specify the activation function of the layer
     ///
     /// Python usage:
@@ -67,7 +67,7 @@ impl Layer {
     ///```python
     /// output = layer.forward()
     /// ```
-    fn forward(&mut self) -> PyResult<Tensor> {
+    fn forward(&mut self, parallel: bool) -> PyResult<Tensor> {
         // Check compatibility between dimensions
         if self.input.dimension != 1 || self.weights.dimension != 2 || self.biases.dimension != 1 {
             panic!("Dimensioni non valide layer");
@@ -87,7 +87,11 @@ impl Layer {
         };
 
         // forward prop algorithm
-        self.output = f.function(self.input.dot(&self.weights)?.add(&self.biases)?);
+        if parallel {
+            self.output = f.par_function(self.input.dot(&self.weights)?.add(&self.biases)?);
+        } else {
+            self.output = f.function(self.input.dot(&self.weights)?.add(&self.biases)?);
+        }
 
         Ok(self.output.clone())
     }

@@ -7,13 +7,14 @@ use ndarray::parallel::prelude::*;
 
 pub fn par_dot(t_1: Array2<f64>, t_2: Array2<f64>) -> Array2<f64> {
 
+    // Check for dimension compatibility
     let (m, n) = t_1.dim();
     let (n2, p) = t_2.dim();
-
     if n != n2 {
         panic!("Le dimensioni delle matrici sono incompatibili per la moltiplicazione")
     }
 
+    // Empty array to store the data
     let mut a = Array2::zeros((m, p));
 
     // Parallel iteration over the rows of 'a' array

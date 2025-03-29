@@ -1,18 +1,22 @@
 from neomatrix import Tensor, Layer, Activation
+import time
 
-ntkw_input = Tensor([5], [1, 2, 3, 4, 5])
+start = time.time()
+t = Tensor([20], [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20])
 
-hidden_layer_1 = Layer(4, ntkw_input, Activation.Relu)
-output_1 = hidden_layer_1.forward()
-print(output_1)
-print(output_1.data)
+layer = Layer(3, t, Activation.Softmax)
 
-hidden_layer_2 = Layer(6, output_1, Activation.Relu)
-output_2 = hidden_layer_2.forward()
-print(hidden_layer_2.weights)
-print(hidden_layer_2.weights.data)
-
-output_layer = Layer(2, output_2, Activation.Sigmoid)
-output = output_layer.forward()
-print(output)
+output = layer.forward(False)
+end = time.time() - start
 print(output.data)
+print("time: " + str(end))
+
+start = time.time() - end
+t = Tensor.zeros([20])
+
+layer = Layer(3, t, Activation.Softmax)
+
+output = layer.forward(True)
+end = time.time() - start
+print(output.data)
+print("time: " + str(end))
