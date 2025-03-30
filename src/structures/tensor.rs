@@ -164,6 +164,21 @@ impl Tensor {
         })
     }
 
+    pub fn subtract(&self, t: &Tensor) -> PyResult<Tensor> {
+        // Check if the shapes are compatible for addition
+        if self.shape != t.shape {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "Le forme dei tensori non sono compatibili per l'addizione"
+            ));
+        }
+        let result = &self.data - &t.data;
+        Ok(Tensor {
+            dimension: result.ndim(),
+            shape: result.shape().to_vec(),
+            data: result.into_dyn(),
+        })
+    }
+
     fn __repr__(&self) -> String {
         format!("Tensor(dimension={}, shape={:?})", self.dimension, self.shape)
     }
