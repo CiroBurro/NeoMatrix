@@ -199,13 +199,13 @@ impl CostFunction for BinaryCrossEntropy {
             panic!("Dimensioni dei vettori output incompatibii")
         }
 
-        let sum = t
+        let sum: f64 = t
             .data
             .to_owned()
             .iter()
             .zip(z.data.to_owned().iter())
-            .map(|(t_i, z_i)| t_i * z_i.ln() + (1 - t_i) * (1.0 - z_i).ln())
-            .sum();
+            .map(|(t_i, z_i)| t_i * z_i.ln() + (1.0 - t_i) * (1.0 - z_i).ln())
+            .sum::<f64>();
 
         sum * (-1.0) / t.shape[0] as f64
     }
@@ -216,7 +216,7 @@ impl CostFunction for BinaryCrossEntropy {
 
         let (m, n) = (t.shape[0], t.shape[1]);
 
-        let sum = t
+        let sum: f64 = t
             .data
             .axis_iter(Axis(0))
             .zip(z.data.axis_iter(Axis(0)))
@@ -244,7 +244,7 @@ impl CostFunction for BinaryCrossEntropy {
 
         let (m, n) = (t.shape[0], t.shape[1]);
 
-        let sum = t
+        let sum: f64 = t
             .data
             .axis_iter(Axis(0))
             .into_par_iter()
@@ -273,13 +273,77 @@ impl CostFunction for BinaryCrossEntropy {
 pub struct HuberLoss;
 impl CostFunction for HuberLoss {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
-        todo!()
+        if t.shape != z.shape || t.dimension != 1 {
+            panic!("Dimensioni dei vettori output incompatibii")
+        }
+
+        let delta = 1.0;
+
+        let sum: f64 = t
+            .data
+            .iter()
+            .zip(z.data.iter())
+            .map(|(t_i, z_i)| {
+                if (t_i - z_i).abs() <= delta {
+                    (t_i - z_i).powf(2.0) / 2.0
+                } else {
+                    delta * (t_i - z_i).abs() - (delta.powf(2.0) / 2.0)
+                }
+            })
+            .sum();
+
+        sum / t.shape[0] as f64
     }
     fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        todo!()
+        if t.shape != z.shape || t.dimension != 2 {
+            panic!("Dimensioni dei vettori incompatibii")
+        }
+        let (m, n) = (t.shape[0], t.shape[1]);
+        let sum: f64 = t
+            .data
+            .axis_iter(Axis(0))
+            .zip(z.data.axis_iter(Axis(0)))
+            .map(|(t_i, z_i)| {
+                let t_i = Tensor {
+                    dimension: 1,
+                    shape: vec![t.shape[1]],
+                    data: t_i.to_owned(),
+                };
+                let z_i = Tensor {
+                    dimension: 1,
+                    shape: vec![z.shape[1]],
+                    data: z_i.to_owned(),
+                };
+                self.function(t_i, z_i)
+            })
+            .sum();
+        sum / m as f64
     }
     fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        todo!()
+        if t.shape != z.shape || t.dimension != 2 {
+            panic!("Dimensioni dei vettori incompatibii")
+        }
+        let (m, n) = (t.shape[0], t.shape[1]);
+        let sum: f64 = t
+            .data
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
+            .map(|(t_i, z_i)| {
+                let t_i = Tensor {
+                    dimension: 1,
+                    shape: vec![t.shape[1]],
+                    data: t_i.to_owned(),
+                };
+                let z_i = Tensor {
+                    dimension: 1,
+                    shape: vec![z.shape[1]],
+                    data: z_i.to_owned(),
+                };
+                self.function(t_i, z_i)
+            })
+            .sum();
+        sum / m as f64
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
         todo!()
@@ -288,13 +352,70 @@ impl CostFunction for HuberLoss {
 pub struct HingeLoss;
 impl CostFunction for HingeLoss {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
-        todo!()
+        if t.shape != z.shape || t.dimension != 1 {
+            panic!("Dimensioni dei vettori output incompatibii")
+        }
+
+        let sum: f64 = t
+            .data
+            .iter()
+            .zip(z.data.iter())
+            .map(|(t_i, z_i)| (0 as f64).max(1.0 - (t_i * z_i)))
+            .sum();
+
+        sum / t.shape[0] as f64
     }
     fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        todo!()
+        if t.shape != z.shape || t.dimension != 2 {
+            panic!("Dimensioni dei vettori incompatibii")
+        }
+        let (m, n) = (t.shape[0], t.shape[1]);
+        let sum: f64 = t
+            .data
+            .axis_iter(Axis(0))
+            .zip(z.data.axis_iter(Axis(0)))
+            .map(|(t_i, z_i)| {
+                let t_i = Tensor {
+                    dimension: 1,
+                    shape: vec![t.shape[1]],
+                    data: t_i.to_owned(),
+                };
+                let z_i = Tensor {
+                    dimension: 1,
+                    shape: vec![z.shape[1]],
+                    data: z_i.to_owned(),
+                };
+                self.function(t_i, z_i)
+            })
+            .sum();
+        sum / m as f64
     }
     fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        todo!()
+        if t.shape != z.shape || t.dimension != 2 {
+            panic!("Dimensioni dei vettori incompatibii")
+        }
+
+        let (m, n) = (t.shape[0], t.shape[1]);
+        let sum: f64 = t
+            .data
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
+            .map(|(t_i, z_i)| {
+                let t_i = Tensor {
+                    dimension: 1,
+                    shape: vec![t.shape[1]],
+                    data: t_i.to_owned(),
+                };
+                let z_i = Tensor {
+                    dimension: 1,
+                    shape: vec![z.shape[1]],
+                    data: z_i.to_owned(),
+                };
+                self.function(t_i, z_i)
+            })
+            .sum();
+        sum / m as f64
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
         todo!()
