@@ -1,13 +1,24 @@
+/// This module defines activation functions for neural networks.
+/// It implements various activation functions like ReLU, Sigmoid, Tanh and Softmax,
+/// providing both regular and parallel computation methods.
+
 use crate::structures::tensor::Tensor;
-use ndarray::{parallel::prelude::*, Array2, ArrayD};
+use ndarray::Array2;
 use pyo3::prelude::*;
 
+/// Trait defining the interface for activation functions
+/// 
+/// Methods:
+/// - function: Regular forward computation
+/// - par_function: Parallel forward computation
+/// - derivative: Derivative computation for backpropagation
 pub trait ActivationFunction: Send + Sync {
     fn function(&self, t: Tensor) -> Tensor;
     fn par_function(&self, t: Tensor) -> Tensor;
     fn derivative(&self, t: Tensor) -> Tensor;
 }
 
+/// Python-accessible enum for activation function selection
 #[pyclass]
 #[derive(Clone, Debug)]
 pub enum Activation {
@@ -17,6 +28,8 @@ pub enum Activation {
     Softmax,
 }
 
+/// Rectified Linear Unit (ReLU) activation function
+/// f(x) = max(0, x)
 pub struct Relu;
 impl ActivationFunction for Relu {
     fn function(&self, mut t: Tensor) -> Tensor {
@@ -53,6 +66,8 @@ impl ActivationFunction for Relu {
     }
 }
 
+/// Sigmoid activation function
+/// f(x) = 1 / (1 + e^(-x))
 pub struct Sigmoid;
 impl ActivationFunction for Sigmoid {
     fn function(&self, mut t: Tensor) -> Tensor {
@@ -87,6 +102,8 @@ impl ActivationFunction for Sigmoid {
     }
 }
 
+/// Hyperbolic tangent activation function
+/// f(x) = tanh(x)
 pub struct Tanh;
 impl ActivationFunction for Tanh {
     fn function(&self, mut t: Tensor) -> Tensor {
@@ -121,6 +138,8 @@ impl ActivationFunction for Tanh {
     }
 }
 
+/// Softmax activation function
+/// f(x_i) = e^(x_i) / Σ(e^(x_j))
 pub struct Softmax;
 impl ActivationFunction for Softmax {
     fn function(&self, mut t: Tensor) -> Tensor {

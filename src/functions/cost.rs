@@ -1,8 +1,19 @@
+/// This module defines cost functions for neural networks.
+/// It implements various cost functions like Mean Squared Error, Mean Absolute Error, 
+/// Binary Cross-Entropy, Huber Loss and Hinge Loss, providing both regular and parallel computation methods.
+
 use crate::structures::tensor::Tensor;
 use ndarray::parallel::prelude::*;
-use ndarray::{s, Axis};
+use ndarray::Axis;
 use pyo3::prelude::*;
 
+/// Trait defining the interface for cost functions
+/// 
+/// Methods:
+/// - function: Regular computation for single sample
+/// - function_batch: Regular computation for batch of samples
+/// - par_function_batch: Parallel computation for batch of samples
+/// - derivative: Derivative computation for backpropagation
 pub trait CostFunction: Send + Sync {
     fn function(&self, t: Tensor, z: Tensor) -> f64;
     fn function_batch(&self, t: Tensor, z: Tensor) -> f64;
@@ -10,6 +21,7 @@ pub trait CostFunction: Send + Sync {
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor;
 }
 
+/// Python-accessible enum for cost function selection
 #[pyclass]
 #[derive(Clone, Debug)]
 pub enum Cost {
@@ -20,6 +32,22 @@ pub enum Cost {
     HingeLoss,
 }
 
+/// Function to get and compute cost between two tensors
+/// 
+/// Parameters:
+/// - cost: Type of cost function to use
+/// - t: Target tensor
+/// - z: Predicted tensor
+/// - parallel: Option to use parallel computation
+/// - batch: Option to use batch computation
+/// 
+/// Python usage:
+/// ```python
+/// from neomatrix import Tensor, Cost, get_cost
+/// t = Tensor([4], [1, 2, 3, 4])
+/// z = Tensor([4], [1.1, 2.1, 2.9, 4.2])
+/// cost = get_cost(Cost.MeanSquaredError, t, z, parallel=True, batch=True)
+/// ```
 #[pyfunction]
 pub fn get_cost(
     cost: Cost,
@@ -48,6 +76,8 @@ pub fn get_cost(
     }
 }
 
+/// Mean Squared Error cost function
+/// f(t,z) = (1/n) * Σ(t_i - z_i)^2
 pub struct MeanSquaredError;
 impl CostFunction for MeanSquaredError {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
@@ -68,7 +98,7 @@ impl CostFunction for MeanSquaredError {
             panic!("Dimensioni dei vettori incompatibii")
         }
 
-        let (m, n) = (t.shape[0], t.shape[1]);
+        let (m, _) = (t.shape[0], t.shape[1]);
         let sum: f64 = t
             .data
             .axis_iter(Axis(0))
@@ -94,7 +124,7 @@ impl CostFunction for MeanSquaredError {
             panic!("Dimensioni dei vettori incompatibii")
         }
 
-        let (m, n) = (t.shape[0], t.shape[1]);
+        let (m, _) = (t.shape[0], t.shape[1]);
         let sum: f64 = t
             .data
             .axis_iter(Axis(0))
@@ -117,9 +147,26 @@ impl CostFunction for MeanSquaredError {
         sum / m as f64
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
-        todo!()
+        if t.shape != z.shape || t.dimension != 1 {
+            panic!("Dimensioni dei vettori output incompatibii")
+        }
+        let n = t.shape[0] as f64;
+        let gradients = t
+            .subtract(&z)
+            .expect("Sottrazione tra i vettori non riuscita")
+            .data
+            .mapv(|x| x * 2.0 / n);
+        Tensor {
+            dimension: 1,
+            shape: t.shape,
+            data: gradients,
+        }
     }
 }
+
+
+/// Mean Absolute Error cost function
+/// f(t,z) = (1/n) * Σ|t_i - z_i|
 pub struct MeanAbsoluteError;
 impl CostFunction for MeanAbsoluteError {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
@@ -140,7 +187,7 @@ impl CostFunction for MeanAbsoluteError {
             panic!("Dimensioni dei vettori incompatibii")
         }
 
-        let (m, n) = (t.shape[0], t.shape[1]);
+        let (m, _) = (t.shape[0], t.shape[1]);
         let sum: f64 = t
             .data
             .axis_iter(Axis(0))
@@ -166,7 +213,7 @@ impl CostFunction for MeanAbsoluteError {
             panic!("Dimensioni dei vettori incompatibii")
         }
 
-        let (m, n) = (t.shape[0], t.shape[1]);
+        let (m, _) = (t.shape[0], t.shape[1]);
         let sum: f64 = t
             .data
             .axis_iter(Axis(0))
@@ -189,9 +236,25 @@ impl CostFunction for MeanAbsoluteError {
         sum / m as f64
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
-        todo!()
+        if t.shape != z.shape || t.dimension != 1 {
+            panic!("Dimensioni dei vettori output incompatibii")
+        }
+        let n = t.shape[0] as f64;
+        let gradients = t
+            .subtract(&z)
+            .expect("Sottrazione tra i vettori non riuscita")
+            .data
+            .mapv(|x| -(x.abs() / x) / n);
+        Tensor {
+            dimension: 1,
+            shape: t.shape,
+            data: gradients,
+        }
     }
 }
+
+/// Binary Cross-Entropy cost function
+/// f(t,z) = -(1/n) * Σ(t_i * log(z_i) + (1-t_i) * log(1-z_i))
 pub struct BinaryCrossEntropy;
 impl CostFunction for BinaryCrossEntropy {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
@@ -211,10 +274,10 @@ impl CostFunction for BinaryCrossEntropy {
     }
     fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Dimensioni dei vettori incompatibii")
         }
 
-        let (m, n) = (t.shape[0], t.shape[1]);
+        let (m, _) = (t.shape[0], t.shape[1]);
 
         let sum: f64 = t
             .data
@@ -239,10 +302,10 @@ impl CostFunction for BinaryCrossEntropy {
     }
     fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Dimensioni dei vettori incompatibii")
         }
 
-        let (m, n) = (t.shape[0], t.shape[1]);
+        let (m, _) = (t.shape[0], t.shape[1]);
 
         let sum: f64 = t
             .data
@@ -270,6 +333,11 @@ impl CostFunction for BinaryCrossEntropy {
         todo!()
     }
 }
+
+/// Huber Loss cost function
+/// f(t,z) = (1/n) * Σ L_δ(t_i - z_i)
+/// where L_δ(x) = 0.5 * x^2 if |x| ≤ δ
+///                 δ|x| - 0.5δ^2 otherwise
 pub struct HuberLoss;
 impl CostFunction for HuberLoss {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
@@ -298,7 +366,7 @@ impl CostFunction for HuberLoss {
         if t.shape != z.shape || t.dimension != 2 {
             panic!("Dimensioni dei vettori incompatibii")
         }
-        let (m, n) = (t.shape[0], t.shape[1]);
+        let (m, _) = (t.shape[0], t.shape[1]);
         let sum: f64 = t
             .data
             .axis_iter(Axis(0))
@@ -323,7 +391,7 @@ impl CostFunction for HuberLoss {
         if t.shape != z.shape || t.dimension != 2 {
             panic!("Dimensioni dei vettori incompatibii")
         }
-        let (m, n) = (t.shape[0], t.shape[1]);
+        let (m, _) = (t.shape[0], t.shape[1]);
         let sum: f64 = t
             .data
             .axis_iter(Axis(0))
@@ -349,6 +417,9 @@ impl CostFunction for HuberLoss {
         todo!()
     }
 }
+
+/// Hinge Loss cost function
+/// f(t,z) = (1/n) * Σ max(0, 1 - t_i * z_i)
 pub struct HingeLoss;
 impl CostFunction for HingeLoss {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
@@ -369,7 +440,7 @@ impl CostFunction for HingeLoss {
         if t.shape != z.shape || t.dimension != 2 {
             panic!("Dimensioni dei vettori incompatibii")
         }
-        let (m, n) = (t.shape[0], t.shape[1]);
+        let (m, _) = (t.shape[0], t.shape[1]);
         let sum: f64 = t
             .data
             .axis_iter(Axis(0))
@@ -395,7 +466,7 @@ impl CostFunction for HingeLoss {
             panic!("Dimensioni dei vettori incompatibii")
         }
 
-        let (m, n) = (t.shape[0], t.shape[1]);
+        let (m, _) = (t.shape[0], t.shape[1]);
         let sum: f64 = t
             .data
             .axis_iter(Axis(0))
