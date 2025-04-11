@@ -4,7 +4,7 @@
 
 use crate::structures::tensor::Tensor;
 use ndarray::parallel::prelude::*;
-use ndarray::Axis;
+use ndarray::{ArrayD, Axis};
 use pyo3::prelude::*;
 
 /// Trait defining the interface for cost functions
@@ -155,7 +155,7 @@ impl CostFunction for MeanSquaredError {
             .subtract(&z)
             .expect("Sottrazione tra i vettori non riuscita")
             .data
-            .mapv(|x| x * 2.0 / n);
+            .mapv(|x| -x * 2.0 / n);
         Tensor {
             dimension: 1,
             shape: t.shape,
@@ -330,14 +330,27 @@ impl CostFunction for BinaryCrossEntropy {
         sum / m as f64
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
-        todo!()
+        if t.shape != z.shape || t.dimension != 1 {
+            panic!("Dimensioni dei vettori output incompatibii")
+        }
+        let n = t.shape[0] as f64;
+
+        let gradients = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
+            -((t_i / z_i) - ((1.0 - t_i) / (1.0 - z_i))) / n
+        }).collect::<Vec<f64>>();
+
+        Tensor {
+            dimension: 1,
+            shape: t.shape.clone(),
+            data: ArrayD::from_shape_vec(t.shape, gradients).unwrap(),
+        }
     }
 }
 
 /// Huber Loss cost function
 /// f(t,z) = (1/n) * Σ L_δ(t_i - z_i)
 /// where L_δ(x) = 0.5 * x^2 if |x| ≤ δ
-///                 δ|x| - 0.5δ^2 otherwise
+///                 δ|x| - 0.5δ^2 if |x| > δ
 pub struct HuberLoss;
 impl CostFunction for HuberLoss {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
@@ -414,7 +427,28 @@ impl CostFunction for HuberLoss {
         sum / m as f64
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
-        todo!()
+        if t.shape != z.shape || t.dimension != 1 {
+            panic!("Dimensioni dei vettori output incompatibii")
+        }
+        let n = t.shape[0] as f64;
+
+        let delta = 1.0;
+        let gradients = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
+            if (t_i - z_i).abs() <= delta {
+                (z_i - t_i) / n
+            } else {
+                if (t_i - z_i) == 0.0 {
+                    return 0.0;
+                }
+                (- delta * (t_i - z_i).abs() / (t_i - z_i)) / n
+            }
+        }).collect::<Vec<f64>>();
+
+        Tensor {
+            dimension: 1,
+            shape: t.shape.clone(),
+            data: ArrayD::from_shape_vec(t.shape, gradients).unwrap(),
+        }
     }
 }
 
@@ -489,6 +523,25 @@ impl CostFunction for HingeLoss {
         sum / m as f64
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
-        todo!()
+        if t.shape != z.shape || t.dimension != 1 {
+            panic!("Dimensioni dei vettori output incompatibii")
+        }
+        let n = t.shape[0] as f64;
+
+        let gradients = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
+            let x = if t_i * z_i < 1.0 {
+                -t_i
+            } else {
+                0.0
+            };
+
+            x / n
+        }).collect::<Vec<f64>>();
+
+        Tensor {
+            dimension: 1,
+            shape: t.shape.clone(),
+            data: ArrayD::from_shape_vec(t.shape, gradients).unwrap(),
+        }
     }
 }
