@@ -47,8 +47,8 @@ impl Layer {
     /// ```
     #[new]
     fn new(nodes: usize, input: Tensor, activation: Activation) -> Self {
-        let weights = random_weights(input.data.len(), nodes.clone());
-        let biases = random_biases(nodes.clone());
+        let weights = random_weights(input.data.len(), nodes.clone(), (-1.0, 1.0));
+        let biases = random_biases(nodes.clone(), (-1.0, 1.0));
         let output_placeholder = Tensor::zeros(vec![nodes]);
 
         Self {
