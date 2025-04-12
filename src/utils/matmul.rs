@@ -1,5 +1,4 @@
 /// This module provides a function for executing matrix multiplication in parallel using Rayon crate
-
 /// Necessary imports
 use ndarray::Array2;
 use ndarray::Axis;
@@ -11,7 +10,7 @@ pub fn par_dot(t_1: Array2<f64>, t_2: Array2<f64>) -> Array2<f64> {
     let (m, n) = t_1.dim();
     let (n2, p) = t_2.dim();
     if n != n2 {
-        panic!("Le dimensioni delle matrici sono incompatibili per la moltiplicazione")
+        panic!("Matrix dimensions do not match for multiplication: {}x{} and {}x{}, {} should be equal to {}", m, n, n2, p, n, n2);
     }
 
     // Empty array to store the data

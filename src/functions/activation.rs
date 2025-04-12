@@ -1,7 +1,7 @@
 /// This module defines activation functions for neural networks.
 /// It implements various activation functions like ReLU, Sigmoid, Tanh and Softmax,
 /// providing both regular and parallel computation methods.
-
+/// Necessary imports
 use crate::structures::tensor::Tensor;
 use ndarray::Array2;
 use pyo3::prelude::*;

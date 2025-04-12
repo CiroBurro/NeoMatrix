@@ -1,9 +1,7 @@
 /// This module contains functions to generate random weights and biases for a neural network layer.
-
 /// Necessary imports
 use rand::{rng, Rng};
 use ndarray::prelude::*;
-use ndarray::range;
 use pyo3::pyfunction;
 use crate::structures::tensor::Tensor;
 

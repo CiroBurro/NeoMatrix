@@ -1,7 +1,7 @@
 /// This module defines cost functions for neural networks.
 /// It implements various cost functions like Mean Squared Error, Mean Absolute Error, 
 /// Binary Cross-Entropy, Huber Loss and Hinge Loss, providing both regular and parallel computation methods.
-
+/// Necessary imports
 use crate::structures::tensor::Tensor;
 use ndarray::parallel::prelude::*;
 use ndarray::{ArrayD, Axis};
@@ -67,12 +67,10 @@ pub fn get_cost(
     };
     if !batch {
         f.function(t, z)
+    } else if parallel {
+        f.par_function_batch(t, z)
     } else {
-        if parallel {
-            f.par_function_batch(t, z)
-        } else {
-            f.function_batch(t, z)
-        }
+        f.function_batch(t, z)
     }
 }
 
@@ -82,11 +80,11 @@ pub struct MeanSquaredError;
 impl CostFunction for MeanSquaredError {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
         let nomin = t
             .subtract(&z)
-            .expect("Sottrazione tra i vettori non riuscita")
+            .expect("Tensors subtraction failed")
             .data
             .mapv(|x| x.powi(2))
             .sum();
@@ -95,7 +93,7 @@ impl CostFunction for MeanSquaredError {
     }
     fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori incompatibii")
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
 
         let (m, _) = (t.shape[0], t.shape[1]);
@@ -121,7 +119,7 @@ impl CostFunction for MeanSquaredError {
     }
     fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori incompatibii")
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
 
         let (m, _) = (t.shape[0], t.shape[1]);
@@ -148,12 +146,12 @@ impl CostFunction for MeanSquaredError {
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
         let n = t.shape[0] as f64;
         let gradients = t
             .subtract(&z)
-            .expect("Sottrazione tra i vettori non riuscita")
+            .expect("Tensors subtraction failed")
             .data
             .mapv(|x| -x * 2.0 / n);
         Tensor {
@@ -171,11 +169,11 @@ pub struct MeanAbsoluteError;
 impl CostFunction for MeanAbsoluteError {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
         let nomin = t
             .subtract(&z)
-            .expect("Sottrazione tra i vettori non riuscita")
+            .expect("Tensors substraction failed")
             .data
             .mapv(|x| x.abs())
             .sum();
@@ -184,7 +182,7 @@ impl CostFunction for MeanAbsoluteError {
     }
     fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori incompatibii")
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
 
         let (m, _) = (t.shape[0], t.shape[1]);
@@ -210,7 +208,7 @@ impl CostFunction for MeanAbsoluteError {
     }
     fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori incompatibii")
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
 
         let (m, _) = (t.shape[0], t.shape[1]);
@@ -237,12 +235,12 @@ impl CostFunction for MeanAbsoluteError {
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
         let n = t.shape[0] as f64;
         let gradients = t
             .subtract(&z)
-            .expect("Sottrazione tra i vettori non riuscita")
+            .expect("Tensors substraction failed")
             .data
             .mapv(|x| -(x.abs() / x) / n);
         Tensor {
@@ -259,7 +257,7 @@ pub struct BinaryCrossEntropy;
 impl CostFunction for BinaryCrossEntropy {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
 
         let sum: f64 = t
@@ -274,7 +272,7 @@ impl CostFunction for BinaryCrossEntropy {
     }
     fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori incompatibii")
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
 
         let (m, _) = (t.shape[0], t.shape[1]);
@@ -302,7 +300,7 @@ impl CostFunction for BinaryCrossEntropy {
     }
     fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori incompatibii")
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
 
         let (m, _) = (t.shape[0], t.shape[1]);
@@ -331,7 +329,7 @@ impl CostFunction for BinaryCrossEntropy {
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
         let n = t.shape[0] as f64;
 
@@ -355,7 +353,7 @@ pub struct HuberLoss;
 impl CostFunction for HuberLoss {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
 
         let delta = 1.0;
@@ -377,7 +375,7 @@ impl CostFunction for HuberLoss {
     }
     fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori incompatibii")
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
         let (m, _) = (t.shape[0], t.shape[1]);
         let sum: f64 = t
@@ -402,7 +400,7 @@ impl CostFunction for HuberLoss {
     }
     fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori incompatibii")
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
         let (m, _) = (t.shape[0], t.shape[1]);
         let sum: f64 = t
@@ -428,7 +426,7 @@ impl CostFunction for HuberLoss {
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
         let n = t.shape[0] as f64;
 
@@ -458,21 +456,21 @@ pub struct HingeLoss;
 impl CostFunction for HingeLoss {
     fn function(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
 
         let sum: f64 = t
             .data
             .iter()
             .zip(z.data.iter())
-            .map(|(t_i, z_i)| (0 as f64).max(1.0 - (t_i * z_i)))
+            .map(|(t_i, z_i)| 0.0_f64.max(1.0 - (t_i * z_i)))
             .sum();
 
         sum / t.shape[0] as f64
     }
     fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori incompatibii")
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
         let (m, _) = (t.shape[0], t.shape[1]);
         let sum: f64 = t
@@ -497,7 +495,7 @@ impl CostFunction for HingeLoss {
     }
     fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Dimensioni dei vettori incompatibii")
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
 
         let (m, _) = (t.shape[0], t.shape[1]);
@@ -524,7 +522,7 @@ impl CostFunction for HingeLoss {
     }
     fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Dimensioni dei vettori output incompatibii")
+            panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
         let n = t.shape[0] as f64;
 

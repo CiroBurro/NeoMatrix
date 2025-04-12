@@ -1,7 +1,6 @@
-/// This module defines the Tensor class, which represents a multi-dimensional array
+/// This module defines the Tensor class, which represents a multidimensional array
 /// and provides methods for creating and manipulating tensors.
 /// It uses Ndarray along with Rust-Numpy to handle the underlying data structure and the bindings with python.
-
 /// Necessary imports
 use pyo3::prelude::*;
 use pyo3::Bound;
@@ -15,7 +14,7 @@ use crate::utils::matmul::par_dot;
 /// Fields:
 /// - dimension: The number of dimensions of the tensor
 /// - shape: The shape of the tensor (e.g., [2, 3] for a 2D tensor with 2 rows and 3 columns)
-/// - data: The underlying data (float64) of the tensor, stored as an dynamic array provided by Ndarray
+/// - data: The underlying data (float64) of the tensor, stored as a dynamic array provided by Ndarray
 #[pyclass(module = "neomatrix")]
 #[derive(Clone, Debug)]
 pub struct Tensor {
@@ -131,7 +130,7 @@ impl Tensor {
             },
             
             _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Il prodotto dot è definito solo per tensori 1D e 2D"
+                "It's possible to multiply only 1D and 2D tensors (dot product)"
             ))
         }
     }
@@ -153,7 +152,7 @@ impl Tensor {
         // Check if the shapes are compatible for addition
         if self.shape != t.shape {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Le forme dei tensori non sono compatibili per l'addizione"
+                "Tensor shapes are not compatible for element-wise addition"
             ));
         }
         let result = &self.data + &t.data;
@@ -168,10 +167,55 @@ impl Tensor {
         // Check if the shapes are compatible for addition
         if self.shape != t.shape {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Le forme dei tensori non sono compatibili per l'addizione"
+                "Tensor shapes are not compatible for element-wise subtraction"
             ));
         }
         let result = &self.data - &t.data;
+        Ok(Tensor {
+            dimension: result.ndim(),
+            shape: result.shape().to_vec(),
+            data: result.into_dyn(),
+        })
+    }
+
+    pub fn multiplication(&self, t: &Tensor) -> PyResult<Tensor> {
+        // Check if the shapes are compatible for addition
+        if self.shape != t.shape {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "Tensor shapes are not compatible for element-wise multiplication"
+            ));
+        }
+        let result = &self.data * &t.data;
+        Ok(Tensor {
+            dimension: result.ndim(),
+            shape: result.shape().to_vec(),
+            data: result.into_dyn(),
+        })
+    }
+
+    pub fn division(&self, t: &Tensor) -> PyResult<Tensor> {
+        // Check if the shapes are compatible for addition
+        if self.shape != t.shape {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "Tensor shapes are not compatible for element-wise division"
+            ));
+        }
+        let result = &self.data / &t.data;
+        Ok(Tensor {
+            dimension: result.ndim(),
+            shape: result.shape().to_vec(),
+            data: result.into_dyn(),
+        })
+    }
+
+    pub fn transpose (&self) -> PyResult<Tensor> {
+        // Check if the shapes are compatible for addition
+        if self.dimension != 2 {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "It's possible to transpose only 2D tensors"
+            ));
+        }
+        let result = self.data.clone().reversed_axes();
         Ok(Tensor {
             dimension: result.ndim(),
             shape: result.shape().to_vec(),
