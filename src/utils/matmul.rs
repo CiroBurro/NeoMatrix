@@ -4,6 +4,8 @@ use ndarray::Array2;
 use ndarray::Axis;
 use ndarray::parallel::prelude::*;
 
+/// Function to execute the dot product of two matrices in parallel
+/// ! Not a Python function !
 pub fn par_dot(t_1: Array2<f64>, t_2: Array2<f64>) -> Array2<f64> {
 
     // Check for dimension compatibility

@@ -28,6 +28,17 @@ pub struct Layer {
     pub activation: Activation,
 }
 
+/// Function to select the activation function struct based on the layer's activation field
+/// ! Not a Python function !
+fn select_activation(l: &Layer) -> Box<dyn ActivationFunction> {
+    match l.activation.clone() {
+        Activation::Relu => Box::new(Relu),
+        Activation::Sigmoid => Box::new(Sigmoid),
+        Activation::Softmax => Box::new(Softmax),
+        Activation::Tanh => Box::new(Tanh),
+    }
+}
+
 /// Layer struct implementation
 #[pymethods]
 impl Layer {
@@ -61,6 +72,9 @@ impl Layer {
     }
 
     /// Forward propagation method
+    /// 
+    /// Parameters:
+    /// - parallel: boolean value to specify if the forward propagation should be done in parallel
     ///
     /// Python usage:
     ///```python
@@ -71,37 +85,45 @@ impl Layer {
         if self.input.dimension != 1 || self.weights.dimension != 2 || self.biases.dimension != 1 {
             panic!("Layer field have wrong dimensions, expected: input (1D), weights (2D), biases (1D)");
         }
+        
+        // Input length must be equal to the number of rows of the weights matrix
         let p = self.input.shape[0];
-        let (m, _) = self.weights.data.clone().into_dimensionality::<Ix2>().unwrap().dim();
-        if m != p {
-            panic!("Inputs and weights have incompatible shapes for forward propagation, the length of the input vector should be equal to the number of rows of the weights matrix");
+        let (m, n) = self.weights.data.clone().into_dimensionality::<Ix2>().unwrap().dim();
+        // If input length is equal to the number of columns of the weights matrix, transpose the weights matrix
+        if m != p && p == n {
+            self.weights = self.weights.transpose()?;
+        }
+        else {
+            panic!("Inputs and weights have incompatible shapes for forward propagation:\
+             the length of the input vector should be equal to the number of rows of the weights matrix");
         }
 
         // Selection of the activation function
-        let f: Box<dyn ActivationFunction> = match self.activation.clone() {
-            Activation::Relu => Box::new(Relu),
-            Activation::Sigmoid => Box::new(Sigmoid),
-            Activation::Softmax => Box::new(Softmax),
-            Activation::Tanh => Box::new(Tanh),
-        };
+        let f: Box<dyn ActivationFunction> = select_activation(self);
 
         // Forward prop algorithm
         if parallel {
-            self.output = f.par_function(self.input.dot(&self.weights)?.add(&self.biases)?);
+            self.output = f.par_function(self.input.dot(&self.weights)?.tensor_sum(&self.biases)?);
         } else {
-            self.output = f.function(self.input.dot(&self.weights)?.add(&self.biases)?);
+            self.output = f.function(self.input.dot(&self.weights)?.tensor_sum(&self.biases)?);
         }
 
         Ok(self.output.clone())
     }
 
     /// Backward propagation method
+    /// 
+    /// Parameters:
+    /// - out_layer: boolean value to specify if the layer is the output layer
+    /// - deltas: a 1D or 2D tensor containing the deltas of the next layer (output layer if out_layer is True)
+    /// - next_weights: a 2D tensor containing the weights of the next layer (None if out_layer is True)
+    /// - all_outputs: a 2D tensor containing the outputs of the previous layer of the entire batch (None if deltas tensor is 1D)
     ///
     /// Python usage:
     ///```python
-    /// (w_gradients, b_gradients, deltas) = layer.forward(out_layer=False, deltas=deltas, next_weights=next_weights, all_outputs=all_outputs)
+    /// (w_gradients, b_gradients, current_deltas) = layer.forward(out_layer=False, deltas=deltas, next_weights=next_weights, all_outputs=all_outputs)
     /// ```
-    fn backward(&self, out_layer: bool, deltas: Tensor, next_weights: Tensor, all_outputs: Option<Tensor>) -> PyResult<(Tensor, Tensor, Tensor)> {
+    fn backward(&self, out_layer: bool, mut deltas: Tensor, mut next_weights: Option<Tensor>, all_outputs: Option<Tensor>) -> PyResult<(Tensor, Tensor, Tensor)> {
         // Deltas dimension can be 1 (single sample processing) or 2 (batch processing)
         if deltas.dimension > 2 || deltas.dimension == 0{
             panic!("Deltas tensor has to be 1D or 2D for backpropagation");
@@ -140,15 +162,29 @@ impl Layer {
                 if all_outputs.is_none() {
                     panic!("If deltas tensor is 2D, all_outputs must be defined");
                 }
-                let all_outputs = all_outputs.unwrap();
+                let mut all_outputs = all_outputs.unwrap();
 
                 // All_outputs matrix contains all outputs of the previous layer of the entire batch and has dimension (m, n)
                 // Where m: number of nodes of the previous layer, n: number of samples
 
                 // Deltas matrix contains all deltas of the current (output) layer of the entire batch and has dimension (n, p)
                 // Where n: number of samples, p: number of nodes of the current layer
+                
+                // If n is equal to the number of nodes of the current layer and p is equal to the number of samples, transpose the deltas matrix
+                if deltas.shape[0] == self.nodes && deltas.shape[1] == all_outputs.shape[1] {
+                    deltas = deltas.transpose()?;
+                }
+                
+                // If m is equal to the number of samples and n is equal to the number of nodes of the previous layer, transpose the all_outputs matrix
+                if all_outputs.shape[0] == deltas.shape[0] && all_outputs.shape[1] == self.input.shape[0] {
+                    all_outputs = all_outputs.transpose()?;
+                }
+            
                 if deltas.shape[1] != self.nodes || all_outputs.shape[0] != self.input.shape[0] || deltas.shape[0] != all_outputs.shape[1] {
-                    panic!("If out_layer is True and deltas tensor is 2D, p should be equal to the number of nodes in the output layer, n should be equal to the number of samples in the batch and m should be equal to the number of nodes in the previous layer");
+                    panic!("If out_layer is True and deltas tensor is 2D:\
+                     p should be equal to the number of nodes in the output layer,\
+                     n should be equal to the number of samples in the batch,\
+                     m should be equal to the number of nodes in the previous layer");
                 };
 
                 // Weights gradients are calculated as the dot product between the inputs of the layer and the deltas
@@ -166,13 +202,18 @@ impl Layer {
             }
         } else {
 
+            if next_weights.is_none() {
+                panic!("If out_layer is False, next_weights must be defined");
+            }
+            let mut next_weights = next_weights.unwrap();
+
+            // Check weights tensor dimensions
+            if next_weights.dimension != 2 {
+                panic!("Next weights tensor has to be 2D for backpropagation");
+            }
+            
             // Selection of the activation function
-            let f: Box<dyn ActivationFunction> = match self.activation.clone() {
-                Activation::Relu => Box::new(Relu),
-                Activation::Sigmoid => Box::new(Sigmoid),
-                Activation::Softmax => Box::new(Softmax),
-                Activation::Tanh => Box::new(Tanh),
-            };
+            let f: Box<dyn ActivationFunction> = select_activation(self);
 
             if deltas.dimension == 1 {
 
@@ -181,14 +222,22 @@ impl Layer {
                 
                 // Next_weights matrix contains all weights of the next layer and has dimension (q, p)
                 // Where q: number of nodes of the current layer, p: number of nodes of the next layer
+                
+                // If q is equal to the number of nodes of the next layer and p is equal to the number of nodes of the current layer, transpose the next_weights matrix
+                if next_weights.shape[0] == deltas.shape[0] && next_weights.shape[1] == self.nodes {
+                    next_weights = next_weights.transpose()?;
+                }
+                
                 if deltas.shape[0] != next_weights.shape[1] || next_weights.shape[0] != self.nodes {
-                    panic!("If out_layer is False and deltas tensor is 1D, the number of deltas should be equal to the number of nodes in the next layer and the number of rows of the next weights matrix should be equal to the number of nodes in the current layer");
+                    panic!("If out_layer is False and deltas tensor is 1D:\
+                     the number of deltas should be equal to the number of nodes in the next layer,\
+                     the number of rows of the next weights matrix should be equal to the number of nodes in the current layer");
                 }
 
                 // The total input of the layer is argument of the derivative of the activation function
-                let inputs_derivative = f.derivative(self.input.dot(&self.weights)?.add(&self.biases)?);
+                let inputs_derivative = f.derivative(self.input.dot(&self.weights)?.tensor_sum(&self.biases)?);
                 // The layer deltas are calculated as the dot product between the deltas of the next layer and the weights of the next layer, and then multiplied by the derivative of the activation function
-                let layer_deltas = next_weights.dot(&deltas)?.multiplication(&inputs_derivative)?;
+                let layer_deltas = next_weights.dot(&deltas)?.tensor_multiplication(&inputs_derivative)?;
 
                 // Biases gradients are equal to the output deltas
                 let biases_gradients = layer_deltas.clone();
@@ -213,7 +262,7 @@ impl Layer {
                 if all_outputs.is_none() {
                     panic!("If deltas tensor is 2D, all_outputs must be defined");
                 }
-                let all_outputs = all_outputs.unwrap();
+                let mut all_outputs = all_outputs.unwrap();
 
                 // Deltas matrix contains all deltas of the next layer in the entire batch and has dimension (n, p)
                 // Where p: number of nodes of the next layer, n: number of samples
@@ -223,12 +272,28 @@ impl Layer {
 
                 // All_outputs matrix contains all outputs of the previous layer of the entire batch and has dimension (m, n)
                 // Where m: number of nodes of the previous layer, n: number of samples
+                
+                // If n is equal to the number of nodes of the next layer and p is equal to the number of samples, transpose the deltas matrix
+                if deltas.shape[0] == next_weights.shape[1] && deltas.shape[1] == all_outputs.shape[1] {
+                    deltas = deltas.transpose()?;
+                }
+                
+                // If q is equal to the number of nodes of the next layer and p is equal to the number of nodes of the current layer, transpose the next_weights matrix
+                if next_weights.shape[0] == deltas.shape[1] && next_weights.shape[1] == self.nodes {
+                    next_weights = next_weights.transpose()?;
+                }
+                
+                // If m is equal to the number of samples and n is equal to the number of nodes of the previous layer, transpose the all_outputs matrix
+                if all_outputs.shape[0] == deltas.shape[0] && all_outputs.shape[1] == self.input.shape[0] {
+                    all_outputs = all_outputs.transpose()?;
+                }
+                
                 if deltas.shape[1] != next_weights.shape[1] || all_outputs.shape[0] != self.input.shape[0] || deltas.shape[0] != all_outputs.shape[1] {
                     panic!("If out_layer is False and deltas tensor is 2D, p should be equal to the number of nodes in the next layer, n should be equal to the number of samples in the batch and m should be equal to the number of nodes in the previous layer");
                 };
 
                 // The total input of the layer is argument of the derivative of the activation function
-                let inputs_derivative = f.derivative(self.input.dot(&self.weights)?.add(&self.biases)?);
+                let inputs_derivative = f.derivative(self.input.dot(&self.weights)?.tensor_sum(&self.biases)?);
                 // The derivative of the activation function has to be reshaped to 2D since 1D tensors multiplication returns a scalar
                 let inputs_derivative = Tensor {
                     dimension: 2,
@@ -236,7 +301,7 @@ impl Layer {
                     data: inputs_derivative.data.clone(),
                 };
                 // The layer deltas are calculated as the dot product between the deltas of the next layer and the weights of the next layer, and then multiplied by the derivative of the activation function
-                let layer_deltas = deltas.dot(&next_weights.transpose()?)?.multiplication(&inputs_derivative)?;
+                let layer_deltas = deltas.dot(&next_weights.transpose()?)?.tensor_multiplication(&inputs_derivative)?;
 
                 // Weights gradients are calculated as the dot product between the inputs of the layer of the entire batch and the current (layer) deltas
                 let mut weights_gradients = all_outputs.dot(&layer_deltas)?;
@@ -255,7 +320,7 @@ impl Layer {
             }
         }
     }
-
+    
     fn __repr__(&self) -> String {
         format!("Layer (nodes: {})", self.nodes)
     }

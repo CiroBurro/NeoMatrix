@@ -83,7 +83,7 @@ impl CostFunction for MeanSquaredError {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
         let nomin = t
-            .subtract(&z)
+            .tensor_subtraction(&z)
             .expect("Tensors subtraction failed")
             .data
             .mapv(|x| x.powi(2))
@@ -150,7 +150,7 @@ impl CostFunction for MeanSquaredError {
         }
         let n = t.shape[0] as f64;
         let gradients = t
-            .subtract(&z)
+            .tensor_subtraction(&z)
             .expect("Tensors subtraction failed")
             .data
             .mapv(|x| -x * 2.0 / n);
@@ -172,7 +172,7 @@ impl CostFunction for MeanAbsoluteError {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
         let nomin = t
-            .subtract(&z)
+            .tensor_subtraction(&z)
             .expect("Tensors substraction failed")
             .data
             .mapv(|x| x.abs())
@@ -239,7 +239,7 @@ impl CostFunction for MeanAbsoluteError {
         }
         let n = t.shape[0] as f64;
         let gradients = t
-            .subtract(&z)
+            .tensor_subtraction(&z)
             .expect("Tensors substraction failed")
             .data
             .mapv(|x| -(x.abs() / x) / n);

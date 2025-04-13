@@ -135,7 +135,7 @@ impl Tensor {
         }
     }
 
-    /// Sum method for tensors
+    /// Element-wise sum method between tensors
     /// 
     /// Parameters:
     /// - t: The tensor to be added
@@ -143,12 +143,12 @@ impl Tensor {
     /// Python usage:
     /// ```python
     /// t_1 = Tensor([4], [2, 4, 6, 8])
-    /// t_2 = Tensor([4, 2], [1, 3, 5, 7, 9, 11, 13, 15])
-    /// result = t_1.add(t_2)
+    /// t_2 = Tensor([4], [1, 3, 5, 7])
+    /// result = t_1.tensor_sum(t_2)
     /// print(result)
-    /// print(result.data)
+    /// print(result.data) -> result: [3, 7, 11, 15]
     /// ```
-    pub fn add(&self, t: &Tensor) -> PyResult<Tensor> {
+    pub fn tensor_sum(&self, t: &Tensor) -> PyResult<Tensor> {
         // Check if the shapes are compatible for addition
         if self.shape != t.shape {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -162,8 +162,21 @@ impl Tensor {
             data: result.into_dyn(),
         })
     }
-
-    pub fn subtract(&self, t: &Tensor) -> PyResult<Tensor> {
+    
+    /// Element-wise subtraction method between tensors
+    ///
+    /// Parameters:
+    /// - t: The tensor to be subtracted
+    ///
+    /// Python usage:
+    /// ```python
+    /// t_1 = Tensor([4], [2, 4, 6, 8])
+    /// t_2 = Tensor([4], [1, 3, 5, 7])
+    /// result = t_1.add(t_2)
+    /// print(result)
+    /// print(result.data) -> result: [1, 1, 1, 1]
+    /// ```
+    pub fn tensor_subtraction(&self, t: &Tensor) -> PyResult<Tensor> {
         // Check if the shapes are compatible for addition
         if self.shape != t.shape {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -178,7 +191,20 @@ impl Tensor {
         })
     }
 
-    pub fn multiplication(&self, t: &Tensor) -> PyResult<Tensor> {
+    /// Element-wise multiplication method between tensors
+    ///
+    /// Parameters:
+    /// - t: The tensor to be multiplied
+    ///
+    /// Python usage:
+    /// ```python
+    /// t_1 = Tensor([4], [2, 4, 6, 8])
+    /// t_2 = Tensor([4], [1, 3, 5, 7])
+    /// result = t_1.add(t_2)
+    /// print(result)
+    /// print(result.data) -> result: [2, 12, 30, 56]
+    /// ```
+    pub fn tensor_multiplication(&self, t: &Tensor) -> PyResult<Tensor> {
         // Check if the shapes are compatible for addition
         if self.shape != t.shape {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -193,7 +219,20 @@ impl Tensor {
         })
     }
 
-    pub fn division(&self, t: &Tensor) -> PyResult<Tensor> {
+    /// Element-wise division method between tensors
+    ///
+    /// Parameters:
+    /// - t: The tensor to be divided
+    ///
+    /// Python usage:
+    /// ```python
+    /// t_1 = Tensor([4], [2, 4, 6, 8])
+    /// t_2 = Tensor([4], [1, 3, 5, 7])
+    /// result = t_1.add(t_2)
+    /// print(result)
+    /// print(result.data) -> result: [2, 4/3, 6/5, 8/7]
+    /// ```
+    pub fn tensor_division(&self, t: &Tensor) -> PyResult<Tensor> {
         // Check if the shapes are compatible for addition
         if self.shape != t.shape {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -208,6 +247,99 @@ impl Tensor {
         })
     }
 
+    /// Element-wise sum method between a tensor and a scalar
+    ///
+    /// Parameters:
+    /// - scalar: Scalar number to be added
+    ///
+    /// Python usage:
+    /// ```python
+    /// t = Tensor([4], [2, 4, 6, 8])
+    /// result = t_1.tensor_sum(3)
+    /// print(result)
+    /// print(result.data) -> result: [5, 7, 9, 11]
+    /// ```
+    pub fn scalar_sum(&self, scalar: f64) -> PyResult<Tensor> {
+        let result = &self.data + scalar;
+        Ok(Tensor {
+            dimension: result.ndim(),
+            shape: result.shape().to_vec(),
+            data: result.into_dyn(),
+        })
+    }
+
+    /// Element-wise subtraction method between a tensor and a scalar
+    ///
+    /// Parameters:
+    /// - scalar: Scalar number to be subtracted
+    ///
+    /// Python usage:
+    /// ```python
+    /// t = Tensor([4], [2, 4, 6, 8])
+    /// result = t_1.tensor_sum(3)
+    /// print(result)
+    /// print(result.data) -> result: [-1, 1, 3, 5]
+    /// ```
+    pub fn scalar_subtraction(&self, scalar: f64) -> PyResult<Tensor> {
+        let result = &self.data - scalar;
+        Ok(Tensor {
+            dimension: result.ndim(),
+            shape: result.shape().to_vec(),
+            data: result.into_dyn(),
+        })
+    }
+
+    /// Element-wise multiplication method between a tensor and a scalar
+    ///
+    /// Parameters:
+    /// - scalar: Scalar number to be multiplied
+    ///
+    /// Python usage:
+    /// ```python
+    /// t = Tensor([4], [2, 4, 6, 8])
+    /// result = t_1.tensor_sum(3)
+    /// print(result)
+    /// print(result.data) -> result: [6, 12, 18, 24]
+    /// ```
+    pub fn scalar_multiplication(&self, scalar: f64) -> PyResult<Tensor> {
+        let result = &self.data * scalar;
+        Ok(Tensor {
+            dimension: result.ndim(),
+            shape: result.shape().to_vec(),
+            data: result.into_dyn(),
+        })
+    }
+
+    /// Element-wise division method between a tensor and a scalar
+    ///
+    /// Parameters:
+    /// - scalar: Scalar number to be divided
+    ///
+    /// Python usage:
+    /// ```python
+    /// t = Tensor([4], [2, 4, 6, 8])
+    /// result = t_1.tensor_sum(3)
+    /// print(result)
+    /// print(result.data) -> result: [2/3, 4/3, 2, 8/3]
+    /// ```
+    pub fn scalar_division(&self, scalar: f64) -> PyResult<Tensor> {
+        let result = &self.data / scalar;
+        Ok(Tensor {
+            dimension: result.ndim(),
+            shape: result.shape().to_vec(),
+            data: result.into_dyn(),
+        })
+    }
+
+    /// Transpose method for 2D tensors
+    /// 
+    /// Python usage:
+    /// ```python
+    /// t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
+    /// result = t.transpose()
+    /// print(result) -> result Tensor(dimension=2, shape=[3, 2])
+    /// print(result.data) -> result: [[1, 4], [2, 5], [3, 6]]
+    /// ```
     pub fn transpose (&self) -> PyResult<Tensor> {
         // Check if the shapes are compatible for addition
         if self.dimension != 2 {
@@ -222,7 +354,7 @@ impl Tensor {
             data: result.into_dyn(),
         })
     }
-
+    
     fn __repr__(&self) -> String {
         format!("Tensor(dimension={}, shape={:?})", self.dimension, self.shape)
     }
