@@ -1,4 +1,5 @@
-from neomatrix import Tensor, Layer, Activation, Cost, get_cost, random_weights, random_biases
+from neomatrix import *
+
 
 input = Tensor([4], [1, 2, 3, 4])
 
@@ -11,15 +12,8 @@ print(z.data)
 
 t = Tensor([3], [0.1, 0.2, 0.7])
 
-batch_error = get_cost(Cost.HuberLoss, t, z, parallel=False, batch=False)
-
-
-print(batch_error)
-
-
-weights = random_biases(layer.nodes, (-0.5, 0.5))
-print(weights)
-print(weights.data)
+error = get_cost(Cost.BinaryCrossEntropy, t, z, parallel=False, batch=False)
+print(error)
 
 
 # concatenare due tensori
@@ -38,3 +32,6 @@ z_4 = Tensor([3], [1, 2, 5])
 z_5 = Tensor([3], [1, 2, 6])
 
 z = Tensor([5, 3], [*z_1.data, *z_2.data, *z_3.data, *z_4.data, *z_5.data])
+
+batch_error = get_cost(Cost.MeanAbsoluteError, t, z, parallel=True, batch=True)
+print(batch_error)

@@ -18,7 +18,7 @@ pub trait CostFunction: Send + Sync {
     fn function(&self, t: Tensor, z: Tensor) -> f64;
     fn function_batch(&self, t: Tensor, z: Tensor) -> f64;
     fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64;
-    fn derivative(&self, t: Tensor, z: Tensor) -> Tensor;
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor;
 }
 
 /// Python-accessible enum for cost function selection
@@ -65,6 +65,7 @@ pub fn get_cost(
         Cost::HuberLoss => Box::new(HuberLoss),
         Cost::HingeLoss => Box::new(HingeLoss),
     };
+    
     if !batch {
         f.function(t, z)
     } else if parallel {
@@ -144,19 +145,19 @@ impl CostFunction for MeanSquaredError {
             .sum();
         sum / m as f64
     }
-    fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
         let n = t.shape[0] as f64;
         let gradients = t
-            .tensor_subtraction(&z)
+            .tensor_subtraction(z)
             .expect("Tensors subtraction failed")
             .data
             .mapv(|x| -x * 2.0 / n);
         Tensor {
             dimension: 1,
-            shape: t.shape,
+            shape: t.shape.clone(),
             data: gradients,
         }
     }
@@ -233,7 +234,7 @@ impl CostFunction for MeanAbsoluteError {
             .sum();
         sum / m as f64
     }
-    fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
@@ -245,7 +246,7 @@ impl CostFunction for MeanAbsoluteError {
             .mapv(|x| -(x.abs() / x) / n);
         Tensor {
             dimension: 1,
-            shape: t.shape,
+            shape: t.shape.clone(),
             data: gradients,
         }
     }
@@ -327,7 +328,7 @@ impl CostFunction for BinaryCrossEntropy {
 
         sum / m as f64
     }
-    fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
@@ -340,7 +341,7 @@ impl CostFunction for BinaryCrossEntropy {
         Tensor {
             dimension: 1,
             shape: t.shape.clone(),
-            data: ArrayD::from_shape_vec(t.shape, gradients).unwrap(),
+            data: ArrayD::from_shape_vec(t.shape.clone(), gradients).unwrap(),
         }
     }
 }
@@ -424,7 +425,7 @@ impl CostFunction for HuberLoss {
             .sum();
         sum / m as f64
     }
-    fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
@@ -445,7 +446,7 @@ impl CostFunction for HuberLoss {
         Tensor {
             dimension: 1,
             shape: t.shape.clone(),
-            data: ArrayD::from_shape_vec(t.shape, gradients).unwrap(),
+            data: ArrayD::from_shape_vec(t.shape.clone(), gradients).unwrap(),
         }
     }
 }
@@ -520,7 +521,7 @@ impl CostFunction for HingeLoss {
             .sum();
         sum / m as f64
     }
-    fn derivative(&self, t: Tensor, z: Tensor) -> Tensor {
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
@@ -539,7 +540,7 @@ impl CostFunction for HingeLoss {
         Tensor {
             dimension: 1,
             shape: t.shape.clone(),
-            data: ArrayD::from_shape_vec(t.shape, gradients).unwrap(),
+            data: ArrayD::from_shape_vec(t.shape.clone(), gradients).unwrap(),
         }
     }
 }

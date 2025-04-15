@@ -15,7 +15,7 @@ use pyo3::prelude::*;
 pub trait ActivationFunction: Send + Sync {
     fn function(&self, t: Tensor) -> Tensor;
     fn par_function(&self, t: Tensor) -> Tensor;
-    fn derivative(&self, t: Tensor) -> Tensor;
+    fn derivative(&self, t: &mut Tensor) -> Tensor;
 }
 
 /// Python-accessible enum for activation function selection
@@ -54,14 +54,14 @@ impl ActivationFunction for Relu {
             data: t.data,
         }
     }
-    fn derivative(&self, mut t: Tensor) -> Tensor {
+    fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = 1;
-        let shape = t.shape;
+        let shape = t.shape.clone();
         t.data.mapv_inplace(|x| if x > 0.0 { 1.0 } else { 0.0 });
         Tensor {
             dimension,
             shape,
-            data: t.data,
+            data: t.data.to_owned(),
         }
     }
 }
@@ -90,14 +90,14 @@ impl ActivationFunction for Sigmoid {
             data: t.data,
         }
     }
-    fn derivative(&self, mut t: Tensor) -> Tensor {
+    fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = 1;
-        let shape = t.shape;
+        let shape = t.shape.clone();
         t.data.mapv_inplace(|x| x * (1.0 - x));
         Tensor {
             dimension,
             shape,
-            data: t.data,
+            data: t.data.to_owned(),
         }
     }
 }
@@ -126,14 +126,14 @@ impl ActivationFunction for Tanh {
             data: t.data,
         }
     }
-    fn derivative(&self, mut t: Tensor) -> Tensor {
+    fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = 1;
-        let shape = t.shape;
+        let shape = t.shape.clone();
         t.data.mapv_inplace(|x| 1.0 - x.tanh().powf(2.0));
         Tensor {
             dimension,
             shape,
-            data: t.data,
+            data: t.data.to_owned(),
         }
     }
 }
@@ -164,7 +164,7 @@ impl ActivationFunction for Softmax {
             data: t.data,
         }
     }
-    fn derivative(&self, t: Tensor) -> Tensor {
+    fn derivative(&self, t: &mut Tensor) -> Tensor {
         let s = self.function(t.clone()).data;
         let n = s.len();
         let mut jacobian_data = Array2::<f64>::zeros((n, n));
