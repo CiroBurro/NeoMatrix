@@ -2,7 +2,7 @@
 /// and provides methods for the forward and backward propagation in each layer.
 /// It uses the Tensor struct for manipulating the data
 /// Necessary imports
-use ndarray::{Axis, Ix2};
+use ndarray::{s, Axis, Ix2};
 use pyo3::prelude::*;
 use crate::structures::tensor::Tensor;
 use crate::utils::weights_biases::{random_weights, random_biases};
@@ -40,19 +40,6 @@ fn select_activation(l: &Layer) -> Box<dyn ActivationFunction> {
     }
 }
 
-#[pyfunction]
-fn get_output_deltas(l: Layer, cost: Cost, t: &mut Tensor, z: &Tensor) -> Tensor {
-    let activation_derivative = select_activation(&l).derivative(t);
-    let cost_derivative = match cost {
-        Cost::MeanSquaredError => MeanSquaredError.derivative(t, z),
-        Cost::MeanAbsoluteError => MeanAbsoluteError.derivative(t, z),
-        Cost::BinaryCrossEntropy => BinaryCrossEntropy.derivative(t, z),
-        Cost::HuberLoss => HuberLoss.derivative(t, z),
-        Cost::HingeLoss => HingeLoss.derivative(t, z),
-    };
-    
-    cost_derivative.tensor_multiplication(&activation_derivative).unwrap()
-}
 
 /// Layer struct implementation
 #[pymethods]
@@ -118,9 +105,9 @@ impl Layer {
 
         // Forward prop algorithm
         if parallel {
-            self.output = f.par_function(self.input.dot(&self.weights)?.tensor_sum(&self.biases)?);
+            self.output = f.par_function(&mut self.input.dot(&self.weights).unwrap().tensor_sum(&self.biases)?);
         } else {
-            self.output = f.function(self.input.dot(&self.weights)?.tensor_sum(&self.biases)?);
+            self.output = f.function(&mut self.input.dot(&self.weights).unwrap().tensor_sum(&self.biases)?);
         }
 
         Ok(self.output.clone())
@@ -334,6 +321,57 @@ impl Layer {
 
             }
         }
+    }
+
+    /// Method to get the output deltas of the layer
+    /// 
+    /// Parameters:
+    /// - cost: cost function structure used to calculate the error
+    /// - t: a 1D or 2D tensor containing the output of the layer
+    /// - z: a 1D or 2D tensor containing the expected output of the layer
+    /// 
+    /// Python usage:
+    ///```python
+    /// output_deltas = layer.get_output_deltas(Cost.MeanSquaredError, t, z)
+    /// ```
+    fn get_output_deltas(&self, cost: Cost, t: &mut Tensor, z: &Tensor) -> PyResult<Tensor> {
+
+        // Optimization for the case of binary cross entropy with softmax activation
+        if matches!(cost, Cost::BinaryCrossEntropy) && matches!(self.activation, Activation::Softmax) {
+            return z.tensor_subtraction(t) // Deltas are just the difference
+        }
+
+        // Derivatives calculus
+        let activation_derivative = select_activation(self).derivative(t);
+        let cost_derivative = match cost {
+            Cost::MeanSquaredError => MeanSquaredError.derivative(t, z),
+            Cost::MeanAbsoluteError => MeanAbsoluteError.derivative(t, z),
+            Cost::BinaryCrossEntropy => BinaryCrossEntropy.derivative(t, z),
+            Cost::HuberLoss => HuberLoss.derivative(t, z),
+            Cost::HingeLoss => HingeLoss.derivative(t, z),
+        };
+
+        // Softmax derivative of one sample returns a matrix, the result of an entire batch is a 3D tensor
+        // So it's not possible to perform elementwise multiplication, deltas are the dot product between 1D/2D tensor of cost function derivative and 2D/3D tensor of softmax derivative
+        if matches!(self.activation, Activation::Softmax) && t.dimension == 1 {
+            return activation_derivative.dot(&cost_derivative)
+            
+        } else if matches!(self.activation, Activation::Softmax) && t.dimension == 2 {
+            let batch_size = t.shape[0];
+            let mut all_deltas = Tensor::zeros(vec![batch_size, self.nodes]);
+            
+            // 3D dot product is not supported
+            for i in 0..batch_size {
+                let activation_derivative_i = activation_derivative.data.slice(s![i, .., ..]);
+                let cost_derivative_i = cost_derivative.data.slice(s![i, ..]);
+                let delta_i = activation_derivative_i.dot(&cost_derivative_i);
+                all_deltas.data.slice_mut(s![i, ..]).assign(&delta_i);
+            }
+            return Ok(all_deltas)
+        }
+
+        // In all other combinations of cost and activation function deltas = cost function derivative * activation function derivative
+        cost_derivative.tensor_multiplication(&activation_derivative)
     }
     
     fn __repr__(&self) -> String {

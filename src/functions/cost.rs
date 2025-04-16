@@ -15,9 +15,60 @@ use pyo3::prelude::*;
 /// - par_function_batch: Parallel computation for batch of samples
 /// - derivative: Derivative computation for backpropagation
 pub trait CostFunction: Send + Sync {
-    fn function(&self, t: Tensor, z: Tensor) -> f64;
-    fn function_batch(&self, t: Tensor, z: Tensor) -> f64;
-    fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64;
+    fn function(&self, t: &Tensor, z: &Tensor) -> f64;
+    fn function_batch(&self, t: &Tensor, z: &Tensor) -> f64 {
+        if t.shape != z.shape || t.dimension != 2 {
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
+        }
+
+        let (m, _) = (t.shape[0], t.shape[1]);
+        let sum: f64 = t
+            .data
+            .axis_iter(Axis(0))
+            .zip(z.data.axis_iter(Axis(0)))
+            .map(|(t_i, z_i)| {
+                let t_i = Tensor {
+                    dimension: 1,
+                    shape: vec![t.shape[1]],
+                    data: t_i.to_owned(),
+                };
+                let z_i = Tensor {
+                    dimension: 1,
+                    shape: vec![z.shape[1]],
+                    data: z_i.to_owned(),
+                };
+                self.function(&t_i, &z_i)
+            })
+            .sum();
+        sum / m as f64
+    }
+    fn par_function_batch(&self, t: &Tensor, z: &Tensor) -> f64 {
+        if t.shape != z.shape || t.dimension != 2 {
+            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
+        }
+
+        let (m, _) = (t.shape[0], t.shape[1]);
+        let sum: f64 = t
+            .data
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
+            .map(|(t_i, z_i)| {
+                let t_i = Tensor {
+                    dimension: 1,
+                    shape: vec![t.shape[1]],
+                    data: t_i.to_owned(),
+                };
+                let z_i = Tensor {
+                    dimension: 1,
+                    shape: vec![z.shape[1]],
+                    data: z_i.to_owned(),
+                };
+                self.function(&t_i, &z_i)
+            })
+            .sum();
+        sum / m as f64
+    }
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor;
 }
 
@@ -51,8 +102,8 @@ pub enum Cost {
 #[pyfunction]
 pub fn get_cost(
     cost: Cost,
-    t: Tensor,
-    z: Tensor,
+    t: &Tensor,
+    z: &Tensor,
     parallel: Option<bool>,
     batch: Option<bool>,
 ) -> f64 {
@@ -79,12 +130,12 @@ pub fn get_cost(
 /// f(t,z) = (1/n) * Σ(t_i - z_i)^2
 pub struct MeanSquaredError;
 impl CostFunction for MeanSquaredError {
-    fn function(&self, t: Tensor, z: Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
         let nomin = t
-            .tensor_subtraction(&z)
+            .tensor_subtraction(z)
             .expect("Tensors subtraction failed")
             .data
             .mapv(|x| x.powi(2))
@@ -92,59 +143,7 @@ impl CostFunction for MeanSquaredError {
         let denom = t.shape[0] as f64;
         nomin / denom
     }
-    fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
-        }
-
-        let (m, _) = (t.shape[0], t.shape[1]);
-        let sum: f64 = t
-            .data
-            .axis_iter(Axis(0))
-            .zip(z.data.axis_iter(Axis(0)))
-            .map(|(t_i, z_i)| {
-                let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
-                    data: t_i.to_owned(),
-                };
-                let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
-                    data: z_i.to_owned(),
-                };
-                self.function(t_i, z_i)
-            })
-            .sum();
-        sum / m as f64
-    }
-    fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
-        }
-
-        let (m, _) = (t.shape[0], t.shape[1]);
-        let sum: f64 = t
-            .data
-            .axis_iter(Axis(0))
-            .into_par_iter()
-            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
-            .map(|(t_i, z_i)| {
-                let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
-                    data: t_i.to_owned(),
-                };
-                let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
-                    data: z_i.to_owned(),
-                };
-                self.function(t_i, z_i)
-            })
-            .sum();
-        sum / m as f64
-    }
+    
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
@@ -168,80 +167,28 @@ impl CostFunction for MeanSquaredError {
 /// f(t,z) = (1/n) * Σ|t_i - z_i|
 pub struct MeanAbsoluteError;
 impl CostFunction for MeanAbsoluteError {
-    fn function(&self, t: Tensor, z: Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
         let nomin = t
-            .tensor_subtraction(&z)
-            .expect("Tensors substraction failed")
+            .tensor_subtraction(z)
+            .expect("Tensors subtraction failed")
             .data
             .mapv(|x| x.abs())
             .sum();
         let denom = t.shape[0] as f64;
         nomin / denom
     }
-    fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
-        }
-
-        let (m, _) = (t.shape[0], t.shape[1]);
-        let sum: f64 = t
-            .data
-            .axis_iter(Axis(0))
-            .zip(z.data.axis_iter(Axis(0)))
-            .map(|(t_i, z_i)| {
-                let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
-                    data: t_i.to_owned(),
-                };
-                let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
-                    data: z_i.to_owned(),
-                };
-                self.function(t_i, z_i)
-            })
-            .sum();
-        sum / m as f64
-    }
-    fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
-        }
-
-        let (m, _) = (t.shape[0], t.shape[1]);
-        let sum: f64 = t
-            .data
-            .axis_iter(Axis(0))
-            .into_par_iter()
-            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
-            .map(|(t_i, z_i)| {
-                let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
-                    data: t_i.to_owned(),
-                };
-                let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
-                    data: z_i.to_owned(),
-                };
-                self.function(t_i, z_i)
-            })
-            .sum();
-        sum / m as f64
-    }
+    
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
         let n = t.shape[0] as f64;
         let gradients = t
-            .tensor_subtraction(&z)
-            .expect("Tensors substraction failed")
+            .tensor_subtraction(z)
+            .expect("Tensors subtraction failed")
             .data
             .mapv(|x| -(x.abs() / x) / n);
         Tensor {
@@ -256,7 +203,7 @@ impl CostFunction for MeanAbsoluteError {
 /// f(t,z) = -(1/n) * Σ(t_i * log(z_i) + (1-t_i) * log(1-z_i))
 pub struct BinaryCrossEntropy;
 impl CostFunction for BinaryCrossEntropy {
-    fn function(&self, t: Tensor, z: Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
@@ -271,63 +218,7 @@ impl CostFunction for BinaryCrossEntropy {
 
         sum * (-1.0) / t.shape[0] as f64
     }
-    fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
-        }
-
-        let (m, _) = (t.shape[0], t.shape[1]);
-
-        let sum: f64 = t
-            .data
-            .axis_iter(Axis(0))
-            .zip(z.data.axis_iter(Axis(0)))
-            .map(|(t_i, z_i)| {
-                let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
-                    data: t_i.to_owned(),
-                };
-                let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
-                    data: z_i.to_owned(),
-                };
-                self.function(t_i, z_i)
-            })
-            .sum();
-
-        sum / m as f64
-    }
-    fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
-        }
-
-        let (m, _) = (t.shape[0], t.shape[1]);
-
-        let sum: f64 = t
-            .data
-            .axis_iter(Axis(0))
-            .into_par_iter()
-            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
-            .map(|(t_i, z_i)| {
-                let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
-                    data: t_i.to_owned(),
-                };
-                let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
-                    data: z_i.to_owned(),
-                };
-                self.function(t_i, z_i)
-            })
-            .sum();
-
-        sum / m as f64
-    }
+    
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
@@ -352,7 +243,7 @@ impl CostFunction for BinaryCrossEntropy {
 ///                 δ|x| - 0.5δ^2 if |x| > δ
 pub struct HuberLoss;
 impl CostFunction for HuberLoss {
-    fn function(&self, t: Tensor, z: Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
@@ -374,57 +265,7 @@ impl CostFunction for HuberLoss {
 
         sum / t.shape[0] as f64
     }
-    fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
-        }
-        let (m, _) = (t.shape[0], t.shape[1]);
-        let sum: f64 = t
-            .data
-            .axis_iter(Axis(0))
-            .zip(z.data.axis_iter(Axis(0)))
-            .map(|(t_i, z_i)| {
-                let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
-                    data: t_i.to_owned(),
-                };
-                let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
-                    data: z_i.to_owned(),
-                };
-                self.function(t_i, z_i)
-            })
-            .sum();
-        sum / m as f64
-    }
-    fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
-        }
-        let (m, _) = (t.shape[0], t.shape[1]);
-        let sum: f64 = t
-            .data
-            .axis_iter(Axis(0))
-            .into_par_iter()
-            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
-            .map(|(t_i, z_i)| {
-                let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
-                    data: t_i.to_owned(),
-                };
-                let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
-                    data: z_i.to_owned(),
-                };
-                self.function(t_i, z_i)
-            })
-            .sum();
-        sum / m as f64
-    }
+
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
@@ -455,7 +296,7 @@ impl CostFunction for HuberLoss {
 /// f(t,z) = (1/n) * Σ max(0, 1 - t_i * z_i)
 pub struct HingeLoss;
 impl CostFunction for HingeLoss {
-    fn function(&self, t: Tensor, z: Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
@@ -469,58 +310,7 @@ impl CostFunction for HingeLoss {
 
         sum / t.shape[0] as f64
     }
-    fn function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
-        }
-        let (m, _) = (t.shape[0], t.shape[1]);
-        let sum: f64 = t
-            .data
-            .axis_iter(Axis(0))
-            .zip(z.data.axis_iter(Axis(0)))
-            .map(|(t_i, z_i)| {
-                let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
-                    data: t_i.to_owned(),
-                };
-                let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
-                    data: z_i.to_owned(),
-                };
-                self.function(t_i, z_i)
-            })
-            .sum();
-        sum / m as f64
-    }
-    fn par_function_batch(&self, t: Tensor, z: Tensor) -> f64 {
-        if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
-        }
-
-        let (m, _) = (t.shape[0], t.shape[1]);
-        let sum: f64 = t
-            .data
-            .axis_iter(Axis(0))
-            .into_par_iter()
-            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
-            .map(|(t_i, z_i)| {
-                let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
-                    data: t_i.to_owned(),
-                };
-                let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
-                    data: z_i.to_owned(),
-                };
-                self.function(t_i, z_i)
-            })
-            .sum();
-        sum / m as f64
-    }
+    
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
