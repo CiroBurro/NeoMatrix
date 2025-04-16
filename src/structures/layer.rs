@@ -58,14 +58,15 @@ impl Layer {
     /// layer = Layer(4, input, Activation.Relu)
     /// ```
     #[new]
-    fn new(nodes: usize, input: Tensor, activation: Activation) -> Self {
-        let weights = random_weights(input.data.len(), nodes, (-1.0, 1.0));
+    fn new(nodes: usize, input_len: usize, activation: Activation) -> Self {
+        let weights = random_weights(input_len, nodes, (-1.0, 1.0));
         let biases = random_biases(nodes, (-1.0, 1.0));
+        let input_placeholder = Tensor::zeros(vec![input_len]);
         let output_placeholder = Tensor::zeros(vec![nodes]);
 
         Self {
             nodes,
-            input,
+            input: input_placeholder,
             output: output_placeholder,
             weights,
             biases,
@@ -82,7 +83,9 @@ impl Layer {
     ///```python
     /// output = layer.forward(parallel=True)
     /// ```
-    fn forward(&mut self, parallel: bool) -> PyResult<Tensor> {
+    fn forward(&mut self, input: Tensor, parallel: bool) -> PyResult<Tensor> {
+        self.input = input;
+        
         // Check compatibility between dimensions
         if self.input.dimension != 1 || self.weights.dimension != 2 || self.biases.dimension != 1 {
             panic!("Layer field have wrong dimensions, expected: input (1D), weights (2D), biases (1D)");
@@ -147,12 +150,12 @@ impl Layer {
                 let inputs = Tensor {
                     dimension: 2,
                     shape: vec![self.input.shape[0], 1],
-                    data: self.input.data.clone(),
+                    data: self.input.data.clone().to_shape(vec![self.input.shape[0], 1]).unwrap().into_owned(),
                 };
                 let out_deltas = Tensor {
                     dimension: 2,
                     shape: vec![1, deltas.shape[0]],
-                    data: deltas.data.clone(),
+                    data: deltas.data.clone().to_shape(vec![1, deltas.shape[0]]).unwrap().into_owned(),
                 };
 
                 // Weights gradients are calculated as the dot product between the inputs of the layer and the deltas
@@ -352,7 +355,6 @@ impl Layer {
         };
 
         // Softmax derivative of one sample returns a matrix, the result of an entire batch is a 3D tensor
-        // So it's not possible to perform elementwise multiplication, deltas are the dot product between 1D/2D tensor of cost function derivative and 2D/3D tensor of softmax derivative
         if matches!(self.activation, Activation::Softmax) && t.dimension == 1 {
             return activation_derivative.dot(&cost_derivative)
             

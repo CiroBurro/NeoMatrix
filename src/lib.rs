@@ -1,6 +1,7 @@
 pub mod structures;
 pub mod functions;
 pub mod utils;
+mod optimization;
 
 use pyo3::prelude::*;
 use structures::{

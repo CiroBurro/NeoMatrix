@@ -34,7 +34,12 @@ pub struct Relu;
 impl ActivationFunction for Relu {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = vec![t.shape[0], t.shape[1]];
+        let shape = match t.dimension {
+            1 => vec![t.shape[0]],
+            2 => vec![t.shape[0], t.shape[1]],
+            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
+            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
+        };
         t.data.mapv_inplace(|x| x.max(0.0));
 
         Tensor {
@@ -45,7 +50,12 @@ impl ActivationFunction for Relu {
     }
     fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = vec![t.shape[0], t.shape[1]];
+        let shape = match t.dimension {
+            1 => vec![t.shape[0]],
+            2 => vec![t.shape[0], t.shape[1]],
+            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
+            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
+        };
         t.data.par_mapv_inplace(|x| x.max(0.0));
 
         Tensor {
@@ -56,7 +66,12 @@ impl ActivationFunction for Relu {
     }
     fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = vec![t.shape[0], t.shape[1]];
+        let shape = match t.dimension {
+            1 => vec![t.shape[0]],
+            2 => vec![t.shape[0], t.shape[1]],
+            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
+            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
+        };
         t.data.mapv_inplace(|x| if x > 0.0 { 1.0 } else { 0.0 });
         Tensor {
             dimension,
@@ -72,7 +87,12 @@ pub struct Sigmoid;
 impl ActivationFunction for Sigmoid {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = vec![t.shape[0], t.shape[1]];
+        let shape = match t.dimension {
+            1 => vec![t.shape[0]],
+            2 => vec![t.shape[0], t.shape[1]],
+            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
+            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
+        };
         t.data.mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
         Tensor {
             dimension,
@@ -82,7 +102,12 @@ impl ActivationFunction for Sigmoid {
     }
     fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = vec![t.shape[0], t.shape[1]];
+        let shape = match t.dimension {
+            1 => vec![t.shape[0]],
+            2 => vec![t.shape[0], t.shape[1]],
+            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
+            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
+        };
         t.data.par_mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
         Tensor {
             dimension,
@@ -92,7 +117,12 @@ impl ActivationFunction for Sigmoid {
     }
     fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = vec![t.shape[0], t.shape[1]];
+        let shape = match t.dimension {
+            1 => vec![t.shape[0]],
+            2 => vec![t.shape[0], t.shape[1]],
+            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
+            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
+        };
         t.data.mapv_inplace(|x| x * (1.0 - x));
         Tensor {
             dimension,
@@ -108,7 +138,12 @@ pub struct Tanh;
 impl ActivationFunction for Tanh {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = vec![t.shape[0], t.shape[1]];
+        let shape = match t.dimension {
+            1 => vec![t.shape[0]],
+            2 => vec![t.shape[0], t.shape[1]],
+            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
+            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
+        };
         t.data.mapv_inplace(|x| x.tanh());
         Tensor {
             dimension,
@@ -118,7 +153,12 @@ impl ActivationFunction for Tanh {
     }
     fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = vec![t.shape[0], t.shape[1]];
+        let shape = match t.dimension {
+            1 => vec![t.shape[0]],
+            2 => vec![t.shape[0], t.shape[1]],
+            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
+            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
+        };
         t.data.par_mapv_inplace(|x| x.tanh());
         Tensor {
             dimension,
@@ -128,7 +168,12 @@ impl ActivationFunction for Tanh {
     }
     fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = vec![t.shape[0], t.shape[1]];
+        let shape = match t.dimension {
+            1 => vec![t.shape[0]],
+            2 => vec![t.shape[0], t.shape[1]],
+            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
+            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
+        };
         t.data.mapv_inplace(|x| 1.0 - x.tanh().powf(2.0));
         Tensor {
             dimension,
@@ -144,7 +189,12 @@ pub struct Softmax;
 impl ActivationFunction for Softmax {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = vec![t.shape[0], t.shape[1]];
+        let shape = match t.dimension {
+            1 => vec![t.shape[0]],
+            2 => vec![t.shape[0], t.shape[1]],
+            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
+            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
+        };
         let denom = t.data.mapv(|x| x.exp()).sum();
         t.data.mapv_inplace(|x| x.exp() / denom);
         Tensor {
@@ -155,7 +205,12 @@ impl ActivationFunction for Softmax {
     }
     fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = vec![t.shape[0], t.shape[1]];
+        let shape = match t.dimension {
+            1 => vec![t.shape[0]],
+            2 => vec![t.shape[0], t.shape[1]],
+            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
+            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
+        };
         let denom = t.data.mapv(|x| x.exp()).sum();
         t.data.par_mapv_inplace(|x| x.exp() / denom);
         Tensor {
