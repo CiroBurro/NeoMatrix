@@ -5,11 +5,23 @@ build-backend = "maturin"
 [project]
 name = "neomatrix"
 requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.24.4",
+]
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
+
 [tool.maturin]
 features = ["pyo3/extension-module"]
+module-name = "rustybrain"
+
+[tool.uv]
+cache-keys = [
+	{ file = "pyproject.toml" },
+	{ file = "Cargo.toml" },
+	{ file = "**/*.rs" }
+]

@@ -12,15 +12,13 @@ use functions::{
     activation::Activation,
     cost::{get_cost, Cost},
 };
-use utils::{
-    weights_biases::{random_weights, random_biases},
-};
+use utils::weights_biases::{random_weights, random_biases};
 
 
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn neomatrix(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn rustybrain(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Tensor>()?;
     m.add_class::<Layer>()?;
     m.add_class::<Activation>()?;

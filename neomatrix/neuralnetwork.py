@@ -1,4 +1,4 @@
-from neomatrix import Layer, Tensor, Activation, get_cost, Cost
+from rustybrain import Tensor, Layer, Activation, get_cost, Cost
 
 class NeuralNetwork:
     def __init__(self, inputs: Tensor, layers: [Layer], cost_function: Cost):

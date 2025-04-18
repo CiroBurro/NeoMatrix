@@ -1,5 +1,4 @@
-use pyo3::{pyclass, pyfunction, pymethods};
-use crate::structures::tensor::Tensor;
+use pyo3::pyclass;
 
 #[pyclass]
 pub enum Optimizer {
