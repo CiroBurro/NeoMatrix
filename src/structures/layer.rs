@@ -251,12 +251,12 @@ impl Layer {
                 let inputs = Tensor {
                     dimension: 2,
                     shape: vec![self.input.shape[0], 1],
-                    data: self.input.data.clone(),
+                    data: self.input.data.clone().to_shape(vec![self.input.shape[0], 1]).unwrap().into_owned(),
                 };
                 let out_deltas = Tensor {
                     dimension: 2,
                     shape: vec![1, layer_deltas.shape[0]],
-                    data: layer_deltas.data.clone(),
+                    data: layer_deltas.data.clone().to_shape(vec![1, layer_deltas.shape[0]]).unwrap().into_owned(),
                 };
 
                 // Weights gradients are calculated as the dot product between the inputs of the layer and the current (layer) deltas
