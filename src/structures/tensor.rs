@@ -40,7 +40,7 @@ impl Tensor {
     /// t = Tensor([2, 2, 3], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 12])
     /// ```
     #[new]
-    fn new(shape: Vec<usize>, content: Vec<f64>) -> Self {
+    pub fn new(shape: Vec<usize>, content: Vec<f64>) -> Self {
         let dimension = shape.len();
         let data = match Array::from_shape_vec(shape.clone(), content) {
             Ok(array) => array,

@@ -58,7 +58,7 @@ impl Layer {
     /// layer = Layer(4, input, Activation.Relu)
     /// ```
     #[new]
-    fn new(nodes: usize, input_len: usize, activation: Activation) -> Self {
+    pub fn new(nodes: usize, input_len: usize, activation: Activation) -> Self {
         let weights = random_weights(input_len, nodes, (-1.0, 1.0));
         let biases = random_biases(nodes, (-1.0, 1.0));
         let input_placeholder = Tensor::zeros(vec![input_len]);
@@ -83,7 +83,7 @@ impl Layer {
     ///```python
     /// output = layer.forward(parallel=True)
     /// ```
-    fn forward(&mut self, input: Tensor, parallel: bool) -> PyResult<Tensor> {
+    pub fn forward(&mut self, input: Tensor, parallel: bool) -> PyResult<Tensor> {
         self.input = input;
         
         // Check compatibility between dimensions
