@@ -156,6 +156,84 @@ mod tests {
         assert_eq!(result.data[[2, 1]], 6.0);
     }
 
+    #[test]
+    fn test_tensor_reshape() {
+        // Test tensor reshape
+        let mut t = Tensor::new(vec![2, 2], vec![1.0, 2.0, 3.0, 4.0]);
+
+        t.reshape(vec![4]);
+
+        assert_eq!(t.dimension, 1);
+        assert_eq!(t.shape, vec![4]);
+        assert_eq!(t.data[0], 1.0);
+        assert_eq!(t.data[1], 2.0);
+        assert_eq!(t.data[2], 3.0);
+        assert_eq!(t.data[3], 4.0);
+    }
+
+    #[test]
+    fn test_tensor_flatten() {
+        // Test tensor flatten
+        let mut t = Tensor::new(vec![2, 2, 2], vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+
+        t.flatten();
+
+        assert_eq!(t.dimension, 1);
+        assert_eq!(t.shape, vec![8]);
+        assert_eq!(t.data[0], 1.0);
+        assert_eq!(t.data[1], 2.0);
+        assert_eq!(t.data[2], 3.0);
+        assert_eq!(t.data[3], 4.0);
+        assert_eq!(t.data[4], 5.0);
+        assert_eq!(t.data[5], 6.0);
+        assert_eq!(t.data[6], 7.0);
+        assert_eq!(t.data[7], 8.0);
+        
+    }
+
+    #[test]
+    fn test_tensor_cat() {
+        // Test tensor cat
+        let t_1 = Tensor::new(vec![2], vec![1.0, 2.0]);
+        let t_2 = Tensor::new(vec![2], vec![3.0, 4.0]);
+        let t_3 = Tensor::new(vec![2], vec![5.0, 6.0]);
+        let t_4 = Tensor::new(vec![2], vec![7.0, 8.0]);
+
+        let t = t_1.cat(vec![t_2, t_3, t_4], 0).unwrap();
+
+        assert_eq!(t.dimension, 1);
+        assert_eq!(t.shape, vec![8]);
+        assert_eq!(t.data[0], 1.0);
+        assert_eq!(t.data[1], 2.0);
+        assert_eq!(t.data[2], 3.0);
+        assert_eq!(t.data[3], 4.0);
+        assert_eq!(t.data[4], 5.0);
+        assert_eq!(t.data[5], 6.0);
+        assert_eq!(t.data[6], 7.0);
+        assert_eq!(t.data[7], 8.0);
+    }
+
+    #[test]
+    fn test_tensor_push_row() {
+        // Test tensor row
+        let mut t = Tensor::new(vec![2, 3], vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let t_2 = Tensor::new(vec![3], vec![7.0, 8.0, 9.0]);
+
+        t.push_row(&t_2);
+
+        assert_eq!(t.dimension, 2);
+        assert_eq!(t.shape, vec![3, 3]);
+        assert_eq!(t.data[[0, 0]], 1.0);
+        assert_eq!(t.data[[0, 1]], 2.0);
+        assert_eq!(t.data[[0, 2]], 3.0);
+        assert_eq!(t.data[[1, 0]], 4.0);
+        assert_eq!(t.data[[1, 1]], 5.0);
+        assert_eq!(t.data[[1, 2]], 6.0);
+        assert_eq!(t.data[[2, 0]], 7.0);
+        assert_eq!(t.data[[2, 1]], 8.0);
+        assert_eq!(t.data[[2, 2]], 9.0);
+    }
+
     // Layer Tests
     #[test]
     fn test_layer_creation() {
@@ -219,6 +297,22 @@ mod tests {
         assert_eq!(output.shape, vec![nodes]);
         assert!(f64::abs(output.data[0] - 2.3) < 1e-10);
         assert!(f64::abs(output.data[1] - 3.0) < 1e-10);
+    }
+
+    #[test]
+    fn test_layer_forward_batch() {
+        let mut t_1 = Tensor::new(vec![3], vec![1.0, 1.0, 1.0]);
+        let t_2 = Tensor::new(vec![3], vec![2.0, 2.0, 2.0]);
+        let t_3 = Tensor::new(vec![3], vec![3.0, 3.0, 3.0]);
+
+        t_1.push_row(&t_2);
+        t_1.push_row(&t_3);
+
+        let mut layer = Layer::new(2, t_1.shape[1], Activation::Softmax);
+
+        let output = layer.forward_batch(t_1, true).unwrap();
+        println!("{:#?}", output.data);
+        println!("{:#?}", layer.output.data);
     }
 
     // Activation Function Tests

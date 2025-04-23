@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use pyo3::Bound;
 use ndarray::prelude::*;
 use ndarray::{Ix1, Ix2};
-use numpy::{ToPyArray, PyArrayDyn};
+use numpy::{prelude::*, PyArrayDyn, PyReadonlyArrayDyn};
 use crate::utils::matmul::par_dot;
 
 /// Tensor struct definition
@@ -71,6 +71,41 @@ impl Tensor {
     #[getter]
     fn get_data<'py>(&self, py: Python<'py>) -> Bound<'py, PyArrayDyn<f64>> {
         self.data.to_pyarray(py)
+    }
+
+    /// Setter method for the data field
+    /// It allows to set the data field from python with a numpy array
+    #[setter]
+    fn set_data<'py>(&mut self, arr: PyReadonlyArrayDyn<'py, f64>) -> PyResult<()> {
+        let owned = arr.as_array().to_owned();
+        self.data = owned;
+        Ok(())
+    }
+
+    /// Constructor method for the Tensor class from a numpy array
+    /// 
+    /// Parameters:
+    /// - arr: A dynamic numpy array 
+    /// 
+    /// Python usage:
+    /// ```python
+    /// import numpy as np
+    /// from neomatrix import Tensor
+    /// arr = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float64)
+    /// t = Tensor.from_numpy(arr)
+    /// ```
+    #[staticmethod]
+    pub fn from_numpy<'py>(arr: PyReadonlyArrayDyn<'py, f64>) -> PyResult<Tensor> {
+        let owned = arr.as_array().to_owned();
+        let dimension = owned.ndim();
+        let shape = owned.shape().to_vec();
+
+        let t = Self {
+            dimension,
+            shape,
+            data: owned
+        };
+        Ok(t)
     }
 
     /// Dot product method for 1D and 2D tensors
@@ -340,7 +375,7 @@ impl Tensor {
     /// print(result) -> result Tensor(dimension=2, shape=[3, 2])
     /// print(result.data) -> result: [[1, 4], [2, 5], [3, 6]]
     /// ```
-    pub fn transpose (&self) -> PyResult<Tensor> {
+    pub fn transpose(&self) -> PyResult<Tensor> {
         // Check if the shapes are compatible for addition
         if self.dimension != 2 {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -354,7 +389,155 @@ impl Tensor {
             data: result.into_dyn(),
         })
     }
+
+    /// Reshape method for Tensor
+    /// 
+    /// Parameters:
+    /// - shape: Vector representing the new shape
+    /// 
+    /// Python usage:
+    /// ```python
+    /// from neomatrix import Tensor
+    /// t = Tensor([2, 2], [1, 2, 3, 4])
+    /// t.reshape([4])
+    /// ```
+    pub fn reshape(&mut self, sh: Vec<usize>) {
+        self.shape = sh.clone();
+        self.dimension = sh.len();
+        self.data = self.data.to_owned().into_shape_with_order(sh).expect("Incompatible shape");
+    }
+
+    /// Flatten method for Tensor
+    /// 
+    /// Python usage:
+    /// ```python
+    /// from neomatrix import Tensor
+    /// t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
+    /// t.flatten()
+    /// ```
+    pub fn flatten(&mut self) {
+        let flattened_data = self.data.flatten();
+        self.shape = flattened_data.shape().to_vec();
+        self.dimension = flattened_data.ndim();
+        self.data = flattened_data.to_owned().into_dyn();
+    }
+
+    /// Concatenate method for 2 tensor
+    /// One tensor is pushed into the other
+    /// 
+    /// Parameters:
+    /// - t: tensor to be pushed
+    /// - axis: index of the axe along which tensors should be concatenated
+    /// 
+    /// Python usage:
+    /// ```python
+    /// t_1 = Tensor([4], [2, 4, 6, 8])
+    /// t_2 = Tensor([4], [1, 3, 5, 7])
+    /// t_1.push_cat(t_2, 0)
+    /// ```
+    pub fn push_cat(&mut self, t: &Tensor, axis: usize) {
+        let mut vec_data = Vec::new();
+        self.data.flatten().for_each(|x| vec_data.push(*x));
+        t.data.flatten().for_each(|x| vec_data.push(*x));
     
+        let mut shape = self.data.shape().to_vec();
+        shape[axis] += t.data.len_of(Axis(axis));
+    
+        let new_data = ArrayD::from_shape_vec(IxDyn(&shape), vec_data)
+            .expect("Incompatible dimensions for pushing one tensor into another");
+        
+        self.dimension = new_data.ndim();
+        self.shape = new_data.shape().to_vec();
+        self.data = new_data;
+    }
+
+    /// Concatenate method for multiple tensors
+    /// 
+    /// Parameters:
+    /// - tensors: vector of tensors to be concatenated
+    /// - axis: index of the axe along which tensors should be concatenated
+    /// 
+    /// Python usage:
+    /// ```python
+    /// t_1 = Tensor([4], [2, 4, 6, 8])
+    /// t_2 = Tensor([4], [1, 3, 5, 7])
+    /// t_3 = Tensor([4], [10, 12, 14, 16])
+    /// t_4 = Tensor([4], [9, 11, 13, 15])
+    /// 
+    /// t = t_1.cat([t_2, t_3, t_4], 0)
+    /// ```
+    pub fn cat(&self, tensors: Vec<Tensor>, axis: usize) -> PyResult<Tensor> {
+        let mut new_tensor = self.clone();
+        for t in tensors.iter() {
+            new_tensor.push_cat(t, axis);
+        }
+
+        Ok(new_tensor)
+    }
+
+    /// Push row method for Tensor
+    /// 
+    /// Parameters:
+    /// - t: tensor representing the row to be added
+    /// 
+    /// Python usage:
+    /// ```python
+    /// t_1 = Tensor([3, 2], [2, 4, 6, 8, 10, 12])
+    /// t_2 = Tensor([2], [1, 3])
+    /// t_1.push_row(t_2)
+    /// ```
+    pub fn push_row(&mut self, t: &Tensor) {
+
+        if t.dimension != 1 {
+            panic!("A row must be 1D")
+        }
+
+        if self.dimension > 2 {
+            panic!("Pushing a row is allowed only for 1D and 2D tensors")
+        }
+
+        if self.dimension == 1 {
+            self.dimension = 2;
+            self.shape = vec![1, self.shape[0]];
+            self.data = self.data.to_shape(self.shape.clone()).unwrap().to_owned();
+        }
+
+        self.data.push(Axis(0), t.data.view()).unwrap();
+        self.dimension = self.data.ndim();
+        self.shape = self.data.shape().to_vec();
+    }
+
+    /// Push column method for Tensor
+    /// 
+    /// Parameters:
+    /// - t: tensor representing the column to be added
+    /// 
+    /// Python usage:
+    /// ```python
+    /// t_1 = Tensor([3, 2], [2, 4, 6, 8, 10, 12])
+    /// t_2 = Tensor([3], [1, 3, 5])
+    /// t_1.push_row(t_2)
+    /// ```
+    pub fn push_column(&mut self, t: &Tensor) {
+
+        if t.dimension != 1 {
+            panic!("A column must be 1D")
+        }
+
+        if self.dimension > 2 {
+            panic!("Pushing a column is allowed only for 1D and 2D tensors")
+        }
+
+        if self.dimension == 1 {
+            self.dimension = 2;
+            self.shape = vec![self.shape[0], 1];
+            self.data = self.data.to_shape(self.shape.clone()).unwrap().to_owned();
+        }
+
+        self.data.push(Axis(1), t.data.view()).unwrap();
+        self.dimension = self.data.ndim();
+        self.shape = self.data.shape().to_vec();
+    }
     fn __repr__(&self) -> String {
         format!("Tensor(dimension={}, shape={:?})", self.dimension, self.shape)
     }

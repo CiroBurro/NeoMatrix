@@ -2,7 +2,7 @@
 /// and provides methods for the forward and backward propagation in each layer.
 /// It uses the Tensor struct for manipulating the data
 /// Necessary imports
-use ndarray::{s, Axis, Ix2};
+use ndarray::{s, Axis, Ix2, parallel::prelude::*};
 use pyo3::prelude::*;
 use crate::structures::tensor::Tensor;
 use crate::utils::weights_biases::{random_weights, random_biases};
@@ -77,11 +77,14 @@ impl Layer {
     /// Forward propagation method
     /// 
     /// Parameters:
+    /// - input: 1D tensor with inputs for each node of the input layer
     /// - parallel: boolean value to specify if the forward propagation should be done in parallel
     ///
     /// Python usage:
     ///```python
-    /// output = layer.forward(parallel=True)
+    /// from neomatrix import Tensor, Layer
+    /// t = Tensor([3], [1, 2, 3])
+    /// output = layer.forward(input=t, parallel=True)
     /// ```
     pub fn forward(&mut self, input: Tensor, parallel: bool) -> PyResult<Tensor> {
         self.input = input;
@@ -114,6 +117,75 @@ impl Layer {
         }
 
         Ok(self.output.clone())
+    }
+
+    /// Forward propagation method (batch processing)
+    /// 
+    /// Parameters:
+    /// - input: 2D tensor with inputs for each node of the input layer of each sample in the batch
+    /// - parallel: boolean value to specify if the forward propagation should be done in parallel
+    ///
+    /// Python usage:
+    ///```
+    /// from neomatrix import Tensor, Layer
+    /// t = Tensor([3], [1, 2, 3])
+    /// t_1 = Tensor([3], [4, 5, 6])
+    /// t.push_row(t_1)
+    /// output = layer.forward_batch(input=t, parallel=True)
+    /// ```
+    pub fn forward_batch(&mut self, input: Tensor, parallel: bool) -> PyResult<Tensor> {
+        if input.dimension != 2 {
+            panic!("Batch input must be 2D")
+        }
+        // Input length must be equal to the number of rows of the weights matrix
+        let p = input.data.shape()[1];
+        let (m, n) = self.weights.data.clone().into_dimensionality::<Ix2>().unwrap().dim();
+        // If input length is equal to the number of columns of the weights matrix, transpose the weights matrix
+        if m != p && p == n {
+            self.weights = self.weights.transpose().unwrap();
+        }
+        else if m != p && p != n {
+            panic!("Inputs and weights have incompatible shapes for forward propagation:\
+            the length of the input vector should be equal to the number of rows of the weights matrix");
+        }
+
+        let batch_size = input.shape[0];
+        let outputs: Vec<Tensor> = input.data.axis_iter(Axis(0)).into_par_iter().map(|row| {
+            if row.ndim() != 1 || self.weights.dimension != 2 || self.biases.dimension != 1 {
+                panic!("Layer field have wrong dimensions, expected: input (1D), weights (2D), biases (1D)");
+            }
+
+            // Selection of the activation function
+            let f: Box<dyn ActivationFunction> = select_activation(self);
+            
+            let tensor = Tensor {
+                dimension: 1,
+                shape: row.shape().to_vec(),
+                data: row.into_dyn().to_owned()
+            };
+
+            // Forward prop algorithm
+            if parallel {
+                f.par_function(&mut tensor.dot(&self.weights).unwrap().tensor_sum(&self.biases).unwrap())
+            } else {
+                f.function(&mut tensor.dot(&self.weights).unwrap().tensor_sum(&self.biases).unwrap())
+            } 
+            
+        }).collect();
+
+        if outputs.len() != batch_size {
+            panic!("Not all samples have been processed")
+        }
+
+        self.output = outputs[0].clone();
+        for (i, tensor) in outputs.iter().enumerate() {
+            if i != 0 {
+                self.output.push_row(tensor);
+            }
+        }
+
+        Ok(self.output.clone())
+
     }
 
     /// Backward propagation method
@@ -362,7 +434,7 @@ impl Layer {
             let batch_size = t.shape[0];
             let mut all_deltas = Tensor::zeros(vec![batch_size, self.nodes]);
             
-            // 3D dot product is not supported
+            // 3D dot product is not supported, so it is computed manually
             for i in 0..batch_size {
                 let activation_derivative_i = activation_derivative.data.slice(s![i, .., ..]);
                 let cost_derivative_i = cost_derivative.data.slice(s![i, ..]);
