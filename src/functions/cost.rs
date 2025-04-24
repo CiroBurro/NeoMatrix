@@ -145,9 +145,6 @@ impl CostFunction for MeanSquaredError {
     }
     
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
-        if t.shape != z.shape || t.dimension != 1 {
-            panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
-        }
         let n = t.shape[0] as f64;
         let gradients = t
             .tensor_subtraction(z)
@@ -155,8 +152,8 @@ impl CostFunction for MeanSquaredError {
             .data
             .mapv(|x| -x * 2.0 / n);
         Tensor {
-            dimension: 1,
-            shape: t.shape.clone(),
+            dimension: gradients.ndim(),
+            shape: gradients.shape().to_vec(),
             data: gradients,
         }
     }

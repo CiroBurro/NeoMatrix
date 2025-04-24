@@ -26,7 +26,6 @@ t_1.push_row(t_10)
 
 training_set = t_1
 batches = get_batches(training_set, 2)
-print(batches)
 
 t_1 = Tensor([2], [2, 1])
 t_2 = Tensor([2], [4, 3])
@@ -53,13 +52,13 @@ training_target = t_1
 
 
 layer_1 = Layer(3, input_nodes, Activation.Relu)
-print(layer_1.weights)
+
 layer_2 = Layer(4, layer_1.nodes, Activation.Relu)
-print(layer_2.weights)
+
 layer_3 = Layer(5, layer_2.nodes, Activation.Relu)
-print(layer_3.weights)
+
 out_layer = Layer(2, layer_3.nodes, Activation.Sigmoid)
-print(out_layer.weights)
+
 
 nn = NeuralNetwork(input_nodes, [layer_1, layer_2, layer_3, out_layer], Cost.MeanSquaredError)
 

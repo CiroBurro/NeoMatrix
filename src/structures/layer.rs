@@ -258,9 +258,12 @@ impl Layer {
                 }
 
                 if deltas.shape[1] != self.nodes || all_outputs.shape[0] != self.input.shape[0] || deltas.shape[0] != all_outputs.shape[1] {
-                    panic!("If out_layer is True and deltas tensor is 2D:\
-                     p should be equal to the number of nodes in the output layer,\
-                     n should be equal to the number of samples in the batch,\
+                    
+                    println!("deltas shape: {:?},\nall_outputs.shape: {:?}, self.input.shape: {:?}", deltas.shape, all_outputs.shape, self.input.shape);
+                    
+                    panic!("If out_layer is True and deltas tensor is 2D:\n
+                     p should be equal to the number of nodes in the output layer,\n
+                     n should be equal to the number of samples in the batch,\n
                      m should be equal to the number of nodes in the previous layer");
                 };
 

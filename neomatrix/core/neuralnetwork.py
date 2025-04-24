@@ -27,6 +27,7 @@ class NeuralNetwork:
     def backward(self, ntwk_inputs: Tensor, t: Tensor, z: Tensor, batch_processing: bool, parallel: bool=False):
         error = get_cost(self.cost_function, t, z, parallel, batch_processing)
         deltas = self.layers[-1].get_output_deltas(self.cost_function, t, z)
+        print(f"deltas: {deltas.shape}")
         for (i, layer) in enumerate(reversed(self.layers)):
             out_layer = True
             next_weights = None
@@ -35,7 +36,7 @@ class NeuralNetwork:
                 next_weights = self.layers[-i].weights
             
             if i + 1 < len(self.layers):
-                prev_layer = self.layers[i + 1]
+                prev_layer = self.layers[- (i + 2)]
                 all_outputs = prev_layer.output
             elif i + 1 == len(self.layers):
                 all_outputs = ntwk_inputs
@@ -68,7 +69,7 @@ class NeuralNetwork:
                 
                 for (k, batch) in enumerate(val_batches):
                     outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
-                    val_loss = get_cost(self.cost_function, val_targets_batches, outputs, parallel=parallel, batch_processing=batch_processing)
+                    val_loss = get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch=batch_processing)
                     os.system('cls' if os.name == 'nt' else 'clear')
                     print("-------------------------\n")
                     print(f"Epoch: {i}, Validation batch: {j}, Loss: {val_loss}")
