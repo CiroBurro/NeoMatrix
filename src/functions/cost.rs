@@ -145,7 +145,16 @@ impl CostFunction for MeanSquaredError {
     }
     
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
-        let n = t.shape[0] as f64;
+        if t.shape != z.shape {
+            panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
+        }
+        let mut n = 1.0;
+          
+        if t.dimension == 1 {
+            n = t.shape[0] as f64
+        } else if t.dimension == 2 {
+            n = (t.shape[0] * t.shape[1]) as f64
+        }
         let gradients = t
             .tensor_subtraction(z)
             .expect("Tensors subtraction failed")
@@ -179,18 +188,24 @@ impl CostFunction for MeanAbsoluteError {
     }
     
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
-        if t.shape != z.shape || t.dimension != 1 {
-            panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
+        if t.shape != z.shape {
+            panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
-        let n = t.shape[0] as f64;
+        let mut n = 1.0;
+          
+        if t.dimension == 1 {
+            n = t.shape[0] as f64
+        } else if t.dimension == 2 {
+            n = (t.shape[0] * t.shape[1]) as f64
+        }
         let gradients = t
             .tensor_subtraction(z)
             .expect("Tensors subtraction failed")
             .data
             .mapv(|x| -(x.abs() / x) / n);
         Tensor {
-            dimension: 1,
-            shape: t.shape.clone(),
+            dimension: gradients.ndim(),
+            shape: gradients.shape().to_vec(),
             data: gradients,
         }
     }
@@ -217,19 +232,27 @@ impl CostFunction for BinaryCrossEntropy {
     }
     
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
-        if t.shape != z.shape || t.dimension != 1 {
-            panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
+        if t.shape != z.shape {
+            panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
-        let n = t.shape[0] as f64;
+        let mut n = 1.0;
+          
+        if t.dimension == 1 {
+            n = t.shape[0] as f64
+        } else if t.dimension == 2 {
+            n = (t.shape[0] * t.shape[1]) as f64
+        }
 
-        let gradients = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
+        let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
             -((t_i / z_i) - ((1.0 - t_i) / (1.0 - z_i))) / n
         }).collect::<Vec<f64>>();
 
+        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
+
         Tensor {
-            dimension: 1,
-            shape: t.shape.clone(),
-            data: ArrayD::from_shape_vec(t.shape.clone(), gradients).unwrap(),
+            dimension: gradients.ndim(),
+            shape: gradients.shape().to_vec(),
+            data: gradients,
         }
     }
 }
@@ -264,13 +287,19 @@ impl CostFunction for HuberLoss {
     }
 
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
-        if t.shape != z.shape || t.dimension != 1 {
+        if t.shape != z.shape {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
-        let n = t.shape[0] as f64;
+        let mut n = 1.0;
+          
+        if t.dimension == 1 {
+            n = t.shape[0] as f64
+        } else if t.dimension == 2 {
+            n = (t.shape[0] * t.shape[1]) as f64
+        }
 
         let delta = 1.0;
-        let gradients = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
+        let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
             if (t_i - z_i).abs() <= delta {
                 (z_i - t_i) / n
             } else {
@@ -281,10 +310,12 @@ impl CostFunction for HuberLoss {
             }
         }).collect::<Vec<f64>>();
 
+        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
+
         Tensor {
-            dimension: 1,
-            shape: t.shape.clone(),
-            data: ArrayD::from_shape_vec(t.shape.clone(), gradients).unwrap(),
+            dimension: gradients.ndim(),
+            shape: gradients.shape().to_vec(),
+            data: gradients,
         }
     }
 }
@@ -309,12 +340,19 @@ impl CostFunction for HingeLoss {
     }
     
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
-        if t.shape != z.shape || t.dimension != 1 {
+        if t.shape != z.shape {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
-        let n = t.shape[0] as f64;
 
-        let gradients = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
+        let mut n = 1.0;
+          
+        if t.dimension == 1 {
+            n = t.shape[0] as f64
+        } else if t.dimension == 2 {
+            n = (t.shape[0] * t.shape[1]) as f64
+        }
+
+        let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
             let x = if t_i * z_i < 1.0 {
                 -t_i
             } else {
@@ -324,10 +362,12 @@ impl CostFunction for HingeLoss {
             x / n
         }).collect::<Vec<f64>>();
 
+        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
+
         Tensor {
-            dimension: 1,
-            shape: t.shape.clone(),
-            data: ArrayD::from_shape_vec(t.shape.clone(), gradients).unwrap(),
+            dimension: gradients.ndim(),
+            shape: gradients.shape().to_vec(),
+            data: gradients,
         }
     }
 }

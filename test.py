@@ -55,11 +55,11 @@ layer_1 = Layer(3, input_nodes, Activation.Relu)
 
 layer_2 = Layer(4, layer_1.nodes, Activation.Relu)
 
-layer_3 = Layer(5, layer_2.nodes, Activation.Relu)
+layer_3 = Layer(5, layer_2.nodes, Activation.Tanh)
 
-out_layer = Layer(2, layer_3.nodes, Activation.Sigmoid)
+out_layer = Layer(2, layer_3.nodes, Activation.Softmax)
 
 
-nn = NeuralNetwork(input_nodes, [layer_1, layer_2, layer_3, out_layer], Cost.MeanSquaredError)
+nn = NeuralNetwork(input_nodes, [layer_1, layer_2, layer_3, out_layer], Cost.MeanAbsoluteError)
 
 nn.train(training_set=training_set, training_targets=training_target, val_set=training_set, val_targets=training_target, epochs=5, batch_size=2)
