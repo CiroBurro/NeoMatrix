@@ -25,7 +25,8 @@ t_1.push_row(t_9)
 t_1.push_row(t_10)
 
 training_set = t_1
-batches = get_batches(training_set, 2)
+#batches = get_batches(training_set, 1)
+#print(batches)
 
 t_1 = Tensor([2], [2, 1])
 t_2 = Tensor([2], [4, 3])
@@ -62,4 +63,4 @@ out_layer = Layer(2, layer_3.nodes, Activation.Softmax)
 
 nn = NeuralNetwork(input_nodes, [layer_1, layer_2, layer_3, out_layer], Cost.MeanAbsoluteError)
 
-nn.train(training_set=training_set, training_targets=training_target, val_set=training_set, val_targets=training_target, epochs=5, batch_size=2)
+nn.fit(training_set=training_set, training_targets=training_target, val_set=training_set, val_targets=training_target, epochs=5, batch_size=1)

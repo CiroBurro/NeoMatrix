@@ -1,6 +1,5 @@
 from . import Tensor, Layer, Activation, get_cost, Cost
 from neomatrix.utils.dataset import get_batches
-import numpy as np
 import os
 
 class NeuralNetwork:
@@ -24,10 +23,9 @@ class NeuralNetwork:
                 inputs = output
             return inputs
 
-    def backward(self, ntwk_inputs: Tensor, t: Tensor, z: Tensor, batch_processing: bool, parallel: bool=False):
+    def backward(self, ntwk_inputs: Tensor, t: Tensor, z: Tensor, learning_rate: float, batch_processing: bool, parallel: bool=False):
         error = get_cost(self.cost_function, t, z, parallel, batch_processing)
         deltas = self.layers[-1].get_output_deltas(self.cost_function, t, z)
-        print(f"deltas: {deltas.shape}")
         for (i, layer) in enumerate(reversed(self.layers)):
             out_layer = True
             next_weights = None
@@ -42,38 +40,40 @@ class NeuralNetwork:
                 all_outputs = ntwk_inputs
                  
             (w_grads, b_grads, new_deltas) = layer.backward(out_layer, deltas, next_weights, all_outputs)
+            layer.weights = layer.weights.tensor_subtraction(w_grads.scalar_multiplication(learning_rate))
+            layer.biases = layer.biases.tensor_subtraction(b_grads.scalar_multiplication(learning_rate))
             deltas = new_deltas
 
         return error
     
-    def train(self, training_set: Tensor, training_targets: Tensor, val_set: Tensor, val_targets: Tensor, epochs: int, batch_size: int, parallel: bool = False):
+    def fit(self, training_set: Tensor, training_targets: Tensor, val_set: Tensor, val_targets: Tensor, epochs: int, batch_size: int, parallel: bool = False):
         batch_processing: bool = True
-        if batch_size == 0 or batch_size == 1:
+        if batch_size == 1 or batch_size == 0:
+            batch_size == 1
             batch_processing = False
+        
         
         for (i, epoch) in enumerate(range(epochs)):
             total_loss = 0
-            if batch_processing:
-                train_batches = get_batches(training_set, batch_size)
-                train_target_batches = get_batches(training_targets, batch_size)
-                val_batches = get_batches(val_set, batch_size)
-                val_targets_batches = get_batches(val_targets, batch_size)
+            train_batches = get_batches(training_set, batch_size)
+            train_target_batches = get_batches(training_targets, batch_size)
+            val_batches = get_batches(val_set, batch_size)
+            val_targets_batches = get_batches(val_targets, batch_size)
 
-                for (j, batch) in enumerate(train_batches):
-                    outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
-                    loss = self.backward(ntwk_inputs=batch, t=train_target_batches[j], z=outputs, batch_processing=batch_processing, parallel=parallel)
-                    total_loss += loss
-                    os.system('cls' if os.name == 'nt' else 'clear')
-                    print("-------------------------\n")
-                    print(f"Epoch: {i}, Training batch: {j}, Loss: {loss}, Total loss: {total_loss}")
-                
-                for (k, batch) in enumerate(val_batches):
-                    outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
-                    val_loss = get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch=batch_processing)
-                    os.system('cls' if os.name == 'nt' else 'clear')
-                    print("-------------------------\n")
-                    print(f"Epoch: {i}, Validation batch: {j}, Loss: {val_loss}")
-            else:
-                pass
+            for (j, batch) in enumerate(train_batches):
+                outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
+                loss = self.backward(ntwk_inputs=batch, t=train_target_batches[j], z=outputs, batch_processing=batch_processing, parallel=parallel)
+                total_loss += loss
+                os.system('cls' if os.name == 'nt' else 'clear')
+                print("-------------------------\n")
+                print(f"Epoch: {i + 1}, Training batch: {j}, Loss: {loss}, Total loss: {total_loss}")
+            
+            for (k, batch) in enumerate(val_batches):
+                outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
+                val_loss = get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch=batch_processing)
+                os.system('cls' if os.name == 'nt' else 'clear')
+                print("-------------------------\n")
+                print(f"Epoch: {i + 1}, Validation batch: {j}, Loss: {val_loss}")
+            
                 
             

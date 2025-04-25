@@ -12,6 +12,8 @@ def get_batches(tensor: Tensor, batch_size: int):
     tensors = []
     for arr in subarrays:
         tensor = Tensor.from_numpy(arr)
+        if batch_size == 1:
+            tensor.flatten()
         tensors.append(tensor)
     
     return tensors
