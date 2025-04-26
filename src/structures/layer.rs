@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 use crate::structures::tensor::Tensor;
 use crate::utils::weights_biases::{random_weights, random_biases};
 use crate::functions::activation::*;
-use crate::functions::cost::{BinaryCrossEntropy, Cost, CostFunction, HingeLoss, HuberLoss, MeanAbsoluteError, MeanSquaredError};
+use crate::functions::cost::{BinaryCrossEntropy, CategoricalCrossEntropy, Cost, CostFunction, HingeLoss, HuberLoss, MeanAbsoluteError, MeanSquaredError};
 
 /// Layer class definition
 ///
@@ -37,6 +37,7 @@ fn select_activation(l: &Layer) -> Box<dyn ActivationFunction> {
         Activation::Sigmoid => Box::new(Sigmoid),
         Activation::Softmax => Box::new(Softmax),
         Activation::Tanh => Box::new(Tanh),
+        Activation::Linear => Box::new(Linear)
     }
 }
 
@@ -414,8 +415,13 @@ impl Layer {
     /// ```
     fn get_output_deltas(&self, cost: Cost, t: &mut Tensor, z: &Tensor) -> PyResult<Tensor> {
 
-        // Optimization for the case of binary cross entropy with softmax activation
-        if matches!(cost, Cost::BinaryCrossEntropy) && matches!(self.activation, Activation::Softmax) {
+        // Optimization for the case of binary cross entropy with sigmoid activation
+        if matches!(cost, Cost::BinaryCrossEntropy) && matches!(self.activation, Activation::Sigmoid) {
+            return z.tensor_subtraction(t) // Deltas are just the difference
+        }
+
+        // Optimization for the case of categorical cross entropy with softmax activation
+        if matches!(cost, Cost::CategoricalCrossEntropy) && matches!(self.activation, Activation::Softmax) {
             return z.tensor_subtraction(t) // Deltas are just the difference
         }
 
@@ -425,6 +431,7 @@ impl Layer {
             Cost::MeanSquaredError => MeanSquaredError.derivative(t, z),
             Cost::MeanAbsoluteError => MeanAbsoluteError.derivative(t, z),
             Cost::BinaryCrossEntropy => BinaryCrossEntropy.derivative(t, z),
+            Cost::CategoricalCrossEntropy => CategoricalCrossEntropy.derivative(t, z),
             Cost::HuberLoss => HuberLoss.derivative(t, z),
             Cost::HingeLoss => HingeLoss.derivative(t, z),
         };

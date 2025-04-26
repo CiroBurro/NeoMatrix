@@ -1,7 +1,7 @@
-from rustybrain import Tensor
+import neomatrix.core as core
 import numpy as np
 
-def get_batches(tensor: Tensor, batch_size: int):
+def get_batches(tensor: core.Tensor, batch_size: int):
     array = tensor.data
 
     total_samples = tensor.shape[0]
@@ -11,7 +11,7 @@ def get_batches(tensor: Tensor, batch_size: int):
 
     tensors = []
     for arr in subarrays:
-        tensor = Tensor.from_numpy(arr)
+        tensor = core.Tensor.from_numpy(arr)
         if batch_size == 1:
             tensor.flatten()
         tensors.append(tensor)

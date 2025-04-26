@@ -79,6 +79,7 @@ pub enum Cost {
     MeanSquaredError,
     MeanAbsoluteError,
     BinaryCrossEntropy,
+    CategoricalCrossEntropy,
     HuberLoss,
     HingeLoss,
 }
@@ -105,19 +106,20 @@ pub fn get_cost(
     t: &Tensor,
     z: &Tensor,
     parallel: Option<bool>,
-    batch: Option<bool>,
+    batch_processing: Option<bool>,
 ) -> f64 {
     let parallel = parallel.unwrap_or(false);
-    let batch = batch.unwrap_or(true);
+    let batch_processing = batch_processing.unwrap_or(true);
     let f: Box<dyn CostFunction> = match cost {
         Cost::MeanSquaredError => Box::new(MeanSquaredError),
         Cost::MeanAbsoluteError => Box::new(MeanAbsoluteError),
         Cost::BinaryCrossEntropy => Box::new(BinaryCrossEntropy),
+        Cost::CategoricalCrossEntropy => Box::new(CategoricalCrossEntropy),
         Cost::HuberLoss => Box::new(HuberLoss),
         Cost::HingeLoss => Box::new(HingeLoss),
     };
     
-    if !batch {
+    if !batch_processing {
         f.function(t, z)
     } else if parallel {
         f.par_function_batch(t, z)
@@ -228,7 +230,7 @@ impl CostFunction for BinaryCrossEntropy {
             .map(|(t_i, z_i)| t_i * z_i.ln() + (1.0 - t_i) * (1.0 - z_i).ln())
             .sum::<f64>();
 
-        sum * (-1.0) / t.shape[0] as f64
+        -sum / t.shape[0] as f64
     }
     
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
@@ -245,6 +247,51 @@ impl CostFunction for BinaryCrossEntropy {
 
         let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
             -((t_i / z_i) - ((1.0 - t_i) / (1.0 - z_i))) / n
+        }).collect::<Vec<f64>>();
+
+        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
+
+        Tensor {
+            dimension: gradients.ndim(),
+            shape: gradients.shape().to_vec(),
+            data: gradients,
+        }
+    }
+}
+
+/// Categorical Cross Entropy cost function
+/// f(t, z) = -(1/n) * Σ(Σ(t_ik * log(z_ik)))
+pub struct CategoricalCrossEntropy;
+impl CostFunction for CategoricalCrossEntropy {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
+        if t.shape != z.shape || t.dimension != 1 {
+            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
+        }
+        let sum: f64 = t
+            .data
+            .to_owned()
+            .iter()
+            .zip(z.data.to_owned().iter())
+            .map(|(t_k, z_k)| t_k * z_k.ln())
+            .sum::<f64>();
+
+        -sum
+    }
+
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
+        if t.shape != z.shape {
+            panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
+        }
+        let mut n = 1.0;
+          
+        if t.dimension == 1 {
+            n = 1.0
+        } else if t.dimension == 2 {
+            n = t.shape[0]as f64
+        }
+
+        let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
+            -((t_i / z_i)) / n
         }).collect::<Vec<f64>>();
 
         let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();

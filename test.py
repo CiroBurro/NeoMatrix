@@ -1,6 +1,6 @@
-from neomatrix import Tensor, Layer, Activation, get_cost, Cost, NeuralNetwork
-from neomatrix.utils.dataset import get_batches
-import os
+from neomatrix.core import Tensor, Layer, Activation, get_cost, Cost, model
+from neomatrix.utils import get_batches
+import os, time
 
 input_nodes = 2
 t_1 = Tensor([2], [1, 2])
@@ -61,6 +61,11 @@ layer_3 = Layer(5, layer_2.nodes, Activation.Tanh)
 out_layer = Layer(2, layer_3.nodes, Activation.Softmax)
 
 
-nn = NeuralNetwork(input_nodes, [layer_1, layer_2, layer_3, out_layer], Cost.MeanAbsoluteError)
+nn = model.NeuralNetwork(input_nodes, [layer_1, layer_2, layer_3, out_layer], Cost.MeanAbsoluteError, 0.01)
 
-nn.fit(training_set=training_set, training_targets=training_target, val_set=training_set, val_targets=training_target, epochs=5, batch_size=1)
+start_time = time.time()
+nn.fit(training_set=training_set, training_targets=training_target, val_set=training_set, val_targets=training_target, epochs=50, batch_size=2, parallel=True)
+stop_time = time.time()
+
+time= stop_time - start_time
+print(f"time: {time}")
