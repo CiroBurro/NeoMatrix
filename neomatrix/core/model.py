@@ -71,33 +71,30 @@ class NeuralNetwork:
                 self.backward(ntwk_inputs=batch, t=train_target_batches[j], z=outputs)
                 loss = core.get_cost(self.cost_function, train_target_batches[j], z=outputs, parallel=parallel, batch_processing=batch_processing)
                 total_loss += loss
-                print("\n-------------------------\n")
+                print("-------------------------")
                 print(f"Epoch: {i + 1}, Training batch: {j}, Loss: {loss}, Total loss: {total_loss}")
             
             for (k, batch) in enumerate(val_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
                 val_loss = core.get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch_processing=batch_processing)
-                print("\n-------------------------\n")
-                print(f"Epoch: {i + 1}, Validation batch: {j}, Loss: {val_loss}")
+                total_loss += val_loss
+                print("-------------------------")
+                print(f"Epoch: {i + 1}, Validation batch: {j}, Loss: {val_loss}, Total loss: {total_loss}")
             
 class LinearRegression(NeuralNetwork):
     def __init__(self, input_nodes: int, output_nodes: int, learning_rate: float):
         super().__init__([
             core.Layer(output_nodes, input_nodes, core.Activation.Linear)
-        ], core.Cost.MeanSquaredError, learning_rate)
-
+        ], core.Cost.MeanSquaredError(), learning_rate)
 
 class LogisticRegression(NeuralNetwork):
     def __init__(self, input_nodes: int, learning_rate: float):
         super().__init__([
             core.Layer(1, input_nodes, core.Activation.Sigmoid)
-        ], core.Cost.BinaryCrossEntropy, learning_rate)
+        ], core.Cost.BinaryCrossEntropy(), learning_rate)
 
 class SoftmaxRegression(NeuralNetwork):
     def __init__(self, input_nodes: int, output_nodes: int, learning_rate: float):
         super().__init__([
             core.Layer(output_nodes, input_nodes, core.Activation.Softmax)
-        ], core.Cost.CategoricalCrossEntropy, learning_rate)
-
-class SupportVectorMachine:
-    pass
+        ], core.Cost.CategoricalCrossEntropy(), learning_rate)

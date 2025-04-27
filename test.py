@@ -61,11 +61,12 @@ layer_3 = Layer(5, layer_2.nodes, Activation.Tanh)
 out_layer = Layer(2, layer_3.nodes, Activation.Softmax)
 
 
-nn = model.NeuralNetwork(input_nodes, [layer_1, layer_2, layer_3, out_layer], Cost.MeanAbsoluteError, 0.01)
+#nn = model.NeuralNetwork([layer_1, layer_2, layer_3, out_layer], Cost.HuberLoss(1.0), 0.01)
 
-start_time = time.time()
-nn.fit(training_set=training_set, training_targets=training_target, val_set=training_set, val_targets=training_target, epochs=50, batch_size=2, parallel=True)
-stop_time = time.time()
+#start_time = time.time()
+#nn.fit(training_set=training_set, training_targets=training_target, val_set=training_set, val_targets=training_target, epochs=50, batch_size=2, parallel=True)
+#stop_time = time.time()
 
-time= stop_time - start_time
-print(f"time: {time}")
+#time= stop_time - start_time
+#print(f"time: {time}")
+

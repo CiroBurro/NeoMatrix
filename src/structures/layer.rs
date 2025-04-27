@@ -416,24 +416,24 @@ impl Layer {
     fn get_output_deltas(&self, cost: Cost, t: &mut Tensor, z: &Tensor) -> PyResult<Tensor> {
 
         // Optimization for the case of binary cross entropy with sigmoid activation
-        if matches!(cost, Cost::BinaryCrossEntropy) && matches!(self.activation, Activation::Sigmoid) {
+        if matches!(cost, Cost::BinaryCrossEntropy()) && matches!(self.activation, Activation::Sigmoid) {
             return z.tensor_subtraction(t) // Deltas are just the difference
         }
 
         // Optimization for the case of categorical cross entropy with softmax activation
-        if matches!(cost, Cost::CategoricalCrossEntropy) && matches!(self.activation, Activation::Softmax) {
+        if matches!(cost, Cost::CategoricalCrossEntropy()) && matches!(self.activation, Activation::Softmax) {
             return z.tensor_subtraction(t) // Deltas are just the difference
         }
 
         // Derivatives calculus
         let activation_derivative = select_activation(self).derivative(t);
         let cost_derivative = match cost {
-            Cost::MeanSquaredError => MeanSquaredError.derivative(t, z),
-            Cost::MeanAbsoluteError => MeanAbsoluteError.derivative(t, z),
-            Cost::BinaryCrossEntropy => BinaryCrossEntropy.derivative(t, z),
-            Cost::CategoricalCrossEntropy => CategoricalCrossEntropy.derivative(t, z),
-            Cost::HuberLoss => HuberLoss.derivative(t, z),
-            Cost::HingeLoss => HingeLoss.derivative(t, z),
+            Cost::MeanSquaredError() => MeanSquaredError.derivative(t, z),
+            Cost::MeanAbsoluteError() => MeanAbsoluteError.derivative(t, z),
+            Cost::BinaryCrossEntropy() => BinaryCrossEntropy.derivative(t, z),
+            Cost::CategoricalCrossEntropy() => CategoricalCrossEntropy.derivative(t, z),
+            Cost::HuberLoss { delta } => HuberLoss { delta }.derivative(t, z),
+            Cost::HingeLoss() => HingeLoss.derivative(t, z),
         };
 
         // Softmax derivative of one sample returns a matrix, the result of an entire batch is a 3D tensor

@@ -76,12 +76,12 @@ pub trait CostFunction: Send + Sync {
 #[pyclass]
 #[derive(Clone, Debug)]
 pub enum Cost {
-    MeanSquaredError,
-    MeanAbsoluteError,
-    BinaryCrossEntropy,
-    CategoricalCrossEntropy,
-    HuberLoss,
-    HingeLoss,
+    MeanSquaredError(),
+    MeanAbsoluteError(),
+    BinaryCrossEntropy(),
+    CategoricalCrossEntropy(),
+    HuberLoss {delta: f64},
+    HingeLoss(),
 }
 
 /// Function to get and compute cost between two tensors
@@ -111,12 +111,12 @@ pub fn get_cost(
     let parallel = parallel.unwrap_or(false);
     let batch_processing = batch_processing.unwrap_or(true);
     let f: Box<dyn CostFunction> = match cost {
-        Cost::MeanSquaredError => Box::new(MeanSquaredError),
-        Cost::MeanAbsoluteError => Box::new(MeanAbsoluteError),
-        Cost::BinaryCrossEntropy => Box::new(BinaryCrossEntropy),
-        Cost::CategoricalCrossEntropy => Box::new(CategoricalCrossEntropy),
-        Cost::HuberLoss => Box::new(HuberLoss),
-        Cost::HingeLoss => Box::new(HingeLoss),
+        Cost::MeanSquaredError() => Box::new(MeanSquaredError),
+        Cost::MeanAbsoluteError() => Box::new(MeanAbsoluteError),
+        Cost::BinaryCrossEntropy() => Box::new(BinaryCrossEntropy),
+        Cost::CategoricalCrossEntropy() => Box::new(CategoricalCrossEntropy),
+        Cost::HuberLoss { delta } => Box::new(HuberLoss { delta }),
+        Cost::HingeLoss() => Box::new(HingeLoss),
     };
     
     if !batch_processing {
@@ -308,24 +308,23 @@ impl CostFunction for CategoricalCrossEntropy {
 /// f(t,z) = (1/n) * Σ L_δ(t_i - z_i)
 /// where L_δ(x) = 0.5 * x^2 if |x| ≤ δ
 ///                 δ|x| - 0.5δ^2 if |x| > δ
-pub struct HuberLoss;
+pub struct HuberLoss { pub delta: f64 }
 impl CostFunction for HuberLoss {
     fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
 
-        let delta = 1.0;
 
         let sum: f64 = t
             .data
             .iter()
             .zip(z.data.iter())
             .map(|(t_i, z_i)| {
-                if (t_i - z_i).abs() <= delta {
+                if (t_i - z_i).abs() <= self.delta {
                     (t_i - z_i).powf(2.0) / 2.0
                 } else {
-                    delta * (t_i - z_i).abs() - (delta.powf(2.0) / 2.0)
+                    self.delta * (t_i - z_i).abs() - (self.delta.powf(2.0) / 2.0)
                 }
             })
             .sum();
@@ -345,15 +344,14 @@ impl CostFunction for HuberLoss {
             n = (t.shape[0] * t.shape[1]) as f64
         }
 
-        let delta = 1.0;
         let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
-            if (t_i - z_i).abs() <= delta {
+            if (t_i - z_i).abs() <= self.delta {
                 (z_i - t_i) / n
             } else {
                 if (t_i - z_i) == 0.0 {
                     return 0.0;
                 }
-                (- delta * (t_i - z_i).abs() / (t_i - z_i)) / n
+                (- self.delta * (t_i - z_i).abs() / (t_i - z_i)) / n
             }
         }).collect::<Vec<f64>>();
 
