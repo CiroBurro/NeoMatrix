@@ -1,14 +1,15 @@
 import neomatrix.core as core
 import numpy as np
 
-def get_batches(tensor: core.Tensor, batch_size: int):
-    '''
-    Split a tensor in smaller ones (batches) of an arbitrary size
+'''
+Split a tensor in smaller ones (batches) of an arbitrary size
 
-    Parameters:
-    - tensor: tensor to be splitted
-    - batch_size: number of samples of a single batch
-    '''
+Parameters:
+- tensor: tensor to be splitted
+- batch_size: number of samples of a single batch
+'''
+
+def get_batches(tensor: core.Tensor, batch_size: int):
 
     array = tensor.data
 

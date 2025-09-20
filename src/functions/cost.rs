@@ -100,7 +100,7 @@ pub enum Cost {
 /// z = Tensor([4], [1.1, 2.1, 2.9, 4.2])
 /// cost = get_cost(Cost.MeanSquaredError, t, z, parallel=True, batch=True)
 /// ```
-#[pyfunction]
+#[pyfunction(signature = (cost, t, z, parallel=None, batch_processing=None))]
 pub fn get_cost(
     cost: Cost,
     t: &Tensor,
@@ -150,13 +150,9 @@ impl CostFunction for MeanSquaredError {
         if t.shape != z.shape {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
-        let mut n = 1.0;
-          
-        if t.dimension == 1 {
-            n = t.shape[0] as f64
-        } else if t.dimension == 2 {
-            n = (t.shape[0] * t.shape[1]) as f64
-        }
+
+        let n = check_dimension(t);
+        
         let gradients = t
             .tensor_subtraction(z)
             .expect("Tensors subtraction failed")
@@ -193,13 +189,9 @@ impl CostFunction for MeanAbsoluteError {
         if t.shape != z.shape {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
-        let mut n = 1.0;
-          
-        if t.dimension == 1 {
-            n = t.shape[0] as f64
-        } else if t.dimension == 2 {
-            n = (t.shape[0] * t.shape[1]) as f64
-        }
+
+        let n = check_dimension(t);
+        
         let gradients = t
             .tensor_subtraction(z)
             .expect("Tensors subtraction failed")
@@ -237,13 +229,8 @@ impl CostFunction for BinaryCrossEntropy {
         if t.shape != z.shape {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
-        let mut n = 1.0;
-          
-        if t.dimension == 1 {
-            n = t.shape[0] as f64
-        } else if t.dimension == 2 {
-            n = (t.shape[0] * t.shape[1]) as f64
-        }
+
+        let n = check_dimension(t);
 
         let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
             -((t_i / z_i) - ((1.0 - t_i) / (1.0 - z_i))) / n
@@ -282,16 +269,11 @@ impl CostFunction for CategoricalCrossEntropy {
         if t.shape != z.shape {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
-        let mut n = 1.0;
-          
-        if t.dimension == 1 {
-            n = 1.0
-        } else if t.dimension == 2 {
-            n = t.shape[0]as f64
-        }
+
+        let n = check_dimension(t);
 
         let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
-            -((t_i / z_i)) / n
+            -(t_i / z_i) / n
         }).collect::<Vec<f64>>();
 
         let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
@@ -336,13 +318,8 @@ impl CostFunction for HuberLoss {
         if t.shape != z.shape {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
-        let mut n = 1.0;
-          
-        if t.dimension == 1 {
-            n = t.shape[0] as f64
-        } else if t.dimension == 2 {
-            n = (t.shape[0] * t.shape[1]) as f64
-        }
+        
+        let n = check_dimension(t);
 
         let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
             if (t_i - z_i).abs() <= self.delta {
@@ -389,13 +366,7 @@ impl CostFunction for HingeLoss {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
 
-        let mut n = 1.0;
-          
-        if t.dimension == 1 {
-            n = t.shape[0] as f64
-        } else if t.dimension == 2 {
-            n = (t.shape[0] * t.shape[1]) as f64
-        }
+        let n = check_dimension(t);
 
         let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
             let x = if t_i * z_i < 1.0 {
@@ -415,4 +386,17 @@ impl CostFunction for HingeLoss {
             data: gradients,
         }
     }
+}
+
+fn check_dimension(t: &Tensor) -> f64 {
+    
+    let mut n = 1.0;
+    
+    if t.dimension == 1 {
+        n = t.shape[0] as f64
+    } else if t.dimension == 2 {
+        n = (t.shape[0] * t.shape[1]) as f64
+    }
+    
+    n
 }

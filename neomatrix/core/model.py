@@ -1,5 +1,5 @@
 import neomatrix.core as core
-import neomatrix as nm
+import neomatrix.utils as utils
 import os
 
 __all__ = [
@@ -7,11 +7,10 @@ __all__ = [
     'LinearRegression',
     'LogisticRegression',
     'SoftmaxRegression',
-    'SupportVectorMachine'
 ]
 
 class NeuralNetwork:
-    def __init__(self, layers: [core.Layer], cost_function: core.Cost, learning_rate: float):
+    def __init__(self, layers: list[core.Layer], cost_function: core.Cost, learning_rate: float):
         self.layers = layers
         self.cost_function = cost_function
         self.learning_rate = learning_rate
@@ -61,10 +60,10 @@ class NeuralNetwork:
         for (i, epoch) in enumerate(range(epochs)):
             os.system('cls' if os.name == 'nt' else 'clear')
             total_loss = 0
-            train_batches = nm.utils.get_batches(training_set, batch_size)
-            train_target_batches = nm.utils.get_batches(training_targets, batch_size)
-            val_batches = nm.utils.get_batches(val_set, batch_size)
-            val_targets_batches = nm.utils.get_batches(val_targets, batch_size)
+            train_batches = utils.get_batches(training_set, batch_size)
+            train_target_batches = utils.get_batches(training_targets, batch_size)
+            val_batches = utils.get_batches(val_set, batch_size)
+            val_targets_batches = utils.get_batches(val_targets, batch_size)
 
             for (j, batch) in enumerate(train_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
