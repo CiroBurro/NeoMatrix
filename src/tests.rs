@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod test {
     use crate::structures::tensor::Tensor;
     use crate::structures::layer::Layer;
     use crate::functions::activation::{Activation, ActivationFunction, Relu, Sigmoid};

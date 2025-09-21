@@ -143,7 +143,7 @@ impl Layer {
         let (m, n) = self.weights.data.clone().into_dimensionality::<Ix2>().unwrap().dim();
         // If input length is equal to the number of columns of the weights matrix, transpose the weights matrix
         if m != p && p == n {
-            self.weights = self.weights.transpose().unwrap();
+            self.weights = self.weights.transpose()?;
         }
         else if m != p && p != n {
             panic!("Inputs and weights have incompatible shapes for forward propagation:\
@@ -220,22 +220,17 @@ impl Layer {
                 let biases_gradients = deltas.clone();
 
                 // Inputs and deltas tensors have to be reshaped to 2D since 1D tensors multiplication returns a scalar
-                let inputs = Tensor {
-                    dimension: 2,
-                    shape: vec![self.input.shape[0], 1],
-                    data: self.input.data.clone().to_shape(vec![self.input.shape[0], 1]).unwrap().into_owned(),
-                };
-                let out_deltas = Tensor {
-                    dimension: 2,
-                    shape: vec![1, deltas.shape[0]],
-                    data: deltas.data.clone().to_shape(vec![1, deltas.shape[0]]).unwrap().into_owned(),
-                };
+                let mut inputs = self.input.clone();
+                inputs.reshape(vec![self.input.shape[0], 1]);
+                let mut out_deltas = deltas.clone();
+                out_deltas.reshape(vec![1, deltas.shape[0]]);
 
                 // Weights gradients are calculated as the dot product between the inputs of the layer and the deltas
                 let weights_gradients = inputs.dot(&out_deltas)?;
                 Ok((weights_gradients, biases_gradients, deltas))
 
-            } else  {
+            }
+            else  {
 
                 if all_outputs.is_none() {
                     panic!("If deltas tensor is 2D, all_outputs must be defined");
@@ -281,7 +276,8 @@ impl Layer {
 
                  Ok((weights_gradients, biases_gradients, deltas))
             }
-        } else {
+        }
+        else {
 
             if next_weights.is_none() {
                 panic!("If out_layer is False, next_weights must be defined");
@@ -324,21 +320,16 @@ impl Layer {
                 let biases_gradients = layer_deltas.clone();
 
                 // Inputs and deltas tensors have to be reshaped to 2D since 1D tensors multiplication returns a scalar
-                let inputs = Tensor {
-                    dimension: 2,
-                    shape: vec![self.input.shape[0], 1],
-                    data: self.input.data.clone().to_shape(vec![self.input.shape[0], 1]).unwrap().into_owned(),
-                };
-                let out_deltas = Tensor {
-                    dimension: 2,
-                    shape: vec![1, layer_deltas.shape[0]],
-                    data: layer_deltas.data.clone().to_shape(vec![1, layer_deltas.shape[0]]).unwrap().into_owned(),
-                };
+                let mut inputs = self.input.clone();
+                inputs.reshape(vec![self.input.shape[0], 1]);
+                let mut out_deltas = layer_deltas.clone();
+                out_deltas.reshape(vec![1, layer_deltas.shape[0]]);
 
                 // Weights gradients are calculated as the dot product between the inputs of the layer and the current (layer) deltas
                 let weights_gradients = inputs.dot(&out_deltas)?;
                 Ok((weights_gradients, biases_gradients, layer_deltas))
-            } else  {
+            }
+            else  {
 
                 if all_outputs.is_none() {
                     panic!("If deltas tensor is 2D, all_outputs must be defined");
