@@ -31,6 +31,7 @@ class NeuralNetwork:
             return inputs
 
     def backward(self, ntwk_inputs: core.Tensor, t: core.Tensor, z: core.Tensor):
+        all_outputs = []
         deltas = self.layers[-1].get_output_deltas(self.cost_function, t, z)
         for (i, layer) in enumerate(reversed(self.layers)):
             out_layer = True
@@ -68,18 +69,18 @@ class NeuralNetwork:
             for (j, batch) in enumerate(train_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
                 self.backward(ntwk_inputs=batch, t=train_target_batches[j], z=outputs)
-                loss = core.get_cost(self.cost_function, train_target_batches[j], z=outputs, parallel=parallel, batch_processing=batch_processing)
+                loss = core.get_cost(self.cost_function, train_target_batches[j], z=outputs, parallel=parallel, batch=batch_processing)
                 total_loss += loss
                 print("-------------------------")
                 print(f"Epoch: {i + 1}, Training batch: {j}, Loss: {loss}, Total loss: {total_loss}")
             
             for (k, batch) in enumerate(val_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
-                val_loss = core.get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch_processing=batch_processing)
+                val_loss = core.get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch=batch_processing)
                 total_loss += val_loss
                 print("-------------------------")
-                print(f"Epoch: {i + 1}, Validation batch: {j}, Loss: {val_loss}, Total loss: {total_loss}")
-            
+                print(f"Epoch: {i + 1}, Validation batch: {k}, Loss: {val_loss}, Total loss: {total_loss}")
+
 class LinearRegression(NeuralNetwork):
     def __init__(self, input_nodes: int, output_nodes: int, learning_rate: float):
         super().__init__([

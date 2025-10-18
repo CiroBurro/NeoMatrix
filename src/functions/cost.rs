@@ -100,7 +100,7 @@ pub enum Cost {
 /// z = Tensor([4], [1.1, 2.1, 2.9, 4.2])
 /// cost = get_cost(Cost.MeanSquaredError, t, z, parallel=True, batch=True)
 /// ```
-#[pyfunction(signature = (cost, t, z, parallel=None, batch_processing=None))]
+#[pyfunction]
 pub fn get_cost(
     cost: Cost,
     t: &Tensor,
