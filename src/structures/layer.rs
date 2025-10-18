@@ -206,9 +206,11 @@ impl Layer {
         if deltas.dimension > 2 || deltas.dimension == 0{
             panic!("Deltas tensor has to be 1D or 2D for backpropagation");
         }
-
+        
+        // Check if the layer is the output layer
         if out_layer {
 
+            // Check deltas tensor dimensions (whether if the function is called for a single sample or for a batch of samples)
             if deltas.dimension == 1 {
 
                 // Each node has its own delta
@@ -219,7 +221,7 @@ impl Layer {
                 // Biases gradients are equal to the output deltas
                 let biases_gradients = deltas.clone();
 
-                // Inputs and deltas tensors have to be reshaped to 2D since 1D tensors multiplication returns a scalar
+                // Inputs and deltas tensors have to be reshaped to 2D since 1D tensors dot product returns a scalar
                 let mut inputs = self.input.clone();
                 inputs.reshape(vec![self.input.shape[0], 1]);
                 let mut out_deltas = deltas.clone();
@@ -232,6 +234,7 @@ impl Layer {
             }
             else  {
 
+                // If deltas tensor is 2D (batch processing), the function needs the outputs of the previous layer of the entire batch
                 if all_outputs.is_none() {
                     panic!("If deltas tensor is 2D, all_outputs must be defined");
                 }
@@ -331,6 +334,7 @@ impl Layer {
             }
             else  {
 
+                // If deltas tensor is 2D (batch processing), the function needs the outputs of the previous layer of the entire batch
                 if all_outputs.is_none() {
                     panic!("If deltas tensor is 2D, all_outputs must be defined");
                 }
