@@ -2,7 +2,7 @@ import unittest
 from neomatrix.core import Tensor
 
 
-class TensorMethods(unittest.TestCase):
+class TensorMethodsTest(unittest.TestCase):
     def test_tensor_new(self):
 
         t = Tensor([1, 2, 3], [1, 2, 3, 4, 5, 6])

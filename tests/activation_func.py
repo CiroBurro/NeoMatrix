@@ -1,7 +1,7 @@
 import unittest
 from neomatrix.core import Activation
 
-class MyTestCase(unittest.TestCase):
+class ActivationFuncTest(unittest.TestCase):
     def relu(self):
         self.assertEqual(True, False)
 
