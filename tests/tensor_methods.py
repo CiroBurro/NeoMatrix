@@ -4,7 +4,6 @@ from neomatrix.core import Tensor
 
 class TensorMethodsTest(unittest.TestCase):
     def test_tensor_new(self):
-
         t = Tensor([1, 2, 3], [1, 2, 3, 4, 5, 6])
         self.assertEqual(t.dimension, 3)
         self.assertEqual(t.shape, [1, 2, 3])

@@ -69,14 +69,14 @@ class NeuralNetwork:
             for (j, batch) in enumerate(train_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
                 self.backward(ntwk_inputs=batch, t=train_target_batches[j], z=outputs)
-                loss = core.get_cost(self.cost_function, train_target_batches[j], z=outputs, parallel=parallel, batch=batch_processing)
+                loss = core.get_cost(self.cost_function, train_target_batches[j], z=outputs, parallel=parallel, batch_processing=batch_processing)
                 total_loss += loss
                 print("-------------------------")
                 print(f"Epoch: {i + 1}, Training batch: {j}, Loss: {loss}, Total loss: {total_loss}")
             
             for (k, batch) in enumerate(val_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
-                val_loss = core.get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch=batch_processing)
+                val_loss = core.get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch_processing=batch_processing)
                 total_loss += val_loss
                 print("-------------------------")
                 print(f"Epoch: {i + 1}, Validation batch: {k}, Loss: {val_loss}, Total loss: {total_loss}")
