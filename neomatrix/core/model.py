@@ -1,5 +1,6 @@
 import neomatrix.core as core
 import neomatrix.utils as utils
+import neomatrix.core.optimizer as opt
 import os
 
 __all__ = [
@@ -51,20 +52,31 @@ class NeuralNetwork:
             layer.biases = layer.biases.tensor_subtraction(b_grads.scalar_multiplication(self.learning_rate))
             deltas = new_deltas
     
-    def fit(self, training_set: core.Tensor, training_targets: core.Tensor, val_set: core.Tensor, val_targets: core.Tensor, epochs: int, batch_size: int, parallel: bool = False):
+    def fit(self, training_set: core.Tensor, training_targets: core.Tensor, val_set: core.Tensor, val_targets: core.Tensor, optimizer: opt.Optimizer, epochs: int, parallel: bool = False):
         batch_processing: bool = True
-        if batch_size == 1 or batch_size == 0:
-            batch_size = 1
-            batch_processing = False
-        
+        training_batch_size: int = 1
+        validation_batch_size: int = 1
+
+        match optimizer:
+            case opt.BatchGD():
+                training_batch_size = 2 # need a method to get tensor length
+                validation_batch_size = 2
+            case opt.SGD():
+                batch_processing = False
+            case opt.MiniBatchGD():
+                training_batch_size= optimizer.training_batch_size
+                validation_batch_size = optimizer.validation_batch_size
+            case _:
+                print("Invalid optimizer")
+                exit(1)
         
         for (i, epoch) in enumerate(range(epochs)):
             os.system('cls' if os.name == 'nt' else 'clear')
             total_loss = 0
-            train_batches = utils.get_batches(training_set, batch_size)
-            train_target_batches = utils.get_batches(training_targets, batch_size)
-            val_batches = utils.get_batches(val_set, batch_size)
-            val_targets_batches = utils.get_batches(val_targets, batch_size)
+            train_batches = utils.get_batches(training_set, training_batch_size)
+            train_target_batches = utils.get_batches(training_targets, training_batch_size)
+            val_batches = utils.get_batches(val_set, validation_batch_size)
+            val_targets_batches = utils.get_batches(val_targets, validation_batch_size)
 
             for (j, batch) in enumerate(train_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
@@ -73,7 +85,8 @@ class NeuralNetwork:
                 total_loss += loss
                 print("-------------------------")
                 print(f"Epoch: {i + 1}, Training batch: {j}, Loss: {loss}, Total loss: {total_loss}")
-            
+
+            total_loss = 0
             for (k, batch) in enumerate(val_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
                 val_loss = core.get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch_processing=batch_processing)

@@ -11,7 +11,7 @@ out_layer = Layer(1, layer_1.nodes, Activation.Linear)
 
 layers = [layer_1, out_layer]
 nn = model.NeuralNetwork(layers, Cost.MeanSquaredError(), learning_rate=0.005)
-nn.fit(training_set=training_x, training_targets=training_y, val_set=training_x, val_targets=training_y, epochs=100, batch_size=2, parallel=False)
+nn.fit(training_set=training_x, training_targets=training_y, val_set=training_x, val_targets=training_y, optimizer=optimizer.BatchGD(), epochs=100, parallel=False)
 
 
 t = Tensor([2], [4, 8])

@@ -11,4 +11,5 @@ class SGD(Optimizer):
 
 @dataclass
 class MiniBatchGD(Optimizer):
-    batch_size: int
+    training_batch_size: int
+    validation_batch_size: int
