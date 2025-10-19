@@ -117,16 +117,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "neomatrix"
-version = "0.1.0"
-dependencies = [
- "ndarray",
- "numpy",
- "pyo3",
- "rand",
-]
-
-[[package]]
 name = "num-complex"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -345,6 +335,16 @@ name = "rustc-hash"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
+
+[[package]]
+name = "rustybrain"
+version = "0.1.0"
+dependencies = [
+ "ndarray",
+ "numpy",
+ "pyo3",
+ "rand",
+]
 
 [[package]]
 name = "syn"

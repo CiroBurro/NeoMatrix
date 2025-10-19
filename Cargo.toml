@@ -1,11 +1,11 @@
 [package]
-name = "neomatrix"
+name = "rustybrain"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "neomatrix"
+name = "rustybrain"
 crate-type = ["cdylib"]
 
 [dependencies]
