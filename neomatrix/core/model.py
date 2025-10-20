@@ -31,7 +31,7 @@ class NeuralNetwork:
                 inputs = output
             return inputs
 
-    def backward(self, ntwk_inputs: core.Tensor, t: core.Tensor, z: core.Tensor):
+    def backward(self, ntwk_inputs: core.Tensor, t: core.Tensor, z: core.Tensor, optimizer: opt.Optimizer):
         all_outputs = []
         deltas = self.layers[-1].get_output_deltas(self.cost_function, t, z)
         for (i, layer) in enumerate(reversed(self.layers)):
@@ -48,8 +48,10 @@ class NeuralNetwork:
                 all_outputs = ntwk_inputs
                  
             (w_grads, b_grads, new_deltas) = layer.backward(out_layer, deltas, next_weights, all_outputs)
-            layer.weights = layer.weights.tensor_subtraction(w_grads.scalar_multiplication(self.learning_rate))
-            layer.biases = layer.biases.tensor_subtraction(b_grads.scalar_multiplication(self.learning_rate))
+            #layer.weights = layer.weights.tensor_subtraction(w_grads.scalar_multiplication(self.learning_rate))
+            #layer.biases = layer.biases.tensor_subtraction(b_grads.scalar_multiplication(self.learning_rate))
+
+            optimizer.params_update(layer=layer, w_grads=w_grads, b_grads=b_grads, learning_rate=self.learning_rate)
             deltas = new_deltas
     
     def fit(self, training_set: core.Tensor, training_targets: core.Tensor, val_set: core.Tensor, val_targets: core.Tensor, optimizer: opt.Optimizer, epochs: int, parallel: bool = False):
@@ -80,7 +82,7 @@ class NeuralNetwork:
 
             for (j, batch) in enumerate(train_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
-                self.backward(ntwk_inputs=batch, t=train_target_batches[j], z=outputs)
+                self.backward(ntwk_inputs=batch, t=train_target_batches[j], z=outputs, optimizer=optimizer)
                 loss = core.get_cost(self.cost_function, train_target_batches[j], z=outputs, parallel=parallel, batch_processing=batch_processing)
                 total_loss += loss
                 print("-------------------------")
