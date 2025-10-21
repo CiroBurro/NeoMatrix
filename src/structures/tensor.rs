@@ -67,6 +67,16 @@ impl Tensor {
         Self { dimension, shape: sh, data }
     }
 
+    /// Constructor method for a random tensor
+    ///
+    /// Parameters:
+    /// - shape: A vector of usize representing the shape of the tensor
+    ///
+    /// Python usage:
+    /// ```python
+    /// from neomatrix import Tensor
+    /// t = Tensor.random([2, 2, 3])
+    /// ```
     #[staticmethod]
     pub fn random(sh: Vec<usize>) -> Self {
 
@@ -379,6 +389,17 @@ impl Tensor {
         })
     }
 
+    /// Length method for tensor
+    ///
+    /// Python usage:
+    /// ```python
+    /// t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
+    /// length = t.length()
+    /// ```
+    pub fn length(&self) -> usize {
+        self.data.len()
+    }
+
     /// Transpose method for 2D tensors
     /// 
     /// Python usage:
@@ -529,7 +550,7 @@ impl Tensor {
     /// ```python
     /// t_1 = Tensor([3, 2], [2, 4, 6, 8, 10, 12])
     /// t_2 = Tensor([3], [1, 3, 5])
-    /// t_1.push_row(t_2)
+    /// t_1.push_column(t_2)
     /// ```
     pub fn push_column(&mut self, t: &Tensor) {
 
