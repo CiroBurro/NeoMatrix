@@ -39,6 +39,18 @@ mod test {
     }
 
     #[test]
+    fn test_tensor_random() {
+        // Test creating a tensor filled with random elements
+        let shape = vec![2, 3];
+        let tensor = Tensor::random(shape.clone());
+
+        assert_eq!(tensor.dimension, 2);
+        assert_eq!(tensor.shape, shape);
+
+        //println!("{}", tensor.data);
+    }
+
+    #[test]
     fn test_tensor_dot_vector_vector() {
         // Test dot product between two vectors
         let t1 = Tensor::new(vec![3], vec![1.0, 2.0, 3.0]);
@@ -137,6 +149,16 @@ mod test {
         assert_eq!(div_result.data[[0, 1]], 1.0);
         assert_eq!(div_result.data[[1, 0]], 1.5);
         assert_eq!(div_result.data[[1, 1]], 2.0);
+    }
+
+    #[test]
+    fn test_length() {
+        // Test length method
+        let t = Tensor::random(vec![3, 4]);
+
+        let len = t.length();
+
+        assert_eq!(len, 12);
     }
 
     #[test]
