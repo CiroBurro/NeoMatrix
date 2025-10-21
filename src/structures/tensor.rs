@@ -456,7 +456,7 @@ impl Tensor {
         self.data = flattened_data.to_owned().into_dyn();
     }
 
-    /// Concatenate method for 2 tensor
+    /// Push method for 2 tensor
     /// One tensor is pushed into the other
     /// 
     /// Parameters:
@@ -469,7 +469,7 @@ impl Tensor {
     /// t_2 = Tensor([4], [1, 3, 5, 7])
     /// t_1.push_cat(t_2, 0)
     /// ```
-    pub fn push_cat(&mut self, t: &Tensor, axis: usize) {
+    pub fn push(&mut self, t: &Tensor, axis: usize) {
         let mut vec_data = Vec::new();
         self.data.flatten().for_each(|x| vec_data.push(*x));
         t.data.flatten().for_each(|x| vec_data.push(*x));
@@ -503,7 +503,7 @@ impl Tensor {
     pub fn cat(&self, tensors: Vec<Tensor>, axis: usize) -> PyResult<Tensor> {
         let mut new_tensor = self.clone();
         for t in tensors.iter() {
-            new_tensor.push_cat(t, axis);
+            new_tensor.push(t, axis);
         }
 
         Ok(new_tensor)

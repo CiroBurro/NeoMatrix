@@ -160,13 +160,13 @@ class TensorMethodsTest(unittest.TestCase):
         t_1 = Tensor([2, 2], [2, 4, 6, 8])
         t_2 = Tensor([2, 2], [1, 3, 5, 7])
 
-        t_1.push_cat(t_2, 1)
+        t_1.push(t_2, 1)
         self.assertEqual(t_1.dimension, 2)
         self.assertEqual(t_1.shape, [2, 4])
         print(t_1.data)
 
         t_1 = Tensor([2, 2], [2, 4, 6, 8])
-        t_1.push_cat(t_2, 0)
+        t_1.push(t_2, 0)
         self.assertEqual(t_1.dimension, 2)
         self.assertEqual(t_1.shape, [4, 2])
         print(t_1.data)
