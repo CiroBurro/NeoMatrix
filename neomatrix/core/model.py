@@ -48,9 +48,6 @@ class NeuralNetwork:
                 all_outputs = ntwk_inputs
                  
             (w_grads, b_grads, new_deltas) = layer.backward(out_layer, deltas, next_weights, all_outputs)
-            #layer.weights = layer.weights.tensor_subtraction(w_grads.scalar_multiplication(self.learning_rate))
-            #layer.biases = layer.biases.tensor_subtraction(b_grads.scalar_multiplication(self.learning_rate))
-
             optimizer.params_update(layer=layer, w_grads=w_grads, b_grads=b_grads, learning_rate=self.learning_rate)
             deltas = new_deltas
     
@@ -61,8 +58,8 @@ class NeuralNetwork:
 
         match optimizer:
             case opt.BatchGD():
-                training_batch_size = 2 # need a method to get tensor length
-                validation_batch_size = 2
+                training_batch_size = training_set.length()
+                validation_batch_size = val_set.length()
             case opt.SGD():
                 batch_processing = False
             case opt.MiniBatchGD():

@@ -16,11 +16,14 @@ def get_batches(tensor: core.Tensor, batch_size: int):
     total_samples = tensor.shape[0]
     num_batches = total_samples // batch_size
     
-    subarrays = np.array_split(array, num_batches, axis=0)
+    try:
+        subarrays = np.array_split(array, num_batches, axis=0)
+    except ValueError:
+        subarrays = [array]
 
     tensors = []
     for arr in subarrays:
-        tensor = core.Tensor.from_numpy(arr)
+        tensor = core.Tensor.from_numpy(arr=arr)
         if batch_size == 1:
             tensor.flatten()
         tensors.append(tensor)
