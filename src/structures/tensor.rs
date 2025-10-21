@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 use pyo3::Bound;
 use ndarray::prelude::*;
 use ndarray::{Ix1, Ix2};
+use rand;
 use numpy::{prelude::*, PyArrayDyn, PyReadonlyArrayDyn};
 use crate::utils::matmul::par_dot;
 
@@ -64,6 +65,18 @@ impl Tensor {
         let dimension = sh.len();
         let data = Array::zeros(sh.clone());
         Self { dimension, shape: sh, data }
+    }
+
+    #[staticmethod]
+    pub fn random(sh: Vec<usize>) -> Self {
+
+        let mut tensor = Tensor::zeros(sh);
+
+        tensor.data.par_mapv_inplace(|_| {
+            rand::random_range(0.0..100.0)
+        });
+
+        tensor
     }
 
     /// Getter method for the data field
