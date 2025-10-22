@@ -2,8 +2,6 @@ pub mod structures;
 pub mod functions;
 pub mod utils;
 mod tests;
-mod optimization;
-
 use pyo3::prelude::*;
 use structures::{
     tensor::Tensor,
