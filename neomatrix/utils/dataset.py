@@ -1,16 +1,23 @@
+"""
+Module for dataset utilities and batching operations.
+
+Provides functions to split a tensor into smaller batch tensors.
+"""
+
 import neomatrix.core as core
 import numpy as np
 
-'''
-Split a tensor in smaller ones (batches) of an arbitrary size
+def get_batches(tensor: core.Tensor, batch_size: int) -> list[core.Tensor]:
+    """
+    Split a tensor into smaller batches of the specified size.
 
-Parameters:
-- tensor: tensor to be splitted
-- batch_size: number of samples of a single batch
-'''
+    Args:
+        tensor (core.Tensor): The tensor to be split.
+        batch_size (int): Number of samples per batch.
 
-def get_batches(tensor: core.Tensor, batch_size: int):
-
+    Returns:
+        list[core.Tensor]: A list of tensor batches.
+    """
     array = tensor.data
 
     total_samples = tensor.shape[0]
@@ -29,6 +36,3 @@ def get_batches(tensor: core.Tensor, batch_size: int):
         tensors.append(tensor)
     
     return tensors
-
-
-

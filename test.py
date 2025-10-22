@@ -12,15 +12,15 @@ out_layer = Layer(1, layer_1.nodes, Activation.Linear)
 
 layers = [layer_1, out_layer]
 nn = model.NeuralNetwork(layers, Cost.MeanSquaredError(), learning_rate=0.05)
-nn.fit(
-    training_set=training_x,
-    training_targets=training_y,
-    val_set=training_x,
-    val_targets=training_y,
-    optimizer=optimizer.SGD(),
-    epochs=10,
-    parallel=False,
-)
+print(nn.layers)
+#nn.fit(
+#    training_set=training_x,
+#    training_targets=training_y,
+#    val_set=training_x,
+#    val_targets=training_y,
+#    optimizer=optimizer.BatchGD(),
+#    epochs=10,
+#    parallel=False,
+#)
 
-t = Tensor([2], [4, 8])
-output = nn.predict(ntwk_inputs=t, batch_processing=False, parallel=False)
+#output = nn.predict(ntwk_inputs=t, batch_processing=False, parallel=False)

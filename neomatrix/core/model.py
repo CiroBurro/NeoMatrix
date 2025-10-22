@@ -1,3 +1,11 @@
+"""
+Module for ML models. It provides classes for the most common ML algorithms:
+- Neural Network
+- Linear Regression
+- Logistic Regression
+- Softmax Regression
+"""
+
 import neomatrix.core as core
 import neomatrix.utils as utils
 import neomatrix.core.optimizer as opt
