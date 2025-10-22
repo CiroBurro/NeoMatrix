@@ -11,12 +11,39 @@ __all__ = [
 ]
 
 class NeuralNetwork:
+    """
+    A class representing a generic neural network model.
+
+    Attributes:
+        layers (list[core.Layer]): List of neural network layers.
+        cost_function (core.Cost): Cost function used for training.
+        learning_rate (float): Learning rate for updating parameters.
+    """
     def __init__(self, layers: list[core.Layer], cost_function: core.Cost, learning_rate: float):
         self.layers = layers
         self.cost_function = cost_function
         self.learning_rate = learning_rate
+        """
+        Initializes a new NeuralNetwork instance.
+
+        Args:
+            layers (list[core.Layer]): List of neural network layers.
+            cost_function (core.Cost): Cost function used for training.
+            learning_rate (float): Learning rate for updating parameters.
+        """
 
     def predict(self, ntwk_inputs: core.Tensor, batch_processing: bool=True, parallel: bool=False) -> core.Tensor:
+        """
+        Performs forward propagation through the network.
+
+        Args:
+            ntwk_inputs (core.Tensor): Input tensor for the network.
+            batch_processing (bool, optional): If True, processes the data in batch mode. Default is True.
+            parallel (bool, optional): If True, enables parallel processing. Default is False.
+
+        Returns:
+            core.Tensor: Output tensor from the network.
+        """
         inputs = ntwk_inputs
         if batch_processing:
             for layer in self.layers:
@@ -32,6 +59,15 @@ class NeuralNetwork:
             return inputs
 
     def backward(self, ntwk_inputs: core.Tensor, t: core.Tensor, z: core.Tensor, optimizer: opt.Optimizer):
+        """
+        Performs backpropagation to compute gradients and update parameters.
+
+        Args:
+            ntwk_inputs (core.Tensor): Input tensor for the network.
+            t (core.Tensor): Target tensor.
+            z (core.Tensor): Output tensor from the network.
+            optimizer (opt.Optimizer): Optimizer for parameter updates.
+        """
         all_outputs = []
         deltas = self.layers[-1].get_output_deltas(self.cost_function, t, z)
         for (i, layer) in enumerate(reversed(self.layers)):
@@ -52,6 +88,18 @@ class NeuralNetwork:
             deltas = new_deltas
     
     def fit(self, training_set: core.Tensor, training_targets: core.Tensor, val_set: core.Tensor, val_targets: core.Tensor, optimizer: opt.Optimizer, epochs: int, parallel: bool = False):
+        """
+        Trains the network using the provided data.
+
+        Args:
+            training_set (core.Tensor): Training data tensor.
+            training_targets (core.Tensor): Training targets tensor.
+            val_set (core.Tensor): Validation data tensor.
+            val_targets (core.Tensor): Validation targets tensor.
+            optimizer (opt.Optimizer): Optimizer used for training.
+            epochs (int): Number of training epochs.
+            parallel (bool, optional): If True, enables parallel processing. Default is False.
+        """
         batch_processing: bool = True
         training_batch_size: int = 1
         validation_batch_size: int = 1
@@ -94,19 +142,51 @@ class NeuralNetwork:
                 print(f"Epoch: {i + 1}, Validation batch: {k}, Loss: {val_loss}, Total loss: {total_loss}")
 
 class LinearRegression(NeuralNetwork):
+    """
+    A class representing a linear regression model.
+    """
     def __init__(self, input_nodes: int, output_nodes: int, learning_rate: float):
+        """
+        Initializes a Linear Regression model.
+
+        Args:
+            input_nodes (int): Number of input nodes.
+            output_nodes (int): Number of output nodes.
+            learning_rate (float): Learning rate.
+        """
         super().__init__([
             core.Layer(output_nodes, input_nodes, core.Activation.Linear)
         ], core.Cost.MeanSquaredError(), learning_rate)
 
 class LogisticRegression(NeuralNetwork):
+    """
+    A class representing a logistic regression model.
+    """
     def __init__(self, input_nodes: int, learning_rate: float):
+        """
+        Initializes a Logistic Regression model.
+
+        Args:
+            input_nodes (int): Number of input nodes.
+            learning_rate (float): Learning rate.
+        """
         super().__init__([
             core.Layer(1, input_nodes, core.Activation.Sigmoid)
         ], core.Cost.BinaryCrossEntropy(), learning_rate)
 
 class SoftmaxRegression(NeuralNetwork):
+    """
+    A class representing a softmax regression model.
+    """
     def __init__(self, input_nodes: int, output_nodes: int, learning_rate: float):
+        """
+        Initializes a Softmax Regression model.
+
+        Args:
+            input_nodes (int): Number of input nodes.
+            output_nodes (int): Number of output nodes.
+            learning_rate (float): Learning rate.
+        """
         super().__init__([
             core.Layer(output_nodes, input_nodes, core.Activation.Softmax)
         ], core.Cost.CategoricalCrossEntropy(), learning_rate)
