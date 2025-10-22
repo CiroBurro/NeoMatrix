@@ -1,6 +1,6 @@
 # NeoMatrix
 
-NeoMatrix is a tensorflow-inspired machine learning library, written in Rust with an high-level Python API. It aims to combine the computational speed of Rust with the simplicity and flexibility of Python for building and training neural networks.
+NeoMatrix is a keras-inspired machine learning library, written in Rust with an high-level Python API. It aims to combine the computational speed of Rust with the simplicity and flexibility of Python for building and training neural networks.
 
 ## How It Works
 
@@ -9,7 +9,7 @@ The core of NeoMatrix is a Rust library named `rustybrain`, which handles all co
 - **Linear Algebra**: Optimized dot and matrix products with support for parallelism.
 - **Propagation**: Calculation of forward and backward propagation passes.
 
-A Python wrapper exposes these features through a simple API inspired by libraries like Keras. This allows users to define, train, and evaluate deep learning models without writing any Rust code.
+A Python wrapper exposes these features through a simple API inspired by libraries like Keras and PyTorch. This allows users to define, train, and evaluate deep learning models without writing any Rust code.
 
 ## Features and Functionality
 
@@ -122,6 +122,7 @@ print("Predictions:", predictions.get_data())
 ```
 
 ## TODO List
+- [ ] **Implement ops traits for tensor**: use std traits instead of useless tensor traits
 - [ ] **Implement more optimizers**: Adam, RMSprop, Adagrad.
 - [ ] **Add examples**: Implementation linear, logistic, and softmax regression, and a simple neuralnetwork
 - [ ] **Save and Load Models**: Functionality to serialize and deserialize trained models.
