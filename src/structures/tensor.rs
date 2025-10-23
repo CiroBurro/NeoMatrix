@@ -26,6 +26,12 @@ pub struct Tensor {
     pub data: ArrayD<f64>,
 }
 
+#[derive(FromPyObject)]
+enum TensorOrScalar {
+    Tensor(Tensor),
+    Scalar(f64),
+}
+
 /// Tensor struct implementation
 #[pymethods]
 impl Tensor {
@@ -387,6 +393,118 @@ impl Tensor {
             shape: result.shape().to_vec(),
             data: result.into_dyn(),
         })
+    }
+
+    fn __add__(&self, other: TensorOrScalar) -> PyResult<Tensor> {
+
+        match other {
+            TensorOrScalar::Tensor(t) => {
+                // Check if the shapes are compatible for addition
+                if self.shape != t.shape {
+                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        "Tensor shapes are not compatible for element-wise addition"
+                    ));
+                }
+                let result = &self.data + &t.data;
+                Ok(Tensor {
+                    dimension: result.ndim(),
+                    shape: result.shape().to_vec(),
+                    data: result.into_dyn(),
+                })
+            },
+            TensorOrScalar::Scalar(scalar) => {
+                let result = &self.data + scalar;
+                Ok(Tensor {
+                    dimension: result.ndim(),
+                    shape: result.shape().to_vec(),
+                    data: result.into_dyn(),
+                })
+            },
+        }
+    }
+
+    fn __sub__(&self, other: TensorOrScalar) -> PyResult<Tensor> {
+
+        match other {
+            TensorOrScalar::Tensor(t) => {
+                // Check if the shapes are compatible for subtraction
+                if self.shape != t.shape {
+                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        "Tensor shapes are not compatible for element-wise addition"
+                    ));
+                }
+                let result = &self.data - &t.data;
+                Ok(Tensor {
+                    dimension: result.ndim(),
+                    shape: result.shape().to_vec(),
+                    data: result.into_dyn(),
+                })
+            },
+            TensorOrScalar::Scalar(scalar) => {
+                let result = &self.data - scalar;
+                Ok(Tensor {
+                    dimension: result.ndim(),
+                    shape: result.shape().to_vec(),
+                    data: result.into_dyn(),
+                })
+            },
+        }
+    }
+
+    fn __mul__(&self, other: TensorOrScalar) -> PyResult<Tensor> {
+
+        match other {
+            TensorOrScalar::Tensor(t) => {
+                // Check if the shapes are compatible for multiplication
+                if self.shape != t.shape {
+                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        "Tensor shapes are not compatible for element-wise addition"
+                    ));
+                }
+                let result = &self.data * &t.data;
+                Ok(Tensor {
+                    dimension: result.ndim(),
+                    shape: result.shape().to_vec(),
+                    data: result.into_dyn(),
+                })
+            },
+            TensorOrScalar::Scalar(scalar) => {
+                let result = &self.data * scalar;
+                Ok(Tensor {
+                    dimension: result.ndim(),
+                    shape: result.shape().to_vec(),
+                    data: result.into_dyn(),
+                })
+            },
+        }
+    }
+
+    fn __truediv__(&self, other: TensorOrScalar) -> PyResult<Tensor> {
+
+        match other {
+            TensorOrScalar::Tensor(t) => {
+                // Check if the shapes are compatible for division
+                if self.shape != t.shape {
+                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        "Tensor shapes are not compatible for element-wise addition"
+                    ));
+                }
+                let result = &self.data / &t.data;
+                Ok(Tensor {
+                    dimension: result.ndim(),
+                    shape: result.shape().to_vec(),
+                    data: result.into_dyn(),
+                })
+            },
+            TensorOrScalar::Scalar(scalar) => {
+                let result = &self.data / scalar;
+                Ok(Tensor {
+                    dimension: result.ndim(),
+                    shape: result.shape().to_vec(),
+                    data: result.into_dyn(),
+                })
+            },
+        }
     }
 
     /// Length method for tensor
