@@ -41,7 +41,6 @@ fn select_activation(l: &Layer) -> Box<dyn ActivationFunction> {
     }
 }
 
-
 /// Layer struct implementation
 #[pymethods]
 impl Layer {
@@ -112,9 +111,9 @@ impl Layer {
 
         // Forward prop algorithm
         if parallel {
-            self.output = f.par_function(&mut self.input.dot(&self.weights).unwrap().tensor_sum(&self.biases)?);
+            self.output = f.par_function(&mut (&self.input.dot(&self.weights)? + &self.biases)?);
         } else {
-            self.output = f.function(&mut self.input.dot(&self.weights).unwrap().tensor_sum(&self.biases)?);
+            self.output = f.function(&mut (self.input.dot(&self.weights)? + &self.biases)?);
         }
 
         Ok(self.output.clone())
@@ -167,10 +166,10 @@ impl Layer {
 
             // Forward prop algorithm
             if parallel {
-                f.par_function(&mut tensor.dot(&self.weights).unwrap().tensor_sum(&self.biases).unwrap())
+                f.par_function(&mut (tensor.dot(&self.weights).unwrap() + &self.biases).unwrap())
             } else {
-                f.function(&mut tensor.dot(&self.weights).unwrap().tensor_sum(&self.biases).unwrap())
-            } 
+                f.function(&mut (tensor.dot(&self.weights).unwrap() + &self.biases).unwrap())
+            }
             
         }).collect();
 
@@ -315,9 +314,9 @@ impl Layer {
                 }
 
                 // The total input of the layer is argument of the derivative of the activation function
-                let inputs_derivative = f.derivative(&mut self.input.dot(&self.weights).unwrap().tensor_sum(&self.biases)?);
+                let inputs_derivative = f.derivative(&mut (self.input.dot(&self.weights).unwrap() + &self.biases)?);
                 // The layer deltas are calculated as the dot product between the deltas of the next layer and the weights of the next layer, and then multiplied by the derivative of the activation function
-                let layer_deltas = next_weights.dot(&deltas)?.tensor_multiplication(&inputs_derivative)?;
+                let layer_deltas = (next_weights.dot(&deltas)? * inputs_derivative)?;
 
                 // Biases gradients are equal to the output deltas
                 let biases_gradients = layer_deltas.clone();
@@ -369,7 +368,7 @@ impl Layer {
                 };
 
                 // The total input of the layer is argument of the derivative of the activation function
-                let inputs_derivative = f.derivative(&mut self.input.dot(&self.weights)?.tensor_sum(&self.biases)?);
+                let inputs_derivative = f.derivative(&mut (self.input.dot(&self.weights)? + &self.biases)?);
                 // The derivative of the activation function has to be reshaped to 2D since 1D tensors multiplication returns a scalar
                 let inputs_derivative = Tensor {
                     dimension: 2,
@@ -377,7 +376,7 @@ impl Layer {
                     data: inputs_derivative.data.clone(),
                 };
                 // The layer deltas are calculated as the dot product between the deltas of the next layer and the weights of the next layer, and then multiplied by the derivative of the activation function
-                let layer_deltas = deltas.dot(&next_weights.transpose()?)?.tensor_multiplication(&inputs_derivative)?;
+                let layer_deltas = (deltas.dot(&next_weights.transpose()?)? * inputs_derivative)?;
 
                 // Weights gradients are calculated as the dot product between the inputs of the layer of the entire batch and the current (layer) deltas
                 let mut weights_gradients = all_outputs.dot(&layer_deltas)?;
@@ -412,12 +411,12 @@ impl Layer {
 
         // Optimization for the case of binary cross entropy with sigmoid activation
         if matches!(cost, Cost::BinaryCrossEntropy()) && matches!(self.activation, Activation::Sigmoid) {
-            return z.tensor_subtraction(t) // Deltas are just the difference
+            return z - t // Deltas are just the difference
         }
 
         // Optimization for the case of categorical cross entropy with softmax activation
         if matches!(cost, Cost::CategoricalCrossEntropy()) && matches!(self.activation, Activation::Softmax) {
-            return z.tensor_subtraction(t) // Deltas are just the difference
+            return z - t // Deltas are just the difference
         }
 
         // Derivatives calculus
@@ -450,7 +449,7 @@ impl Layer {
         }
 
         // In all other combinations of cost and activation function deltas = cost function derivative * activation function derivative
-        cost_derivative.tensor_multiplication(&activation_derivative)
+        cost_derivative * activation_derivative
     }
     
     fn __repr__(&self) -> String {

@@ -323,13 +323,13 @@ impl Tensor {
     /// print(result)
     /// print(result.data) -> result: [5, 7, 9, 11]
     /// ```
-    pub fn scalar_sum(&self, scalar: f64) -> PyResult<Tensor> {
+    pub fn scalar_sum(&self, scalar: f64) -> Tensor {
         let result = &self.data + scalar;
-        Ok(Tensor {
+        Tensor {
             dimension: result.ndim(),
             shape: result.shape().to_vec(),
             data: result.into_dyn(),
-        })
+        }
     }
 
     /// Element-wise subtraction method between a tensor and a scalar
@@ -344,13 +344,13 @@ impl Tensor {
     /// print(result)
     /// print(result.data) -> result: [-1, 1, 3, 5]
     /// ```
-    pub fn scalar_subtraction(&self, scalar: f64) -> PyResult<Tensor> {
+    pub fn scalar_subtraction(&self, scalar: f64) -> Tensor {
         let result = &self.data - scalar;
-        Ok(Tensor {
+        Tensor {
             dimension: result.ndim(),
             shape: result.shape().to_vec(),
             data: result.into_dyn(),
-        })
+        }
     }
 
     /// Element-wise multiplication method between a tensor and a scalar
@@ -365,13 +365,13 @@ impl Tensor {
     /// print(result)
     /// print(result.data) -> result: [6, 12, 18, 24]
     /// ```
-    pub fn scalar_multiplication(&self, scalar: f64) -> PyResult<Tensor> {
+    pub fn scalar_multiplication(&self, scalar: f64) -> Tensor {
         let result = &self.data * scalar;
-        Ok(Tensor {
+        Tensor {
             dimension: result.ndim(),
             shape: result.shape().to_vec(),
             data: result.into_dyn(),
-        })
+        }
     }
 
     /// Element-wise division method between a tensor and a scalar
@@ -386,13 +386,13 @@ impl Tensor {
     /// print(result)
     /// print(result.data) -> result: [2/3, 4/3, 2, 8/3]
     /// ```
-    pub fn scalar_division(&self, scalar: f64) -> PyResult<Tensor> {
+    pub fn scalar_division(&self, scalar: f64) -> Tensor {
         let result = &self.data / scalar;
-        Ok(Tensor {
+        Tensor {
             dimension: result.ndim(),
             shape: result.shape().to_vec(),
             data: result.into_dyn(),
-        })
+        }
     }
 
     fn __add__(&self, other: TensorOrScalar) -> PyResult<Tensor> {
@@ -690,6 +690,11 @@ impl Tensor {
         self.dimension = self.data.ndim();
         self.shape = self.data.shape().to_vec();
     }
+
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        todo!()
+    }
+
     fn __repr__(&self) -> String {
         format!("Tensor(dimension={}, shape={:?})", self.dimension, self.shape)
     }
