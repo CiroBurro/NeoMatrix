@@ -87,21 +87,21 @@ mod test {
         let t2 = Tensor::new(vec![2, 2], vec![5.0, 6.0, 7.0, 8.0]);
         
         // Test tensor sum
-        let sum_result = t1.tensor_sum(&t2).unwrap();
+        let sum_result = (&t1 + &t2).unwrap();
         assert_eq!(sum_result.data[[0, 0]], 6.0);
         assert_eq!(sum_result.data[[0, 1]], 8.0);
         assert_eq!(sum_result.data[[1, 0]], 10.0);
         assert_eq!(sum_result.data[[1, 1]], 12.0);
         
         // Test tensor subtraction
-        let sub_result = t2.tensor_subtraction(&t1).unwrap();
+        let sub_result = (&t2-&t1).unwrap();
         assert_eq!(sub_result.data[[0, 0]], 4.0);
         assert_eq!(sub_result.data[[0, 1]], 4.0);
         assert_eq!(sub_result.data[[1, 0]], 4.0);
         assert_eq!(sub_result.data[[1, 1]], 4.0);
         
         // Test tensor multiplication
-        let mul_result = t1.tensor_multiplication(&t2).unwrap();
+        let mul_result = (&t1*&t2).unwrap();
         assert_eq!(mul_result.data[[0, 0]], 5.0);
         assert_eq!(mul_result.data[[0, 1]], 12.0);
         assert_eq!(mul_result.data[[1, 0]], 21.0);
@@ -110,7 +110,7 @@ mod test {
         // Test tensor division
         let div_t1 = Tensor::new(vec![2, 2], vec![10.0, 12.0, 9.0, 8.0]);
         let div_t2 = Tensor::new(vec![2, 2], vec![2.0, 3.0, 3.0, 2.0]);
-        let div_result = div_t1.tensor_division(&div_t2).unwrap();
+        let div_result = (div_t1 / div_t2).unwrap();
         assert_eq!(div_result.data[[0, 0]], 5.0);
         assert_eq!(div_result.data[[0, 1]], 4.0);
         assert_eq!(div_result.data[[1, 0]], 3.0);
@@ -123,28 +123,28 @@ mod test {
         let t = Tensor::new(vec![2, 2], vec![1.0, 2.0, 3.0, 4.0]);
         
         // Test scalar addition
-        let sum_result = t.scalar_sum(2.0).unwrap();
+        let sum_result = &t+2.0;
         assert_eq!(sum_result.data[[0, 0]], 3.0);
         assert_eq!(sum_result.data[[0, 1]], 4.0);
         assert_eq!(sum_result.data[[1, 0]], 5.0);
         assert_eq!(sum_result.data[[1, 1]], 6.0);
         
         // Test scalar subtraction
-        let sub_result = t.scalar_subtraction(1.0).unwrap();
+        let sub_result = &t-1.0;
         assert_eq!(sub_result.data[[0, 0]], 0.0);
         assert_eq!(sub_result.data[[0, 1]], 1.0);
         assert_eq!(sub_result.data[[1, 0]], 2.0);
         assert_eq!(sub_result.data[[1, 1]], 3.0);
         
         // Test scalar multiplication
-        let mul_result = t.scalar_multiplication(3.0).unwrap();
+        let mul_result = &t*3.0;
         assert_eq!(mul_result.data[[0, 0]], 3.0);
         assert_eq!(mul_result.data[[0, 1]], 6.0);
         assert_eq!(mul_result.data[[1, 0]], 9.0);
         assert_eq!(mul_result.data[[1, 1]], 12.0);
         
         // Test scalar division
-        let div_result = t.scalar_division(2.0).unwrap();
+        let div_result = &t / 2.0;
         assert_eq!(div_result.data[[0, 0]], 0.5);
         assert_eq!(div_result.data[[0, 1]], 1.0);
         assert_eq!(div_result.data[[1, 0]], 1.5);
