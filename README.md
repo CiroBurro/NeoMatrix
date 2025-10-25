@@ -1,3 +1,5 @@
+from neomatrix.core.model import NeuralNetwork
+
 # NeoMatrix
 
 NeoMatrix is a keras-inspired machine learning library, written in Rust with an high-level Python API. It aims to combine the computational speed of Rust with the simplicity and flexibility of Python for building and training neural networks.
@@ -46,44 +48,37 @@ The NeoMatrix API is designed to be intuitive. Here is an example of how to defi
 You can build a `NeuralNetwork` model by assembling a list of `Layer`s. Each layer requires the number of neurons, the input length, and an activation function.
 
 ```python
-import neomatrix.core as core
-import neomatrix.core.optimizer as opt
-from neomatrix.utils.dataset import get_batches # Utility function for data handling
-import numpy as np
+from neomatrix.core import Tensor, Layer, Activation, Cost, model
+from neomatrix.core.optimizer import MiniBatchGD
+from neomatrix.utils.dataset import get_batches  # Utility function for data handling
 
 # Define the network architecture
 layers = [
-    core.Layer(nodes=10, input_len=2, activation=core.Activation.Relu),
-    core.Layer(nodes=5, input_len=10, activation=core.Activation.Relu),
-    core.Layer(nodes=1, input_len=5, activation=core.Activation.Sigmoid)
+    Layer(nodes=10, input_len=2, activation=Activation.Relu),
+    Layer(nodes=5, input_len=10, activation=Activation.Relu),
+    Layer(nodes=1, input_len=5, activation=Activation.Sigmoid)
 ]
 
 # Create the model
-model = core.NeuralNetwork(
+model = model.NeuralNetwork(
     layers=layers,
-    cost_function=core.Cost.MeanSquaredError(),
+    cost_function=Cost.MeanSquaredError(),
     learning_rate=0.01
 )
 ```
 
 ### 2. Prepare the Data
 
-Input data must be NeoMatrix `Tensor` objects. You can easily create them from NumPy arrays.
+Input data must be NeoMatrix `Tensor` objects.
 
 ```python
 # Sample data (training)
-X_train_np = np.random.rand(100, 2)
-y_train_np = np.random.randint(0, 2, (100, 1))
+training_set = Tensor.random([100, 2])
+training_targets = Tensor.random([100, 1])
 
 # Sample data (validation)
-X_val_np = np.random.rand(50, 2)
-y_val_np = np.random.randint(0, 2, (50, 1))
-
-# Convert to NeoMatrix Tensors
-training_set = core.Tensor.from_numpy(X_train_np)
-training_targets = core.Tensor.from_numpy(y_train_np)
-val_set = core.Tensor.from_numpy(X_val_np)
-val_targets = core.Tensor.from_numpy(y_val_np)
+val_set = Tensor.random([50, 2])
+val_targets = Tensor.random([50, 1])
 ```
 
 ### 3. Train the Model
@@ -92,7 +87,7 @@ Use the `fit` method to train the network. Select an optimizer and the number of
 
 ```python
 # Choose an optimizer
-optimizer = opt.MiniBatchGD(training_batch_size=10, validation_batch_size=5)
+optimizer = MiniBatchGD(training_batch_size=10, validation_batch_size=5)
 
 # Train the model
 model.fit(
@@ -112,8 +107,7 @@ After training, you can use the `predict` method to get the model's predictions.
 
 ```python
 # Test data
-X_test_np = np.array([[0.1, 0.9], [0.8, 0.2]])
-test_data = core.Tensor.from_numpy(X_test_np)
+test_data = Tensor.random([2, 2])
 
 # Make predictions
 predictions = model.predict(test_data)
@@ -122,8 +116,10 @@ print("Predictions:", predictions.get_data())
 ```
 
 ## TODO List
-- [ ] **Implement ops traits for tensor**: use std traits instead of useless tensor traits
+- [X] **Implement ops traits for tensor**: use std traits instead of useless tensor methods
+- [ ] **Implement iterator for tensor**: make a tensor iterable 
 - [ ] **Implement more optimizers**: Adam, RMSprop, Adagrad.
+- [ ] **Add signature**: specify functions and methods signatures for an easier usage in python
 - [ ] **Add examples**: Implementation linear, logistic, and softmax regression, and a simple neuralnetwork
 - [ ] **Save and Load Models**: Functionality to serialize and deserialize trained models.
 - [X] **Advanced Documentation**: Create more detailed documentation.
