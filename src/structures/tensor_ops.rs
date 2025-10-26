@@ -1,6 +1,100 @@
 use crate::structures::tensor::Tensor;
 use std::ops::{Add, Sub, Mul, Div};
-use pyo3::PyResult;
+use pyo3::{PyErr, PyResult};
+
+
+impl Tensor {
+	fn tensor_sum(&self, t: &Tensor) -> PyResult<Tensor> {
+		// Check if the shapes are compatible for addition
+		if self.shape != t.shape {
+			return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+				"Tensor shapes are not compatible for element-wise addition"
+			));
+		}
+		let result = &self.data + &t.data;
+		Ok(Tensor {
+			dimension: result.ndim(),
+			shape: result.shape().to_vec(),
+			data: result.into_dyn(),
+		})
+	}
+	fn tensor_subtraction(&self, t: &Tensor) -> PyResult<Tensor> {
+		// Check if the shapes are compatible for addition
+		if self.shape != t.shape {
+			return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+				"Tensor shapes are not compatible for element-wise subtraction"
+			));
+		}
+		let result = &self.data - &t.data;
+		Ok(Tensor {
+			dimension: result.ndim(),
+			shape: result.shape().to_vec(),
+			data: result.into_dyn(),
+		})
+	}
+	fn tensor_multiplication(&self, t: &Tensor) -> PyResult<Tensor> {
+		// Check if the shapes are compatible for addition
+		if self.shape != t.shape {
+			return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+				"Tensor shapes are not compatible for element-wise multiplication"
+			));
+		}
+		let result = &self.data * &t.data;
+		Ok(Tensor {
+			dimension: result.ndim(),
+			shape: result.shape().to_vec(),
+			data: result.into_dyn(),
+		})
+	}
+	fn tensor_division(&self, t: &Tensor) -> PyResult<Tensor> {
+		// Check if the shapes are compatible for addition
+		if self.shape != t.shape {
+			return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+				"Tensor shapes are not compatible for element-wise division"
+			));
+		}
+		let result = &self.data / &t.data;
+		Ok(Tensor {
+			dimension: result.ndim(),
+			shape: result.shape().to_vec(),
+			data: result.into_dyn(),
+		})
+	}
+	
+	fn scalar_sum(&self, scalar: f64) -> Tensor {
+		let result = &self.data + scalar;
+		Tensor {
+			dimension: result.ndim(),
+			shape: result.shape().to_vec(),
+			data: result.into_dyn(),
+		}
+	}
+ 	fn scalar_subtraction(&self, scalar: f64) -> Tensor {
+		let result = &self.data - scalar;
+		Tensor {
+			dimension: result.ndim(),
+			shape: result.shape().to_vec(),
+			data: result.into_dyn(),
+		}
+	}
+	fn scalar_multiplication(&self, scalar: f64) -> Tensor {
+		let result = &self.data * scalar;
+		Tensor {
+			dimension: result.ndim(),
+			shape: result.shape().to_vec(),
+			data: result.into_dyn(),
+		}
+	}
+	fn scalar_division(&self, scalar: f64) -> Tensor {
+		let result = &self.data / scalar;
+		Tensor {
+			dimension: result.ndim(),
+			shape: result.shape().to_vec(),
+			data: result.into_dyn(),
+		}
+	}
+}
+
 
 impl Add<Tensor> for Tensor {
 	type Output = PyResult<Tensor>;
