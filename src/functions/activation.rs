@@ -16,6 +16,13 @@ pub trait ActivationFunction: Send + Sync {
     fn function(&self, t: &mut Tensor) -> Tensor;
     fn par_function(&self, t: &mut Tensor) -> Tensor;
     fn derivative(&self, t: &mut Tensor) -> Tensor;
+
+    fn shape(t: &Tensor, msg: &str) -> Vec<usize> where Self: Sized {
+        if t.shape.is_empty() {
+            panic!("{}", msg);
+        }
+        t.shape.clone()
+    }
 }
 
 /// Python-accessible enum for activation function selection
@@ -35,7 +42,8 @@ pub struct Relu;
 impl ActivationFunction for Relu {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = t.shape.clone();
+        let msg = "Unsupported tensor dimension for ReLU activation function";
+        let shape = Self::shape(t, msg);
         t.data.mapv_inplace(|x| x.max(0.0));
 
         Tensor {
@@ -46,12 +54,8 @@ impl ActivationFunction for Relu {
     }
     fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = match t.dimension {
-            1 => vec![t.shape[0]],
-            2 => vec![t.shape[0], t.shape[1]],
-            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
-            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
-        };
+        let msg = "Unsupported tensor dimension for ReLU activation function";
+        let shape = Self::shape(t, msg);
         t.data.par_mapv_inplace(|x| x.max(0.0));
 
         Tensor {
@@ -62,12 +66,8 @@ impl ActivationFunction for Relu {
     }
     fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = match t.dimension {
-            1 => vec![t.shape[0]],
-            2 => vec![t.shape[0], t.shape[1]],
-            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
-            _ => panic!("Unsupported tensor dimension for ReLU activation function"),
-        };
+        let msg = "Unsupported tensor dimension for ReLU activation function derivative";
+        let shape = Self::shape(t, msg);
         t.data.mapv_inplace(|x| if x > 0.0 { 1.0 } else { 0.0 });
         Tensor {
             dimension,
@@ -83,12 +83,8 @@ pub struct Sigmoid;
 impl ActivationFunction for Sigmoid {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = match t.dimension {
-            1 => vec![t.shape[0]],
-            2 => vec![t.shape[0], t.shape[1]],
-            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
-            _ => panic!("Unsupported tensor dimension for Sigmoid activation function"),
-        };
+        let msg = "Unsupported tensor dimension for Sigmoid activation function";
+        let shape = Self::shape(t, msg);
         t.data.mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
         Tensor {
             dimension,
@@ -98,12 +94,8 @@ impl ActivationFunction for Sigmoid {
     }
     fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = match t.dimension {
-            1 => vec![t.shape[0]],
-            2 => vec![t.shape[0], t.shape[1]],
-            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
-            _ => panic!("Unsupported tensor dimension for Sigmoid activation function"),
-        };
+        let msg = "Unsupported tensor dimension for Sigmoid activation function";
+        let shape = Self::shape(t, msg);
         t.data.par_mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
         Tensor {
             dimension,
@@ -113,12 +105,8 @@ impl ActivationFunction for Sigmoid {
     }
     fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = match t.dimension {
-            1 => vec![t.shape[0]],
-            2 => vec![t.shape[0], t.shape[1]],
-            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
-            _ => panic!("Unsupported tensor dimension for Sigmoid activation function"),
-        };
+        let msg = "Unsupported tensor dimension for Sigmoid activation function derivative";
+        let shape = Self::shape(t, msg);
         t.data.mapv_inplace(|x| x * (1.0 - x));
         Tensor {
             dimension,
@@ -134,12 +122,8 @@ pub struct Tanh;
 impl ActivationFunction for Tanh {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = match t.dimension {
-            1 => vec![t.shape[0]],
-            2 => vec![t.shape[0], t.shape[1]],
-            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
-            _ => panic!("Unsupported tensor dimension for Tanh activation function"),
-        };
+        let msg = "Unsupported tensor dimension for Tanh activation function";
+        let shape = Self::shape(t, msg);
         t.data.mapv_inplace(|x| x.tanh());
         Tensor {
             dimension,
@@ -149,12 +133,8 @@ impl ActivationFunction for Tanh {
     }
     fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = match t.dimension {
-            1 => vec![t.shape[0]],
-            2 => vec![t.shape[0], t.shape[1]],
-            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
-            _ => panic!("Unsupported tensor dimension for Tanh activation function"),
-        };
+        let msg = "Unsupported tensor dimension for Tanh activation function";
+        let shape = Self::shape(t, msg);
         t.data.par_mapv_inplace(|x| x.tanh());
         Tensor {
             dimension,
@@ -164,12 +144,8 @@ impl ActivationFunction for Tanh {
     }
     fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let shape = match t.dimension {
-            1 => vec![t.shape[0]],
-            2 => vec![t.shape[0], t.shape[1]],
-            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
-            _ => panic!("Unsupported tensor dimension for Tanh activation function"),
-        };
+        let msg = "Unsupported tensor dimension for Tanh activation function derivative";
+        let shape = Self::shape(t, msg);
         t.data.mapv_inplace(|x| 1.0 - x.tanh().powf(2.0));
         Tensor {
             dimension,
@@ -185,14 +161,27 @@ pub struct Softmax;
 impl ActivationFunction for Softmax {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
+        let msg = "Unsupported tensor dimension for Softmax activation function";
         let shape = match t.dimension {
-            1 => vec![t.shape[0]],
-            2 => vec![t.shape[0], t.shape[1]],
-            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
-            _ => panic!("Unsupported tensor dimension for Softmax activation function"),
+            1 | 2 => Self::shape(t, msg),
+            _ => panic!("{}", msg),
         };
-        let denom = t.data.mapv(|x| x.exp()).sum();
-        t.data.mapv_inplace(|x| x.exp() / denom);
+        if dimension == 1 {
+            // numerically stable softmax on 1D
+            let max = t.data.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            t.data.mapv_inplace(|x| (x - max).exp());
+            let denom = t.data.sum();
+            t.data.mapv_inplace(|x| x / denom);
+        } else {
+            // 2D: apply softmax row-by-row (axis 1)
+            for mut row in t.data.axis_iter_mut(Axis(0)) {
+                let max = row.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                row.mapv_inplace(|x| (x - max).exp());
+                let denom = row.sum();
+                row.mapv_inplace(|x| x / denom);
+            }
+        }
+
         Tensor {
             dimension,
             shape,
@@ -201,14 +190,27 @@ impl ActivationFunction for Softmax {
     }
     fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
+        let msg = "Unsupported tensor dimension for Softmax activation function";
         let shape = match t.dimension {
-            1 => vec![t.shape[0]],
-            2 => vec![t.shape[0], t.shape[1]],
-            3 => vec![t.shape[0], t.shape[1], t.shape[2]],
-            _ => panic!("Unsupported tensor dimension for Softmax activation function"),
+            1 | 2 => Self::shape(t, msg),
+            _ => panic!("{}", msg),
         };
-        let denom = t.data.mapv(|x| x.exp()).sum();
-        t.data.par_mapv_inplace(|x| x.exp() / denom);
+        if dimension == 1 {
+            // parallel softmax on 1D
+            let max = t.data.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            t.data.par_mapv_inplace(|x| (x - max).exp());
+            let denom = t.data.sum();
+            t.data.par_mapv_inplace(|x| x / denom);
+        } else {
+            // 2D: row-by-row (sequential)
+            for mut row in t.data.axis_iter_mut(Axis(0)) {
+                let max = row.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                row.mapv_inplace(|x| (x - max).exp());
+                let denom = row.sum();
+                row.mapv_inplace(|x| x / denom);
+            }
+        }
+
         Tensor {
             dimension,
             shape,
@@ -236,7 +238,8 @@ impl ActivationFunction for Softmax {
                 shape: vec![n, n],
                 data: jacobian_data.into_dyn(),
             }
-        } else if t.dimension == 2 {
+        }
+        else if t.dimension == 2 {
             let batch_size = t.shape[0];
 
             let mut data:Array3<f64> = Array3::zeros((batch_size, t.shape[1], t.shape[1]));
