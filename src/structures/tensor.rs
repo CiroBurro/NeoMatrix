@@ -626,10 +626,6 @@ impl Tensor {
         self.shape = self.data.shape().to_vec();
     }
 
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        todo!()
-    }
-
     fn __repr__(&self) -> String {
         format!("Tensor(dimension={}, shape={:?})", self.dimension, self.shape)
     }

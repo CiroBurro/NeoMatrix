@@ -122,5 +122,5 @@ print("Predictions:", predictions.get_data())
 - [ ] **Add signature**: specify functions and methods signatures for an easier usage in python
 - [ ] **Add examples**: Implementation linear, logistic, and softmax regression, and a simple neuralnetwork
 - [ ] **Save and Load Models**: Functionality to serialize and deserialize trained models.
-- [] **Advanced Documentation**: Create more detailed documentation.
+- [ ] **Advanced Documentation**: Create more detailed documentation.
 - [ ] **Add evaluation metrics**: Accuracy, Precision, Recall, F1-score.

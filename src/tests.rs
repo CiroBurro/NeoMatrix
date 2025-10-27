@@ -210,7 +210,6 @@ mod test {
         assert_eq!(t.data[5], 6.0);
         assert_eq!(t.data[6], 7.0);
         assert_eq!(t.data[7], 8.0);
-        
     }
 
     #[test]
