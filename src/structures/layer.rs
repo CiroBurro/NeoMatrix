@@ -11,13 +11,13 @@ use crate::functions::cost::{BinaryCrossEntropy, CategoricalCrossEntropy, Cost, 
 
 /// Layer class definition
 ///
-/// Fields:
-/// -nodes: number of neurons in the layer
-/// -input: a 1D tensor storing the input data
-/// -output: a 1D tensor storing the output data
-/// -weights: a 2D tensor storing the weights of the layer
-/// -biases: a 1D tensor storing the biases of the layer
-/// -activation: struct to specify the activation function of the layer
+/// # Fields:
+/// * `nodes` - Number of neurons in the layer
+/// * `input` - A 1D tensor storing the input data
+/// * `output` - A 1D tensor storing the output data
+/// * `weights` - A 2D tensor storing the weights of the layer
+/// * `biases` - A 1D tensor storing the biases of the layer
+/// * `activation` - Struct to specify the activation function of the layer
 #[pyclass(module = "neomatrix", get_all, set_all)]
 #[derive(Clone, Debug)]
 pub struct Layer {
@@ -31,6 +31,12 @@ pub struct Layer {
 
 /// Function to select the activation function struct based on the layer's activation field
 /// ! Not a Python function !
+///
+/// # Arguments
+/// * `l` - Layer to "activate"
+///
+/// # Returns
+/// * `Box<dyn ActivationFunction>` - Smart pointer to the activation function struct of the given layer
 fn select_activation(l: &Layer) -> Box<dyn ActivationFunction> {
     match l.activation.clone() {
         Activation::Relu => Box::new(Relu),
@@ -46,17 +52,20 @@ fn select_activation(l: &Layer) -> Box<dyn ActivationFunction> {
 impl Layer {
     /// Constructor method for Layer class in python
     ///
-    /// Parameters:
-    /// -nodes: number of neurons in the layer
-    /// -input: a 1D tensor storing the input data
-    /// activation: struct to specify the activation function of the layer
+    /// # Arguments
+    /// * `nodes` - Number of neurons in the layer
+    /// * `input` - A 1D tensor storing the input data
+    /// * `activation` - Struct to specify the activation function of the layer
     ///
-    /// Python usage:
-    /// ```python
-    /// from neomatrix import Tensor, Layer, Activation
-    /// input = Tensor([5], [1, 2, 3, 4, 5])
-    /// layer = Layer(4, input, Activation.Relu)
-    /// ```
+    /// # Returns
+    /// * `Layer` - New layer
+	///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix import Tensor, Layer, Activation
+    ///     input = Tensor([5], [1, 2, 3, 4, 5])
+    ///     layer = Layer(4, input, Activation.Relu)
+    ///     ```
     #[new]
     pub fn new(nodes: usize, input_len: usize, activation: Activation) -> Self {
         let weights = random_weights(input_len, nodes, (-1.0, 1.0));
@@ -76,16 +85,19 @@ impl Layer {
 
     /// Forward propagation method
     /// 
-    /// Parameters:
-    /// - input: 1D tensor with inputs for each node of the input layer
-    /// - parallel: boolean value to specify if the forward propagation should be done in parallel
+    /// # Arguments
+    /// * `input` - 1D tensor with inputs for each node of the input layer
+    /// * `parallel` - Boolean value to specify if the forward propagation should be done in parallel
     ///
-    /// Python usage:
-    ///```python
-    /// from neomatrix import Tensor, Layer
-    /// t = Tensor([3], [1, 2, 3])
-    /// output = layer.forward(input=t, parallel=True)
-    /// ```
+    /// # Returns
+    /// * `PyResult<Tensor>` - New tensor containing the prediction from the model
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix import Tensor, Layer
+    ///     t = Tensor([3], [1, 2, 3])
+    ///     output = layer.forward(input=t, parallel=True)
+    ///     ```
     pub fn forward(&mut self, input: Tensor, parallel: bool) -> PyResult<Tensor> {
         self.input = input;
         
@@ -121,18 +133,21 @@ impl Layer {
 
     /// Forward propagation method (batch processing)
     /// 
-    /// Parameters:
-    /// - input: 2D tensor with inputs for each node of the input layer of each sample in the batch
-    /// - parallel: boolean value to specify if the forward propagation should be done in parallel
+    /// # Arguments
+    /// * `input` - 2D tensor with inputs for each node of the input layer of each sample in the batch
+    /// * `parallel` - Boolean value to specify if the forward propagation should be done in parallel
     ///
-    /// Python usage:
-    ///```
-    /// from neomatrix import Tensor, Layer
-    /// t = Tensor([3], [1, 2, 3])
-    /// t_1 = Tensor([3], [4, 5, 6])
-    /// t.push_row(t_1)
-    /// output = layer.forward_batch(input=t, parallel=True)
-    /// ```
+    /// # Returns
+    /// * `PyResult<Tensor>` - New tensor containing the predictions from the model of an entire batch of data
+    ///
+    /// # Python usage
+    ///     ```
+    ///     from neomatrix import Tensor, Layer
+    ///     t = Tensor([3], [1, 2, 3])
+    ///     t_1 = Tensor([3], [4, 5, 6])
+    ///     t.push_row(t_1)
+    ///     output = layer.forward_batch(input=t, parallel=True)
+    ///     ```
     pub fn forward_batch(&mut self, input: Tensor, parallel: bool) -> PyResult<Tensor> {
         if input.dimension != 2 {
             panic!("Batch input must be 2D")
@@ -190,16 +205,19 @@ impl Layer {
 
     /// Backward propagation method
     ///
-    /// Parameters:
-    /// - out_layer: boolean value to specify if the layer is the output layer
-    /// - deltas: a 1D or 2D tensor containing the deltas of the next layer (output layer if out_layer is True)
-    /// - next_weights: a 2D tensor containing the weights of the next layer (None if out_layer is True)
-    /// - all_outputs: a 2D tensor containing the outputs of the previous layer of the entire batch (None if deltas tensor is 1D)
+    /// # Arguments
+    /// * `out_layer` - Boolean value to specify if the layer is the output layer
+    /// * `deltas` - A 1D or 2D tensor containing the deltas of the next layer (output layer if out_layer is True)
+    /// * `next_weights` - A 2D tensor containing the weights of the next layer (None if out_layer is True)
+    /// * `all_outputs` - A 2D tensor containing the outputs of the previous layer of the entire batch (None if deltas tensor is 1D)
     ///
-    /// Python usage:
-    ///```python
-    /// (w_gradients, b_gradients, current_deltas) = layer.forward(out_layer=False, deltas=deltas, next_weights=next_weights, all_outputs=all_outputs)
-    /// ```
+    /// # Results
+    /// * `PyResult<(Tensor, Tensor, Tensor)>` - Triple of tensors containing weights' gradients, biases' gradients and layer's deltas
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     (w_gradients, b_gradients, current_deltas) = layer.forward(out_layer=False, deltas=deltas, next_weights=next_weights, all_outputs=all_outputs)
+    ///     ```
     fn backward(&self, out_layer: bool, mut deltas: Tensor, next_weights: Option<Tensor>, all_outputs: Option<Tensor>) -> PyResult<(Tensor, Tensor, Tensor)> {
         // Deltas dimension can be 1 (single sample processing) or 2 (batch processing)
         if deltas.dimension > 2 || deltas.dimension == 0{
@@ -398,15 +416,18 @@ impl Layer {
 
     /// Method to get the output deltas of the layer
     /// 
-    /// Parameters:
-    /// - cost: cost function structure used to calculate the error
-    /// - t: a 1D or 2D tensor containing the output of the layer
-    /// - z: a 1D or 2D tensor containing the expected output of the layer
-    /// 
-    /// Python usage:
-    ///```python
-    /// output_deltas = layer.get_output_deltas(Cost.MeanSquaredError, t, z)
-    /// ```
+    /// # Arguments
+    /// * `cost` - Cost function structure used to calculate the error
+    /// * `t` - A 1D or 2D tensor containing the output of the layer
+    /// * `z` - A 1D or 2D tensor containing the expected output of the layer
+    ///
+    /// # Returns
+    /// * `PyResult<Tensor>` - Tensor containing the output layer's deltas
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     output_deltas = layer.get_output_deltas(Cost.MeanSquaredError, t, z)
+    ///     ```
     fn get_output_deltas(&self, cost: Cost, t: &mut Tensor, z: &Tensor) -> PyResult<Tensor> {
 
         // Optimization for the case of binary cross entropy with sigmoid activation

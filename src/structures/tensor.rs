@@ -12,10 +12,10 @@ use crate::utils::matmul::par_dot;
 
 /// Tensor struct definition
 /// 
-/// Fields:
-/// - dimension: The number of dimensions of the tensor
-/// - shape: The shape of the tensor (e.g., [2, 3] for a 2D tensor with 2 rows and 3 columns)
-/// - data: The underlying data (float64) of the tensor, stored as a dynamic array provided by Ndarray
+/// # Fields:
+/// * `dimension` - The number of dimensions of the tensor
+/// * `shape` - The shape of the tensor (e.g., [2, 3] for a 2D tensor with 2 rows and 3 columns)
+/// * `data` - The underlying data (float64) of the tensor, stored as a dynamic array provided by Ndarray
 #[pyclass(module = "neomatrix")]
 #[derive(Clone, Debug)]
 pub struct Tensor {
@@ -26,9 +26,20 @@ pub struct Tensor {
     pub data: ArrayD<f64>,
 }
 
+/// Enum `TensorOrScalar`
+///
+/// This enum is used to represent either a `Tensor` or a scalar value (`f64`).
+/// It is particularly useful for operations that can accept both types as input,
+/// such as element-wise addition, subtraction, multiplication, or division.
+///
+/// # Variants
+/// * `Tensor`- Represents a `Tensor` object.
+/// * `Scalar`- Represents a scalar value of type `f64`.
 #[derive(FromPyObject)]
 enum TensorOrScalar {
+    /// Variant for a `Tensor` object.
     Tensor(Tensor),
+    /// Variant for a scalar value of type `f64`
     Scalar(f64),
 }
 
@@ -37,15 +48,18 @@ enum TensorOrScalar {
 impl Tensor {
     ///Constructor method for the Tensor class in python
     /// 
-    /// Parameters:
-    /// - shape: A vector of usize representing the shape of the tensor
-    /// - content: A vector of f64 representing the content of the tensor
+    /// # Arguments
+    /// * `shape` - A vector of usize representing the shape of the tensor
+    /// * `content` - A vector of f64 representing the content of the tensor
     ///
-    /// Python usage:
-    /// ```python
-    /// from neomatrix import Tensor
-    /// t = Tensor([2, 2, 3], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 12])
-    /// ```
+    /// # Returns
+    /// * `Tensor` - New tensor
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix import Tensor
+    ///     t = Tensor([2, 2, 3], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 12])
+    ///     ```
     #[new]
     pub fn new(shape: Vec<usize>, content: Vec<f64>) -> Self {
         let dimension = shape.len();
@@ -58,14 +72,17 @@ impl Tensor {
 
     /// Constructor method for an empty tensor
     /// 
-    /// Parameters:
-    /// - shape: A vector of usize representing the shape of the tensor
-    /// 
-    /// Python usage:
-    /// ```python
-    /// from neomatrix import Tensor
-    /// t = Tensor.zeros([2, 2, 3])
-    /// ```
+    /// # Arguments
+    /// * `shape` - A vector of usize representing the shape of the tensor
+    ///
+    /// # Returns
+    /// * `Tensor` - An empty tensor
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix import Tensor
+    ///     t = Tensor.zeros([2, 2, 3])
+    ///     ```
     #[staticmethod]
     pub fn zeros(sh: Vec<usize>) -> Self {
         let dimension = sh.len();
@@ -75,14 +92,17 @@ impl Tensor {
 
     /// Constructor method for a random tensor
     ///
-    /// Parameters:
-    /// - shape: A vector of usize representing the shape of the tensor
+    /// # Arguments
+    /// * `shape` - A vector of usize representing the shape of the tensor
     ///
-    /// Python usage:
-    /// ```python
-    /// from neomatrix import Tensor
-    /// t = Tensor.random([2, 2, 3])
-    /// ```
+    /// # Returns
+    /// * `Tensor` - A tensor with random data
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix import Tensor
+    ///     t = Tensor.random([2, 2, 3])
+    ///     ```
     #[staticmethod]
     pub fn random(sh: Vec<usize>) -> Self {
 
@@ -113,16 +133,19 @@ impl Tensor {
 
     /// Constructor method for the Tensor class from a numpy array
     /// 
-    /// Parameters:
-    /// - arr: A dynamic numpy array 
-    /// 
-    /// Python usage:
-    /// ```python
-    /// import numpy as np
-    /// from neomatrix import Tensor
-    /// arr = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float64)
-    /// t = Tensor.from_numpy(arr)
-    /// ```
+    /// # Arguments
+    /// * `arr` - A dynamic numpy array
+    ///
+    /// # Returns
+    /// * `PyResult<Tensor>` - Tensor created from NumPy array
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     import numpy as np
+    ///     from neomatrix import Tensor
+    ///     arr = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float64)
+    ///     t = Tensor.from_numpy(arr)
+    ///     ```
     #[staticmethod]
     pub fn from_numpy<'py>(arr: PyReadonlyArrayDyn<'py, f64>) -> PyResult<Tensor> {
         let owned = arr.as_array().to_owned();
@@ -139,17 +162,18 @@ impl Tensor {
 
     /// Dot product method for 1D and 2D tensors
     /// 
-    /// Parameters:
-    /// - t: The tensor to be multiplied with
-    /// 
-    /// Python usage:
-    /// ```python
-    /// t_1 = Tensor([4], [2, 4, 6, 8])
-    /// t_2 = Tensor([4, 2], [1, 3, 5, 7, 9, 11, 13, 15])
-    /// result = t_1.dot(t_2)
-    /// print(result)
-    /// print(result.data)
-    /// ```
+    /// # Arguments
+    /// * `t` - The tensor to be multiplied with
+    ///
+    /// # Returns
+    /// * `PyResult<Tensor>` - Result of the dot product (tensor)
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     t_1 = Tensor([4], [2, 4, 6, 8])
+    ///     t_2 = Tensor([4, 2], [1, 3, 5, 7, 9, 11, 13, 15])
+    ///     result = t_1.dot(t_2)
+    ///     ```
     pub fn dot(&self, t: &Tensor) -> PyResult<Tensor> {
         // Check if the dimensions are compatible for dot product
         match (self.dimension, t.dimension) {
@@ -199,6 +223,20 @@ impl Tensor {
         }
     }
 
+    /// Element-wise sum between two tensor or a tensor and a scalar
+    ///
+    /// # Arguments
+    /// * `other` - Tensor object or scalar to add
+    ///
+    /// # Returns
+    /// * `Pyresult<Tensor>` - Result of the sum (tensor)
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     t_1 = Tensor([4], [2, 4, 6, 8])
+    ///     t_2 = Tensor([4], [1, 3, 5, 7])
+    ///     result = t_1 + t_2
+    ///     ```
     fn __add__(&self, other: TensorOrScalar) -> PyResult<Tensor> {
 
         match other {
@@ -227,6 +265,19 @@ impl Tensor {
         }
     }
 
+    /// Element-wise subtraction between two tensor or a tensor and a scalar
+    ///
+    /// # Arguments
+    /// * `other` - Tensor object or scalar to subtract
+    ///
+    /// # Returns
+    /// * `Pyresult<Tensor>` - Result of the subtraction (tensor)
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     t_1 = Tensor([4], [2, 4, 6, 8])
+    ///     result = t_1 - 5.2
+    ///     ```
     fn __sub__(&self, other: TensorOrScalar) -> PyResult<Tensor> {
 
         match other {
@@ -255,6 +306,19 @@ impl Tensor {
         }
     }
 
+    /// Element-wise multiplication between two tensor or a tensor and a scalar
+    ///
+    /// # Arguments
+    /// * `other` - Tensor object or scalar to multiply
+    ///
+    /// # Returns
+    /// * `Pyresult<Tensor>` - Result of the multiplication (tensor)
+    ///
+    /// # Python usage:
+    ///     ```python
+    ///     t_1 = Tensor([4], [2, 4, 6, 8])
+    ///     result = t_1 * 3.2
+    ///     ```
     fn __mul__(&self, other: TensorOrScalar) -> PyResult<Tensor> {
 
         match other {
@@ -283,6 +347,20 @@ impl Tensor {
         }
     }
 
+    /// Element-wise division between two tensor or a tensor and a scalar
+    ///
+    /// # Arguments
+    /// * `other` - Tensor object or scalar to divide
+    ///
+    /// # Returns
+    /// * `Pyresult<Tensor>` - Result of the division (tensor)
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     t_1 = Tensor([4], [2, 4, 6, 8])
+    ///     t_2 = Tensor([4], [1, 3, 5, 7])
+    ///     result = t_1 / t_2
+    ///     ```
     fn __truediv__(&self, other: TensorOrScalar) -> PyResult<Tensor> {
 
         match other {
@@ -313,24 +391,28 @@ impl Tensor {
 
     /// Length method for tensor
     ///
-    /// Python usage:
-    /// ```python
-    /// t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
-    /// length = t.length()
-    /// ```
+    /// # Returns
+    /// * `usize` - Length of the tensor
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
+    ///     length = t.length()
+    ///     ```
     pub fn length(&self) -> usize {
         self.data.len()
     }
 
     /// Transpose method for 2D tensors
+    ///
+    /// # Returns
+    /// * `PyResult<Tensor>` - Transposed tensor
     /// 
-    /// Python usage:
-    /// ```python
-    /// t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
-    /// result = t.transpose()
-    /// print(result) -> result Tensor(dimension=2, shape=[3, 2])
-    /// print(result.data) -> result: [[1, 4], [2, 5], [3, 6]]
-    /// ```
+    /// # Python usage:
+    ///     ```python
+    ///     t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
+    ///     result = t.transpose()
+    ///     ```
     pub fn transpose(&self) -> PyResult<Tensor> {
         // Check if the shapes are compatible for addition
         if self.dimension != 2 {
@@ -346,31 +428,31 @@ impl Tensor {
         })
     }
 
-    /// Reshape method for Tensor
+    /// Reshape inplace method for Tensor
     /// 
-    /// Parameters:
-    /// - shape: Vector representing the new shape
-    /// 
-    /// Python usage:
-    /// ```python
-    /// from neomatrix import Tensor
-    /// t = Tensor([2, 2], [1, 2, 3, 4])
-    /// t.reshape([4])
-    /// ```
+    /// # Arguments
+    /// * `shape` - Vector representing the new shape
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix import Tensor
+    ///     t = Tensor([2, 2], [1, 2, 3, 4])
+    ///     t.reshape([4])
+    ///     ```
     pub fn reshape(&mut self, sh: Vec<usize>) {
         self.shape = sh.clone();
         self.dimension = sh.len();
         self.data = self.data.to_owned().into_shape_with_order(sh).expect("Incompatible shape");
     }
 
-    /// Flatten method for Tensor
+    /// Flatten inplace method for Tensor
     /// 
-    /// Python usage:
-    /// ```python
-    /// from neomatrix import Tensor
-    /// t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
-    /// t.flatten()
-    /// ```
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix import Tensor
+    ///     t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
+    ///     t.flatten()
+    ///     ```
     pub fn flatten(&mut self) {
         let flattened_data = self.data.flatten();
         self.shape = flattened_data.shape().to_vec();
@@ -378,19 +460,19 @@ impl Tensor {
         self.data = flattened_data.to_owned().into_dyn();
     }
 
-    /// Push method for 2 tensor
-    /// One tensor is pushed into the other
+    /// Push method for 2 tensors
+    /// Pushes a tensor into self
     /// 
-    /// Parameters:
-    /// - t: tensor to be pushed
-    /// - axis: index of the axe along which tensors should be concatenated
-    /// 
-    /// Python usage:
-    /// ```python
-    /// t_1 = Tensor([4], [2, 4, 6, 8])
-    /// t_2 = Tensor([4], [1, 3, 5, 7])
-    /// t_1.push_cat(t_2, 0)
-    /// ```
+    /// # Arguments
+    /// * `t` - Tensor to be pushed
+    /// * `axis` - Index of the axe along which tensors should be concatenated
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     t_1 = Tensor([4], [2, 4, 6, 8])
+    ///     t_2 = Tensor([4], [1, 3, 5, 7])
+    ///     t_1.push(t_2, 0)
+    ///     ```
     pub fn push(&mut self, t: &Tensor, axis: usize) {
         let mut vec_data = Vec::new();
         self.data.flatten().for_each(|x| vec_data.push(*x));
@@ -409,19 +491,22 @@ impl Tensor {
 
     /// Concatenate method for multiple tensors
     /// 
-    /// Parameters:
-    /// - tensors: vector of tensors to be concatenated
-    /// - axis: index of the axe along which tensors should be concatenated
+    /// # Arguments
+    /// * `tensors` - Vector of tensors to be concatenated
+    /// * `axis` - Index of the axe along which tensors should be concatenated
     /// 
-    /// Python usage:
-    /// ```python
-    /// t_1 = Tensor([4], [2, 4, 6, 8])
-    /// t_2 = Tensor([4], [1, 3, 5, 7])
-    /// t_3 = Tensor([4], [10, 12, 14, 16])
-    /// t_4 = Tensor([4], [9, 11, 13, 15])
+    /// # Returns
+    /// * `PyResult<Tensor>` - Tensor containing all the input tensors concatenated 
     /// 
-    /// t = t_1.cat([t_2, t_3, t_4], 0)
-    /// ```
+    /// # Python usage
+    ///     ```python
+    ///     t_1 = Tensor([4], [2, 4, 6, 8])
+    ///     t_2 = Tensor([4], [1, 3, 5, 7])
+    ///     t_3 = Tensor([4], [10, 12, 14, 16])
+    ///     t_4 = Tensor([4], [9, 11, 13, 15])
+    ///     
+    ///     t = t_1.cat([t_2, t_3, t_4], 0)
+    ///     ```
     pub fn cat(&self, tensors: Vec<Tensor>, axis: usize) -> PyResult<Tensor> {
         let mut new_tensor = self.clone();
         for t in tensors.iter() {
@@ -433,15 +518,15 @@ impl Tensor {
 
     /// Push row method for Tensor
     /// 
-    /// Parameters:
-    /// - t: tensor representing the row to be added
+    /// # Arguments
+    /// * `t` - Tensor representing the row to be added
     /// 
-    /// Python usage:
-    /// ```python
-    /// t_1 = Tensor([3, 2], [2, 4, 6, 8, 10, 12])
-    /// t_2 = Tensor([2], [1, 3])
-    /// t_1.push_row(t_2)
-    /// ```
+    /// # Python usage
+    ///     ```python
+    ///     t_1 = Tensor([3, 2], [2, 4, 6, 8, 10, 12])
+    ///     t_2 = Tensor([2], [1, 3])
+    ///     t_1.push_row(t_2)
+    ///     ```
     pub fn push_row(&mut self, t: &Tensor) {
 
         if t.dimension != 1 {
@@ -465,15 +550,15 @@ impl Tensor {
 
     /// Push column method for Tensor
     /// 
-    /// Parameters:
-    /// - t: tensor representing the column to be added
+    /// # Arguments
+    /// * `t` - Tensor representing the column to be added
     /// 
-    /// Python usage:
-    /// ```python
-    /// t_1 = Tensor([3, 2], [2, 4, 6, 8, 10, 12])
-    /// t_2 = Tensor([3], [1, 3, 5])
-    /// t_1.push_column(t_2)
-    /// ```
+    /// # Python usage
+    ///     ```python
+    ///     t_1 = Tensor([3, 2], [2, 4, 6, 8, 10, 12])
+    ///     t_2 = Tensor([3], [1, 3, 5])
+    ///     t_1.push_column(t_2)
+    ///     ```
     pub fn push_column(&mut self, t: &Tensor) {
 
         if t.dimension != 1 {

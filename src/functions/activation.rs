@@ -8,15 +8,15 @@ use pyo3::prelude::*;
 
 /// Trait defining the interface for activation functions
 /// 
-/// Methods:
-/// - function: Regular forward computation
-/// - par_function: Parallel forward computation
-/// - derivative: Derivative computation for backpropagation
+/// # Methods:
+/// * `function` - Regular forward computation
+/// * `par_function` - Parallel forward computation
+/// * `derivative` - Derivative computation for backpropagation
+/// * `shape` - Static method to check and get the shape of a tensor
 pub trait ActivationFunction: Send + Sync {
     fn function(&self, t: &mut Tensor) -> Tensor;
     fn par_function(&self, t: &mut Tensor) -> Tensor;
     fn derivative(&self, t: &mut Tensor) -> Tensor;
-
     fn shape(t: &Tensor, msg: &str) -> Vec<usize> where Self: Sized {
         if t.shape.is_empty() {
             panic!("{}", msg);
@@ -25,7 +25,16 @@ pub trait ActivationFunction: Send + Sync {
     }
 }
 
-/// Python-accessible enum for activation function selection
+/// Activation enum
+///
+/// This python-accessible enum is used for activation function selection
+///
+/// # Variants
+/// * `Relu`
+/// * `Sigmoid`
+/// * `Tanh`
+/// * `Softmax`
+/// * `Linear`
 #[pyclass]
 #[derive(Clone, Debug)]
 pub enum Activation {
@@ -37,7 +46,7 @@ pub enum Activation {
 }
 
 /// Rectified Linear Unit (ReLU) activation function
-/// f(x) = max(0, x)
+/// `f(x) = max(0, x)`
 pub struct Relu;
 impl ActivationFunction for Relu {
     fn function(&self, t: &mut Tensor) -> Tensor {
@@ -78,7 +87,7 @@ impl ActivationFunction for Relu {
 }
 
 /// Sigmoid activation function
-/// f(x) = 1 / (1 + e^(-x))
+/// `f(x) = 1 / (1 + e^(-x))`
 pub struct Sigmoid;
 impl ActivationFunction for Sigmoid {
     fn function(&self, t: &mut Tensor) -> Tensor {
@@ -117,7 +126,7 @@ impl ActivationFunction for Sigmoid {
 }
 
 /// Hyperbolic tangent activation function
-/// f(x) = tanh(x)
+/// `f(x) = tanh(x)`
 pub struct Tanh;
 impl ActivationFunction for Tanh {
     fn function(&self, t: &mut Tensor) -> Tensor {
@@ -156,7 +165,7 @@ impl ActivationFunction for Tanh {
 }
 
 /// Softmax activation function
-/// f(x_i) = e^(x_i) / Σ(e^(x_j))
+/// `f(x_i) = e^(x_i) / Σ(e^(x_j))`
 pub struct Softmax;
 impl ActivationFunction for Softmax {
     fn function(&self, t: &mut Tensor) -> Tensor {
@@ -279,7 +288,7 @@ impl ActivationFunction for Softmax {
 }
 
 /// Linear activation function (no activation)
-/// f(x) = x
+/// `f(x) = x`
 pub struct Linear;
 impl ActivationFunction for Linear {
     fn function(&self, t: &mut Tensor) -> Tensor {

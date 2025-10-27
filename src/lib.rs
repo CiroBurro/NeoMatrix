@@ -15,7 +15,7 @@ use utils::weights_biases::{random_weights, random_biases};
 
 
 
-/// A Python module implemented in Rust.
+/// Rustybrain: the real brain of NeoMatrix
 #[pymodule]
 fn rustybrain(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Tensor>()?;
