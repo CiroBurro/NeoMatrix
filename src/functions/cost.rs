@@ -163,7 +163,7 @@ impl CostFunction for MeanSquaredError {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
 
-        let n = check_dimension(t);
+        let n = t.length() as f64;
         
         let gradients = (t-z)
             .expect("Tensors subtraction failed")
@@ -200,7 +200,7 @@ impl CostFunction for MeanAbsoluteError {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
 
-        let n = check_dimension(t);
+        let n = t.length() as f64;
         
         let gradients = (t-z)
             .expect("Tensors subtraction failed")
@@ -239,7 +239,7 @@ impl CostFunction for BinaryCrossEntropy {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
 
-        let n = check_dimension(t);
+        let n = t.length() as f64;
 
         let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
             -((t_i / z_i) - ((1.0 - t_i) / (1.0 - z_i))) / n
@@ -279,7 +279,7 @@ impl CostFunction for CategoricalCrossEntropy {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
 
-        let n = check_dimension(t);
+        let n = t.length() as f64;
 
         let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
             -(t_i / z_i) / n
@@ -330,7 +330,7 @@ impl CostFunction for HuberLoss {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
         
-        let n = check_dimension(t);
+        let n = t.length() as f64;
 
         let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
             if (t_i - z_i).abs() <= self.delta {
@@ -377,7 +377,7 @@ impl CostFunction for HingeLoss {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
 
-        let n = check_dimension(t);
+        let n = t.length() as f64;
 
         let gradients_vec = t.data.iter().zip(z.data.iter()).map(|(t_i, z_i)| {
             let x = if t_i * z_i < 1.0 {
@@ -400,23 +400,3 @@ impl CostFunction for HingeLoss {
 }
 
 
-/// Function to check dimensions of a tensor
-///   ! Not a Python function !
-///
-/// # Arguments
-/// * `t` - Tensor to check
-///
-/// # Returns
-/// * `f64` - Length of the tensor
-fn check_dimension(t: &Tensor) -> f64 {
-    
-    let mut n = 1.0;
-    
-    if t.dimension == 1 {
-        n = t.shape[0] as f64
-    } else if t.dimension == 2 {
-        n = (t.shape[0] * t.shape[1]) as f64
-    }
-    
-    n
-}
