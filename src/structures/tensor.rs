@@ -428,6 +428,24 @@ impl Tensor {
         })
     }
 
+    /// Transpose inplace method for 2D tensors
+    ///
+    /// # Python usage:
+    ///     ```python
+    ///     t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
+    ///     t.transpose_inplace()
+    ///     ```
+    pub fn transpose_inplace(&mut self) {
+        // Check if the shapes are compatible for addition
+        if self.dimension != 2 {
+            panic!("It's possible to transpose only 2D tensors");
+        }
+
+        self.data.to_owned().reversed_axes();
+        self.dimension = self.data.ndim();
+        self.shape = self.data.shape().to_vec();
+    }
+
     /// Reshape inplace method for Tensor
     /// 
     /// # Arguments
@@ -489,25 +507,25 @@ impl Tensor {
         self.data = new_data;
     }
 
-    /// Concatenate method for multiple tensors
+    /// Concatenate inplace method for multiple tensors
     /// 
     /// # Arguments
-    /// * `tensors` - Vector of tensors to be concatenated
+    /// * `tensors` - Vector of tensors to be concatenated to self
     /// * `axis` - Index of the axe along which tensors should be concatenated
-    /// 
+    ///
     /// # Returns
-    /// * `PyResult<Tensor>` - Tensor containing all the input tensors concatenated 
-    /// 
+    /// * `PyResult<Tensor>` - Tensor containing all the input tensors concatenated
+    ///
     /// # Python usage
     ///     ```python
     ///     t_1 = Tensor([4], [2, 4, 6, 8])
     ///     t_2 = Tensor([4], [1, 3, 5, 7])
     ///     t_3 = Tensor([4], [10, 12, 14, 16])
     ///     t_4 = Tensor([4], [9, 11, 13, 15])
-    ///     
-    ///     t = t_1.cat([t_2, t_3, t_4], 0)
+    ///
+    ///     t = t_1.cat_inplace([t_2, t_3, t_4], 0)
     ///     ```
-    pub fn cat(&self, tensors: Vec<Tensor>, axis: usize) -> PyResult<Tensor> {
+    pub fn cat_inplace(&self, tensors: Vec<Tensor>, axis: usize) -> PyResult<Tensor> {
         let mut new_tensor = self.clone();
         for t in tensors.iter() {
             new_tensor.push(t, axis);
@@ -516,6 +534,34 @@ impl Tensor {
         Ok(new_tensor)
     }
 
+    /// Concatenate method for multiple tensors
+    ///
+    /// # Arguments
+    /// * `tensors` - Vector of tensors to be concatenated
+    /// * `axis` - Index of the axe along which tensors should be concatenated
+    ///
+    /// # Returns
+    /// * `PyResult<Tensor>` - Tensor containing all the input tensors concatenated
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     t_1 = Tensor([4], [2, 4, 6, 8])
+    ///     t_2 = Tensor([4], [1, 3, 5, 7])
+    ///     t_3 = Tensor([4], [10, 12, 14, 16])
+    ///     t_4 = Tensor([4], [9, 11, 13, 15])
+    ///
+    ///     t = Tensor.cat([t_1, t_2, t_3, t_4], 0)
+    ///     ```
+    #[staticmethod]
+    pub fn cat(tensors: Vec<Tensor>, axis: usize) -> PyResult<Tensor> {
+
+        let mut new_tensor = tensors[0].clone();
+        for t in &tensors[1..] {
+            new_tensor.push(t, axis);
+        }
+
+        Ok(new_tensor)
+    }
     /// Push row method for Tensor
     /// 
     /// # Arguments

@@ -219,12 +219,12 @@ mod test {
         let t_1 = Tensor::new(vec![2], vec![1.0, 2.0]);
         let t_2 = Tensor::new(vec![2], vec![3.0, 4.0]);
         let t_3 = Tensor::new(vec![2], vec![5.0, 6.0]);
-        let t_4 = Tensor::new(vec![2], vec![7.0, 8.0]);
+        let t_4 = Tensor::new(vec![3], vec![7.0, 8.0, 9.0]);
 
-        let t = t_1.cat(vec![t_2, t_3, t_4], 0).unwrap();
+        let t = Tensor::cat(vec![t_1, t_2, t_3, t_4], 0).unwrap();
 
         assert_eq!(t.dimension, 1);
-        assert_eq!(t.shape, vec![8]);
+        assert_eq!(t.shape, vec![9]);
         assert_eq!(t.data[0], 1.0);
         assert_eq!(t.data[1], 2.0);
         assert_eq!(t.data[2], 3.0);
@@ -233,6 +233,7 @@ mod test {
         assert_eq!(t.data[5], 6.0);
         assert_eq!(t.data[6], 7.0);
         assert_eq!(t.data[7], 8.0);
+        assert_eq!(t.data[8], 9.0);
     }
 
     #[test]
