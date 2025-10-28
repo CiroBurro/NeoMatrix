@@ -24,7 +24,7 @@ class TensorMethodsTest(unittest.TestCase):
     def test_tensor_from_numpy(self):
         import numpy as np
         arr = np.array([[1, 2, 3]], dtype=np.float64)
-        t = Tensor.from_numpy(arr)
+        t = Tensor.from_numpy(array= arr)
         self.assertEqual(t.dimension, 2)
         self.assertEqual(t.shape, [1, 3])
         print(t.data)
@@ -55,8 +55,8 @@ class TensorMethodsTest(unittest.TestCase):
 
     def test_tensor_length(self):
         t = Tensor([3, 4], [1,2,3,4,5,6,7,8,9,10,11,12])
-        len = t.length()
-        self.assertEqual(12, len)
+        length = t.length()
+        self.assertEqual(12, length)
 
     def test_tensor_reshape(self):
         t = Tensor([4, 2], [2, 4, 6, 8, 1, 3, 5, 7])
@@ -104,7 +104,7 @@ class TensorMethodsTest(unittest.TestCase):
         t_2.flatten()
         t_3 = Tensor([3], [9, 8, 7])
 
-        result = t_1.cat([t_2, t_3], 0)
+        result = t_1.cat_inplace([t_2, t_3], 0)
 
         self.assertEqual(result.dimension, 1)
         self.assertEqual(result.shape, [11])

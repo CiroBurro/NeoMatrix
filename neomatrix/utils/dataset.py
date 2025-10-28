@@ -30,7 +30,7 @@ def get_batches(tensor: core.Tensor, batch_size: int) -> list[core.Tensor]:
 
     tensors = []
     for arr in subarrays:
-        tensor = core.Tensor.from_numpy(arr=arr)
+        tensor = core.Tensor.from_numpy(array= arr)
         if batch_size == 1:
             tensor.flatten()
         tensors.append(tensor)
