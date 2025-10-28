@@ -7,8 +7,6 @@ y_data = [3, 7, 11, 15, 19, 23, 27, 31, 35, 39]
 
 training_y = Tensor([10, 1], y_data)
 
-for num in training_y:
-    print(num)
 
 input_nodes = 2
 layer_1 = Layer(1, input_nodes, Activation.Linear)

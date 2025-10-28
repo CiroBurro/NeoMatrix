@@ -8,9 +8,10 @@ use ndarray::prelude::*;
 use ndarray::{Ix1, Ix2};
 use rand;
 use numpy::{prelude::*, PyArrayDyn, PyReadonlyArrayDyn};
+use crate::structures::tenosor_iter::TensorIter;
 use crate::utils::matmul::par_dot;
 
-/// Tensor struct definition
+/// Struct `Tensor`
 /// 
 /// # Fields:
 /// * `dimension` - The number of dimensions of the tensor
@@ -43,10 +44,10 @@ enum TensorOrScalar {
     Scalar(f64),
 }
 
-/// Tensor struct implementation
+/// `Tensor` struct methods
 #[pymethods]
 impl Tensor {
-    ///Constructor method for the Tensor class in python
+    /// Constructor method for the Tensor class in python
     /// 
     /// # Arguments
     /// * `shape` - A vector of usize representing the shape of the tensor
@@ -626,6 +627,16 @@ impl Tensor {
         self.shape = self.data.shape().to_vec();
     }
 
+    /// Iter method for a tensor in python
+    ///
+    /// # Returns
+    /// * `PyResult<Py<TensorIter>>` - New iterator over a tensor
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<TensorIter>> {
+        let iter = TensorIter { inner: slf.data.clone().into_iter()};
+        Py::new(slf.py(), iter)
+    }
+
+    /// Repr method for a tensor in python
     fn __repr__(&self) -> String {
         format!("Tensor(dimension={}, shape={:?})", self.dimension, self.shape)
     }
