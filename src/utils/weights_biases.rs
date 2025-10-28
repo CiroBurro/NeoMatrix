@@ -7,9 +7,12 @@ use crate::structures::tensor::Tensor;
 
 /// Function to generate random weights
 /// 
-/// Parameters:
-/// - nodes_1: The number of nodes in the previous layer
-/// - nodes_2: The number of nodes in the current layer
+/// # Arguments
+/// * `nodes_1` - Number of nodes in the previous layer
+/// * `nodes_2` - Number of nodes in the current layer
+///
+/// # Returns
+/// * `Tensor` - Tensor containing random weights
 #[pyfunction]
 #[pyo3(signature = (nodes_1, nodes_2, range))]
 pub fn random_weights(nodes_1: usize, nodes_2: usize, range: (f64, f64)) -> Tensor{
@@ -25,8 +28,11 @@ pub fn random_weights(nodes_1: usize, nodes_2: usize, range: (f64, f64)) -> Tens
 
 /// Function to generate random biases
 ///
-/// Parameters:
-/// - nodes: The number of nodes in the current layer
+/// # Arguments
+/// * `nodes` - Number of nodes in the current layer
+///
+/// # Returns
+/// * `Tensor` - Tensor containing random biases
 #[pyfunction]
 #[pyo3(signature = (nodes, range))]
 pub fn random_biases(nodes: usize, range: (f64, f64)) -> Tensor{

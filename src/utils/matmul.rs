@@ -6,6 +6,13 @@ use ndarray::parallel::prelude::*;
 
 /// Function to execute the dot product of two matrices in parallel
 /// ! Not a Python function !
+/// 
+/// # Arguments
+/// * `t_1` - First array of the dot product
+/// * `t_2` - Second array of the dot product
+/// 
+/// # Returns
+/// * `Array2<f64>` - 2D Array containing the result of the dot product
 pub fn par_dot(t_1: Array2<f64>, t_2: Array2<f64>) -> Array2<f64> {
 
     // Check for dimension compatibility
