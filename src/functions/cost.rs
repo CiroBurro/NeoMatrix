@@ -114,6 +114,7 @@ pub enum Cost {
 ///     cost = get_cost(Cost.MeanSquaredError, t, z, parallel=True, batch=True)
 ///     ```
 #[pyfunction]
+#[pyo3(signature = (cost, t, z, *, parallel = None, batch_processing = None))]
 pub fn get_cost(
     cost: Cost,
     t: &Tensor,

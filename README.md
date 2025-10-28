@@ -119,8 +119,8 @@ print("Predictions:", predictions.get_data())
 - [X] **Implement ops traits for tensor**: use std traits instead of useless tensor methods
 - [X] **Implement iterator for tensor**: make a tensor iterable 
 - [ ] **Implement more optimizers**: Adam, RMSprop, Adagrad.
-- [ ] **Add signature**: specify functions and methods signatures for an easier usage in python
+- [X] **Add signature**: specify functions and methods signatures for an easier usage in python
 - [ ] **Add examples**: Implementation linear, logistic, and softmax regression, and a simple neuralnetwork
 - [ ] **Save and Load Models**: Functionality to serialize and deserialize trained models.
-- [ ] **Advanced Documentation**: Create more detailed documentation.
+- [X] **Advanced Documentation**: Create more detailed documentation.
 - [ ] **Add evaluation metrics**: Accuracy, Precision, Recall, F1-score.

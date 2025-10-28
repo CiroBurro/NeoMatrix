@@ -61,6 +61,7 @@ impl Tensor {
     ///     from neomatrix import Tensor
     ///     t = Tensor([2, 2, 3], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 12])
     ///     ```
+    #[pyo3(signature = (shape, content))]
     #[new]
     pub fn new(shape: Vec<usize>, content: Vec<f64>) -> Self {
         let dimension = shape.len();
@@ -85,10 +86,11 @@ impl Tensor {
     ///     t = Tensor.zeros([2, 2, 3])
     ///     ```
     #[staticmethod]
-    pub fn zeros(sh: Vec<usize>) -> Self {
-        let dimension = sh.len();
-        let data = Array::zeros(sh.clone());
-        Self { dimension, shape: sh, data }
+    #[pyo3(signature = (shape))]
+    pub fn zeros(shape: Vec<usize>) -> Self {
+        let dimension = shape.len();
+        let data = Array::zeros(shape.clone());
+        Self { dimension, shape, data }
     }
 
     /// Constructor method for a random tensor
@@ -105,9 +107,10 @@ impl Tensor {
     ///     t = Tensor.random([2, 2, 3])
     ///     ```
     #[staticmethod]
-    pub fn random(sh: Vec<usize>) -> Self {
+    #[pyo3(signature = (shape))]
+    pub fn random(shape: Vec<usize>) -> Self {
 
-        let mut tensor = Tensor::zeros(sh);
+        let mut tensor = Tensor::zeros(shape);
 
         tensor.data.par_mapv_inplace(|_| {
             rand::random_range(0.0..100.0)
@@ -148,8 +151,9 @@ impl Tensor {
     ///     t = Tensor.from_numpy(arr)
     ///     ```
     #[staticmethod]
-    pub fn from_numpy<'py>(arr: PyReadonlyArrayDyn<'py, f64>) -> PyResult<Tensor> {
-        let owned = arr.as_array().to_owned();
+    #[pyo3(signature = (array))]
+    pub fn from_numpy<'py>(array: PyReadonlyArrayDyn<'py, f64>) -> PyResult<Tensor> {
+        let owned = array.as_array().to_owned();
         let dimension = owned.ndim();
         let shape = owned.shape().to_vec();
 
@@ -175,6 +179,7 @@ impl Tensor {
     ///     t_2 = Tensor([4, 2], [1, 3, 5, 7, 9, 11, 13, 15])
     ///     result = t_1.dot(t_2)
     ///     ```
+    #[pyo3(signature = (t))]
     pub fn dot(&self, t: &Tensor) -> PyResult<Tensor> {
         // Check if the dimensions are compatible for dot product
         match (self.dimension, t.dimension) {
@@ -458,10 +463,11 @@ impl Tensor {
     ///     t = Tensor([2, 2], [1, 2, 3, 4])
     ///     t.reshape([4])
     ///     ```
-    pub fn reshape(&mut self, sh: Vec<usize>) {
-        self.shape = sh.clone();
-        self.dimension = sh.len();
-        self.data = self.data.to_owned().into_shape_with_order(sh).expect("Incompatible shape");
+    #[pyo3(signature = (shape))]
+    pub fn reshape(&mut self, shape: Vec<usize>) {
+        self.shape = shape.clone();
+        self.dimension = shape.len();
+        self.data = self.data.to_owned().into_shape_with_order(shape).expect("Incompatible shape");
     }
 
     /// Flatten inplace method for Tensor
@@ -492,6 +498,7 @@ impl Tensor {
     ///     t_2 = Tensor([4], [1, 3, 5, 7])
     ///     t_1.push(t_2, 0)
     ///     ```
+    #[pyo3(signature = (t, axis))]
     pub fn push(&mut self, t: &Tensor, axis: usize) {
         let mut vec_data = Vec::new();
         self.data.flatten().for_each(|x| vec_data.push(*x));
@@ -526,6 +533,7 @@ impl Tensor {
     ///
     ///     t = t_1.cat_inplace([t_2, t_3, t_4], 0)
     ///     ```
+    #[pyo3(signature = (tensors, axis))]
     pub fn cat_inplace(&self, tensors: Vec<Tensor>, axis: usize) -> PyResult<Tensor> {
         let mut new_tensor = self.clone();
         for t in tensors.iter() {
@@ -554,6 +562,7 @@ impl Tensor {
     ///     t = Tensor.cat([t_1, t_2, t_3, t_4], 0)
     ///     ```
     #[staticmethod]
+    #[pyo3(signature = (tensors, axis))]
     pub fn cat(tensors: Vec<Tensor>, axis: usize) -> PyResult<Tensor> {
 
         let mut new_tensor = tensors[0].clone();
@@ -574,6 +583,7 @@ impl Tensor {
     ///     t_2 = Tensor([2], [1, 3])
     ///     t_1.push_row(t_2)
     ///     ```
+    #[pyo3(signature = (t))]
     pub fn push_row(&mut self, t: &Tensor) {
 
         if t.dimension != 1 {
@@ -606,6 +616,7 @@ impl Tensor {
     ///     t_2 = Tensor([3], [1, 3, 5])
     ///     t_1.push_column(t_2)
     ///     ```
+    #[pyo3(signature = (t))]
     pub fn push_column(&mut self, t: &Tensor) {
 
         if t.dimension != 1 {

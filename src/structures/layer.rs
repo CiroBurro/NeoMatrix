@@ -67,6 +67,7 @@ impl Layer {
     ///     layer = Layer(4, input, Activation.Relu)
     ///     ```
     #[new]
+    #[pyo3(signature = (nodes, input_len, activation))]
     pub fn new(nodes: usize, input_len: usize, activation: Activation) -> Self {
         let weights = random_weights(input_len, nodes, (-1.0, 1.0));
         let biases = random_biases(nodes, (-1.0, 1.0));
@@ -98,6 +99,7 @@ impl Layer {
     ///     t = Tensor([3], [1, 2, 3])
     ///     output = layer.forward(input=t, parallel=True)
     ///     ```
+    #[pyo3(signature = (input, parallel=false))]
     pub fn forward(&mut self, input: Tensor, parallel: bool) -> PyResult<Tensor> {
         self.input = input;
         
@@ -148,6 +150,7 @@ impl Layer {
     ///     t.push_row(t_1)
     ///     output = layer.forward_batch(input=t, parallel=True)
     ///     ```
+    #[pyo3(signature = (input, parallel = true))]
     pub fn forward_batch(&mut self, input: Tensor, parallel: bool) -> PyResult<Tensor> {
         if input.dimension != 2 {
             panic!("Batch input must be 2D")
@@ -218,6 +221,7 @@ impl Layer {
     ///     ```python
     ///     (w_gradients, b_gradients, current_deltas) = layer.forward(out_layer=False, deltas=deltas, next_weights=next_weights, all_outputs=all_outputs)
     ///     ```
+    #[pyo3(signature = (out_layer, deltas, next_weights = None, all_outputs = None))]
     fn backward(&self, out_layer: bool, mut deltas: Tensor, next_weights: Option<Tensor>, all_outputs: Option<Tensor>) -> PyResult<(Tensor, Tensor, Tensor)> {
         // Deltas dimension can be 1 (single sample processing) or 2 (batch processing)
         if deltas.dimension > 2 || deltas.dimension == 0{
@@ -428,6 +432,7 @@ impl Layer {
     ///     ```python
     ///     output_deltas = layer.get_output_deltas(Cost.MeanSquaredError, t, z)
     ///     ```
+    #[pyo3(signature = (cost, t, z))]
     fn get_output_deltas(&self, cost: Cost, t: &mut Tensor, z: &Tensor) -> PyResult<Tensor> {
 
         // Optimization for the case of binary cross entropy with sigmoid activation
@@ -472,7 +477,8 @@ impl Layer {
         // In all other combinations of cost and activation function deltas = cost function derivative * activation function derivative
         cost_derivative * activation_derivative
     }
-    
+
+    /// Repr method for a layer in python
     fn __repr__(&self) -> String {
         format!("Layer (nodes: {})", self.nodes)
     }
