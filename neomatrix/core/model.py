@@ -6,7 +6,7 @@ Module for ML models. It provides classes for the most common ML algorithms:
 - Softmax Regression
 """
 
-import neomatrix.core as core
+from neomatrix.core import Layer, Cost, Tensor, get_cost, Activation
 import neomatrix.utils as utils
 import neomatrix.core.optimizer as opt
 import os
@@ -27,7 +27,7 @@ class NeuralNetwork:
         cost_function (core.Cost): Cost function used for training.
         learning_rate (float): Learning rate for updating parameters.
     """
-    def __init__(self, layers: list[core.Layer], cost_function: core.Cost, learning_rate: float):
+    def __init__(self, layers: list[Layer], cost_function: Cost, learning_rate: float):
         self.layers = layers
         self.cost_function = cost_function
         self.learning_rate = learning_rate
@@ -40,7 +40,7 @@ class NeuralNetwork:
             learning_rate (float): Learning rate for updating parameters.
         """
 
-    def predict(self, ntwk_inputs: core.Tensor, batch_processing: bool=True, parallel: bool=False) -> core.Tensor:
+    def predict(self, ntwk_inputs: Tensor, batch_processing: bool=True, parallel: bool=False) -> Tensor:
         """
         Performs forward propagation through the network.
 
@@ -66,7 +66,7 @@ class NeuralNetwork:
                 inputs = output
             return inputs
 
-    def backward(self, ntwk_inputs: core.Tensor, t: core.Tensor, z: core.Tensor, optimizer: opt.Optimizer):
+    def backward(self, ntwk_inputs: Tensor, t: Tensor, z: Tensor, optimizer: opt.Optimizer):
         """
         Performs backpropagation to compute gradients and update parameters.
 
@@ -95,7 +95,7 @@ class NeuralNetwork:
             optimizer.params_update(layer=layer, w_grads=w_grads, b_grads=b_grads, learning_rate=self.learning_rate)
             deltas = new_deltas
     
-    def fit(self, training_set: core.Tensor, training_targets: core.Tensor, val_set: core.Tensor, val_targets: core.Tensor, optimizer: opt.Optimizer, epochs: int, parallel: bool = False):
+    def fit(self, training_set: Tensor, training_targets: Tensor, val_set: Tensor, val_targets: Tensor, optimizer: opt.Optimizer, epochs: int, parallel: bool = False):
         """
         Trains the network using the provided data.
 
@@ -136,7 +136,7 @@ class NeuralNetwork:
             for (j, batch) in enumerate(train_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
                 self.backward(ntwk_inputs=batch, t=train_target_batches[j], z=outputs, optimizer=optimizer)
-                loss = core.get_cost(self.cost_function, train_target_batches[j], z=outputs, parallel=parallel, batch_processing=batch_processing)
+                loss = get_cost(self.cost_function, train_target_batches[j], z=outputs, parallel=parallel, batch_processing=batch_processing)
                 total_loss += loss
                 print("-------------------------")
                 print(f"Epoch: {i + 1}, Training batch: {j}, Loss: {loss}, Total loss: {total_loss}")
@@ -144,7 +144,7 @@ class NeuralNetwork:
             total_loss = 0
             for (k, batch) in enumerate(val_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
-                val_loss = core.get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch_processing=batch_processing)
+                val_loss = get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch_processing=batch_processing)
                 total_loss += val_loss
                 print("-------------------------")
                 print(f"Epoch: {i + 1}, Validation batch: {k}, Loss: {val_loss}, Total loss: {total_loss}")
@@ -163,8 +163,8 @@ class LinearRegression(NeuralNetwork):
             learning_rate (float): Learning rate.
         """
         super().__init__([
-            core.Layer(output_nodes, input_nodes, core.Activation.Linear)
-        ], core.Cost.MeanSquaredError(), learning_rate)
+            Layer(output_nodes, input_nodes, Activation.Linear)
+        ], Cost.MeanSquaredError(), learning_rate)
 
 class LogisticRegression(NeuralNetwork):
     """
@@ -179,8 +179,8 @@ class LogisticRegression(NeuralNetwork):
             learning_rate (float): Learning rate.
         """
         super().__init__([
-            core.Layer(1, input_nodes, core.Activation.Sigmoid)
-        ], core.Cost.BinaryCrossEntropy(), learning_rate)
+            Layer(1, input_nodes, Activation.Sigmoid)
+        ], Cost.BinaryCrossEntropy(), learning_rate)
 
 class SoftmaxRegression(NeuralNetwork):
     """
@@ -196,5 +196,5 @@ class SoftmaxRegression(NeuralNetwork):
             learning_rate (float): Learning rate.
         """
         super().__init__([
-            core.Layer(output_nodes, input_nodes, core.Activation.Softmax)
-        ], core.Cost.CategoricalCrossEntropy(), learning_rate)
+            Layer(output_nodes, input_nodes, Activation.Softmax)
+        ], Cost.CategoricalCrossEntropy(), learning_rate)
