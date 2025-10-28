@@ -21,8 +21,8 @@ class Optimizer:
             b_grads (Tensor): Gradients for the biases.
             learning_rate (float): Learning rate for the update.
         """
-        layer.weights = layer.weights.tensor_subtraction(w_grads.scalar_multiplication(learning_rate))
-        layer.biases = layer.biases.tensor_subtraction(b_grads.scalar_multiplication(learning_rate))
+        layer.weights = layer.weights - (w_grads*learning_rate)
+        layer.biases = layer.biases - (b_grads*learning_rate)
 
 class BatchGD(Optimizer):
     """Implementation of the Batch Gradient Descent optimization algorithm."""
