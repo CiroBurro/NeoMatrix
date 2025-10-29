@@ -35,23 +35,20 @@ class NeuralNetwork:
         """
         Initializes a new NeuralNetwork instance.
 
-        Args:
-            layers (list[core.Layer]): List of neural network layers.
-            cost_function (core.Cost): Cost function used for training.
-            learning_rate (float): Learning rate for updating parameters.
+        :param: layers (list[core.Layer]): List of neural network layers.
+        :param: cost_function (core.Cost): Cost function used for training.
+        :param: learning_rate (float): Learning rate for updating parameters.
         """
 
     def predict(self, ntwk_inputs: Tensor, batch_processing: bool=True, parallel: bool=False) -> Tensor:
         """
         Performs forward propagation through the network.
 
-        Args:
-            ntwk_inputs (core.Tensor): Input tensor for the network.
-            batch_processing (bool, optional): If True, processes the data in batch mode. Default is True.
-            parallel (bool, optional): If True, enables parallel processing. Default is False.
+        :param: ntwk_inputs (core.Tensor): Input tensor for the network.
+        :param: batch_processing (bool, optional): If True, processes the data in batch mode. Default is True.
+        :param: parallel (bool, optional): If True, enables parallel processing. Default is False.
 
-        Returns:
-            core.Tensor: Output tensor from the network.
+        :return core.Tensor: Output tensor from the network.
         """
         inputs = ntwk_inputs
         if batch_processing:
@@ -71,11 +68,10 @@ class NeuralNetwork:
         """
         Performs backpropagation to compute gradients and update parameters.
 
-        Args:
-            ntwk_inputs (core.Tensor): Input tensor for the network.
-            t (core.Tensor): Target tensor.
-            z (core.Tensor): Output tensor from the network.
-            optimizer (opt.Optimizer): Optimizer for parameter updates.
+        :param: ntwk_inputs (core.Tensor): Input tensor for the network.
+        :param: t (core.Tensor): Target tensor.
+        :param: z (core.Tensor): Output tensor from the network.
+        :param: optimizer (opt.Optimizer): Optimizer for parameter updates.
         """
         all_outputs = []
         deltas = self.layers[-1].get_output_deltas(self.cost_function, t, z)
@@ -152,7 +148,7 @@ class NeuralNetwork:
     def to_dict(self):
         """
         Writes a NeuralNetwork class as a python dict.
-        :return: A python dictionary        
+        :return: A python dictionary
         """
         d = {
             "layers" : self.layers,
@@ -169,7 +165,7 @@ class NeuralNetwork:
         """
         with open(path, mode='w') as f:
             f.write(json.dumps(self.to_dict()))
-            
+
 class LinearRegression(NeuralNetwork):
     """
     A class representing a linear regression model.

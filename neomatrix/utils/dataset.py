@@ -11,12 +11,10 @@ def get_batches(tensor: core.Tensor, batch_size: int) -> list[core.Tensor]:
     """
     Split a tensor into smaller batches of the specified size.
 
-    Args:
-        tensor (core.Tensor): The tensor to be split.
-        batch_size (int): Number of samples per batch.
+    :param: tensor (core.Tensor): The tensor to be split.
+    :param: batch_size (int): Number of samples per batch.
 
-    Returns:
-        list[core.Tensor]: A list of tensor batches.
+    :return list[core.Tensor]: A list of tensor batches.
     """
     array = tensor.data
 

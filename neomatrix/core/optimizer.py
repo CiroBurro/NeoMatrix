@@ -15,11 +15,10 @@ class Optimizer:
         """
         Update the parameters of a layer using gradient descent.
 
-        Args:
-            layer (Layer): The neural network layer to update.
-            w_grads (Tensor): Gradients for the weights.
-            b_grads (Tensor): Gradients for the biases.
-            learning_rate (float): Learning rate for the update.
+        :param: layer (Layer): The neural network layer to update.
+        :param: w_grads (Tensor): Gradients for the weights.
+        :param: b_grads (Tensor): Gradients for the biases.
+        :param: learning_rate (float): Learning rate for the update.
         """
         layer.weights = layer.weights - (w_grads*learning_rate)
         layer.biases = layer.biases - (b_grads*learning_rate)
