@@ -100,14 +100,13 @@ class NeuralNetwork:
         """
         Trains the network using the provided data.
 
-        Args:
-            training_set (core.Tensor): Training data tensor.
-            training_targets (core.Tensor): Training targets tensor.
-            val_set (core.Tensor): Validation data tensor.
-            val_targets (core.Tensor): Validation targets tensor.
-            optimizer (opt.Optimizer): Optimizer used for training.
-            epochs (int): Number of training epochs.
-            parallel (bool, optional): If True, enables parallel processing. Default is False.
+        :param: training_set (core.Tensor): Training data tensor.
+        :param: training_targets (core.Tensor): Training targets tensor.
+        :param: val_set (core.Tensor): Validation data tensor.
+        :param: val_targets (core.Tensor): Validation targets tensor.
+        :param: optimizer (opt.Optimizer): Optimizer used for training.
+        :param: epochs (int): Number of training epochs.
+        :param: parallel (bool, optional): If True, enables parallel processing. Default is False.
         """
         batch_processing: bool = True
         training_batch_size: int = 1
@@ -151,17 +150,26 @@ class NeuralNetwork:
                 print(f"Epoch: {i + 1}, Validation batch: {k}, Loss: {val_loss}, Total loss: {total_loss}")
 
     def to_dict(self):
-        json = {
-            "layer" : [layer.to_dict() for layer in self.layers],
+        """
+        Writes a NeuralNetwork class as a python dict.
+        :return: A python dictionary        
+        """
+        d = {
+            "layers" : self.layers,
             "cost" : self.cost_function.to_dict(),
             "learning_rate" : self.learning_rate
         }
-        return json
+        return d
+
 
     def save(self, path):
+        """
+        Serialize a NeuralNetwork class into a json file
+        :param path: path of the file where serialized model will be stored
+        """
         with open(path, mode='w') as f:
             f.write(json.dumps(self.to_dict()))
-
+            
 class LinearRegression(NeuralNetwork):
     """
     A class representing a linear regression model.

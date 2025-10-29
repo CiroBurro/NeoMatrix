@@ -479,6 +479,17 @@ impl Layer {
         cost_derivative * activation_derivative
     }
 
+    /// to_dict method converts a Layer structure into a python dictionary
+    ///
+    /// # Returns
+    /// * `PyResult<Py<PyAny>>` - Python dictionary with all fields of the layer
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix.core import Layer, Activation
+    ///     l = Layer(2, 3, Activation.Relu)
+    ///     d = l.to_dict()
+    ///     ```
     fn to_dict(&self) -> PyResult<Py<PyAny>> {
         Python::attach(|py| {
             let d = PyDict::new(py);

@@ -45,6 +45,7 @@ pub enum Activation {
     Linear
 }
 
+/// ToString implementation for `Activation` struct
 impl ToString for Activation {
     fn to_string(&self) -> String {
         match self { 

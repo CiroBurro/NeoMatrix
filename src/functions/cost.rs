@@ -95,8 +95,19 @@ pub enum Cost {
     HingeLoss(),
 }
 
+/// `Cost` struct methods
 #[pymethods]
 impl Cost {
+    /// Name method converts a Cost structure into a string
+    ///
+    /// # Returns
+    /// * `&str` - Name of the Cost function
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix.core import Cost
+    ///     name = Cost.MeanSquaredError().name()
+    ///     ```
     fn name(&self) -> &str {
         match self {
             Cost::MeanSquaredError() => "MSE",
@@ -108,6 +119,16 @@ impl Cost {
         }
     }
 
+    /// to_dict method converts a Cost structure into a python dictionary
+    ///
+    /// # Returns
+    /// * `PyResult<Py<PyAny>>` - Python dictionary with name and value (only HuberLoss) of the cost function
+    /// 
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix.core import Cost
+    ///     d = Cost.MeanSquaredError().to_dict()
+    ///     ```
     fn to_dict(&self) -> PyResult<Py<PyAny>> {
         Python::attach(|py| {
             let d = PyDict::new(py);

@@ -58,8 +58,8 @@ impl Tensor {
     /// * `Tensor` - New tensor
     ///
     /// # Python usage
-    ///     ```python
-    ///     from neomatrix import Tensor
+    ///     ```
+    ///     from neomatrix.core import Tensor
     ///     t = Tensor([2, 2, 3], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 12])
     ///     ```
     #[pyo3(signature = (shape, content))]
@@ -648,6 +648,17 @@ impl Tensor {
         Py::new(slf.py(), iter)
     }
 
+    /// to_dict method converts a Tensor structure into a python dictionary
+    ///
+    /// # Returns
+    /// * `PyResult<Py<PyAny>>` - Python dictionary with all fields of the tensor
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix.core import Tensor
+    ///     t = Tensor([2,2], [1,2,3,4])
+    ///     d = t.to_dict()
+    ///     ```
     pub fn to_dict(&self) -> PyResult<Py<PyAny>> {
         Python::attach(|py|{
             let d = PyDict::new(py);
