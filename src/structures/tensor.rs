@@ -8,6 +8,7 @@ use ndarray::prelude::*;
 use ndarray::{Ix1, Ix2};
 use rand;
 use numpy::{prelude::*, PyArrayDyn, PyReadonlyArrayDyn};
+use pyo3::types::PyDict;
 use crate::structures::tenosor_iter::TensorIter;
 use crate::utils::matmul::par_dot;
 
@@ -645,6 +646,16 @@ impl Tensor {
     fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<TensorIter>> {
         let iter = TensorIter { inner: slf.data.clone().into_iter()};
         Py::new(slf.py(), iter)
+    }
+
+    pub fn to_dict(&self) -> PyResult<Py<PyAny>> {
+        Python::attach(|py|{
+            let d = PyDict::new(py);
+            d.set_item("dimension", self.dimension)?;
+            d.set_item("shape", self.shape.clone())?;
+            d.set_item("data", self.data.clone().to_string())?;
+            Ok(d.into())
+        })
     }
 
     /// Repr method for a tensor in python

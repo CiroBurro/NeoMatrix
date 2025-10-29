@@ -5,6 +5,7 @@ Module for ML models. It provides classes for the most common ML algorithms:
 - Logistic Regression
 - Softmax Regression
 """
+import json
 
 from neomatrix.core import Layer, Cost, Tensor, get_cost, Activation
 import neomatrix.utils as utils
@@ -148,6 +149,18 @@ class NeuralNetwork:
                 total_loss += val_loss
                 print("-------------------------")
                 print(f"Epoch: {i + 1}, Validation batch: {k}, Loss: {val_loss}, Total loss: {total_loss}")
+
+    def to_dict(self):
+        json = {
+            "layer" : [layer.to_dict() for layer in self.layers],
+            "cost" : self.cost_function.to_dict(),
+            "learning_rate" : self.learning_rate
+        }
+        return json
+
+    def save(self, path):
+        with open(path, mode='w') as f:
+            f.write(json.dumps(self.to_dict()))
 
 class LinearRegression(NeuralNetwork):
     """

@@ -6,6 +6,7 @@ use crate::structures::tensor::Tensor;
 use ndarray::parallel::prelude::*;
 use ndarray::{ArrayD, Axis};
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 /// Trait defining the interface for cost functions
 /// 
@@ -92,6 +93,31 @@ pub enum Cost {
     CategoricalCrossEntropy(),
     HuberLoss {delta: f64},
     HingeLoss(),
+}
+
+#[pymethods]
+impl Cost {
+    fn name(&self) -> &str {
+        match self {
+            Cost::MeanSquaredError() => "MSE",
+            Cost::MeanAbsoluteError() => "MAE",
+            Cost::BinaryCrossEntropy() => "BCE",
+            Cost::CategoricalCrossEntropy() => "CCE",
+            Cost::HuberLoss {delta: _} => "HuberLoss",
+            Cost::HingeLoss() => "HingeLoss",
+        }
+    }
+
+    fn to_dict(&self) -> PyResult<Py<PyAny>> {
+        Python::attach(|py| {
+            let d = PyDict::new(py);
+            d.set_item("name", self.name())?;
+            if let Cost::HuberLoss {delta} = self{
+                d.set_item("delta", *delta)?;
+            }
+            Ok(d.into())
+        })
+    }
 }
 
 /// Function to get and compute cost between two tensors

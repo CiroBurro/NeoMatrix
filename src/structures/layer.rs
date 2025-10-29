@@ -4,6 +4,7 @@
 /// Necessary imports
 use ndarray::{s, Axis, Ix2, parallel::prelude::*};
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use crate::structures::tensor::Tensor;
 use crate::utils::weights_biases::{random_weights, random_biases};
 use crate::functions::activation::*;
@@ -476,6 +477,19 @@ impl Layer {
 
         // In all other combinations of cost and activation function deltas = cost function derivative * activation function derivative
         cost_derivative * activation_derivative
+    }
+
+    fn to_dict(&self) -> PyResult<Py<PyAny>> {
+        Python::attach(|py| {
+            let d = PyDict::new(py);
+            d.set_item("nodes", self.nodes)?;
+            d.set_item("input", self.input.to_dict()?)?;
+            d.set_item("output", self.input.to_dict()?)?;
+            d.set_item("weights", self.weights.to_dict()?)?;
+            d.set_item("biases", self.biases.to_dict()?)?;
+            d.set_item("activation", self.activation.to_string())?;
+            Ok(d.into())
+        })
     }
 
     /// Repr method for a layer in python

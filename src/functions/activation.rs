@@ -45,6 +45,18 @@ pub enum Activation {
     Linear
 }
 
+impl ToString for Activation {
+    fn to_string(&self) -> String {
+        match self { 
+            Activation::Relu => String::from("Relu"),
+            Activation::Sigmoid => String::from("Sigmoid"),
+            Activation::Tanh => String::from("Tanh"),
+            Activation::Softmax => String::from("Softmax"),
+            Activation::Linear => String::from("Linear")
+        }
+    }
+}
+
 /// Rectified Linear Unit (ReLU) activation function
 /// `f(x) = max(0, x)`
 pub struct Relu;
