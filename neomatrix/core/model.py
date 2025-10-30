@@ -157,6 +157,14 @@ class NeuralNetwork:
         }
         return d
 
+    @staticmethod
+    def from_json(d):
+        learning_rate = d["learning_rate"]
+        cost_dict = d["cost"]
+        layers = d["layers"]
+
+        return NeuralNetwork(_, Cost.from_dict(cost_dict), learning_rate=int(learning_rate))
+
 
     def save(self, path):
         """
@@ -165,6 +173,12 @@ class NeuralNetwork:
         """
         with open(path, mode='w') as f:
             f.write(json.dumps(self.to_dict()))
+
+    def load(self, path):
+        with open(path) as f:
+            model = self.from_json(json.load(f))
+
+        return model
 
 class LinearRegression(NeuralNetwork):
     """

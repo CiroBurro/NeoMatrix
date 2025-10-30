@@ -6,7 +6,7 @@ use crate::structures::tensor::Tensor;
 use ndarray::parallel::prelude::*;
 use ndarray::{ArrayD, Axis};
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyFloat, PyString};
 
 /// Trait defining the interface for cost functions
 /// 
@@ -138,6 +138,25 @@ impl Cost {
             }
             Ok(d.into())
         })
+    }
+
+    #[staticmethod]
+    fn from_dict(d: Bound<PyDict>) -> PyResult<Self> {
+        let binding = d.get_item("name")?.expect("No name for cost function deserialization");
+        let name = binding.downcast::<PyString>()?.extract::<&str>()?;
+        match name {
+            "MSE" => Ok(Self::MeanSquaredError()),
+            "MAE" => Ok(Self::MeanAbsoluteError()),
+            "BCE" => Ok(Self::BinaryCrossEntropy()),
+            "CCE" => Ok(Self::CategoricalCrossEntropy()),
+            "HuberLoss" => {
+                let delta = d.get_item("delta")?.expect("No delta for Huber Loss cost function deserialization").downcast::<PyFloat>()?.extract::<f64>()?;
+                Ok(Self::HuberLoss { delta })
+            },
+            "HingeLoss" => Ok(Self::HingeLoss()),
+            _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid name for Cost Function deserialization"))
+
+        }
     }
 }
 
