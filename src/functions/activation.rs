@@ -58,6 +58,7 @@ impl ToString for Activation {
     }
 }
 
+/// TryFrom<String> implementation for `Activation` struct
 impl TryFrom<String> for Activation {
     type Error = PyErr;
     fn try_from(value: String) -> Result<Self, Self::Error> {

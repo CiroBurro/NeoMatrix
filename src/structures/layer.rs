@@ -503,6 +503,27 @@ impl Layer {
         })
     }
     #[staticmethod]
+    /// from_dict method converts a python dictionary into a Layer structure
+    ///
+    /// # Arguments
+    /// * `d` - Python dictionary with all fields of the layer
+    ///
+    /// # Returns
+    /// * `PyResult<Layer>` - Layer from the python dictionary
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix.core import Layer, Activation
+    ///     d = {
+    ///         "nodes": 2,
+    ///         "input": {"dimension": 1, "shape": [3], "data": [1.0, 2.0, 3.0]},
+    ///         "output": {"dimension": 1, "shape": [2], "data": [0.0, 0.0]},
+    ///         "weights": {"dimension": 2, "shape": [3, 2], "data": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]},
+    ///         "biases": {"dimension": 1, "shape": [2], "data": [0.1, 0.2]},
+    ///         "activation": "Relu"
+    ///     }
+    ///     l = Layer.from_dict(d)
+    ///     ```
     fn from_dict(d: Bound<PyDict>) -> PyResult<Self> {
         let nodes = d.get_item("nodes")?.expect("No field for number of nodes deserialization").downcast::<PyInt>()?.extract::<usize>()?;
         

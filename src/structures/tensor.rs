@@ -669,6 +669,24 @@ impl Tensor {
         })
     }
     #[staticmethod]
+    /// from_dict method converts a python dictionary into a Tensor structure
+    ///
+    /// # Arguments
+    /// * `d` - Python dictionary with all fields of the tensor
+    ///
+    /// # Returns
+    /// * `PyResult<Tensor>` - Tensor from the python dictionary
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix.core import Tensor
+    ///     d = {
+    ///         "dimension": 2,
+    ///         "shape": [2, 2],
+    ///         "data": [1.0, 2.0, 3.0, 4.0]
+    ///     }
+    ///     t = Tensor.from_dict(d)
+    ///     ```
     pub fn from_dict(d: Bound<PyAny>) -> PyResult<Tensor> {
         let d = d.downcast::<PyDict>()?;
         let shape = d.get_item("shape")?.expect("No field for shape deserialization");

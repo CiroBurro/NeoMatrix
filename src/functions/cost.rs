@@ -141,6 +141,20 @@ impl Cost {
     }
 
     #[staticmethod]
+    /// from_dict method converts a python dictionary into a Cost structure
+    ///
+    /// # Arguments
+    /// * `d` - Python dictionary with name and value (only HuberLoss) of the cost function
+    ///
+    /// # Returns
+    /// * `PyResult<Cost>` - Cost function from the python dictionary
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix.core import Cost
+    ///     d = {"name": "MSE"}
+    ///     c = Cost.from_dict(d)
+    ///     ```
     fn from_dict(d: Bound<PyDict>) -> PyResult<Self> {
         let binding = d.get_item("name")?.expect("No name for cost function deserialization");
         let name = binding.downcast::<PyString>()?.extract::<&str>()?;

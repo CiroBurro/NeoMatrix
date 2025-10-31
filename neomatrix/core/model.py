@@ -6,6 +6,7 @@ Module for ML models. It provides classes for the most common ML algorithms:
 - Softmax Regression
 """
 import json
+from json import JSONDecodeError
 
 from neomatrix.core import Layer, Cost, Tensor, get_cost, Activation
 import neomatrix.utils as utils
@@ -161,6 +162,12 @@ class NeuralNetwork:
 
     @staticmethod
     def from_json(d):
+        """
+        Creates a NeuralNetwork instance from a dictionary.
+
+        :param d: (dict): Dictionary containing the network's parameters.
+        :return: A NeuralNetwork instance.
+        """
         learning_rate = d["learning_rate"]
         cost_dict = d["cost"]
         layers = d["layers"]
@@ -177,8 +184,19 @@ class NeuralNetwork:
 
     @classmethod
     def load(cls, path):
-        with open(path) as f:
-            model = cls.from_json(json.load(f))
+        """
+        Loads a serialized NeuralNetwork model from a json file.
+
+        :param path: (str): Path to the file containing the serialized model.
+        :return: A NeuralNetwork instance.
+        """
+        try:
+            with open(path) as f:
+                model = cls.from_json(json.load(f))
+        except JSONDecodeError:
+            print("Could not deserialize the specified file. Make sure it contains a valid json object")
+        except FileExistsError:
+            print("The specified tile does not exists, make sure to insert the correct path")
 
         return model
 
