@@ -151,10 +151,12 @@ class NeuralNetwork:
         :return: A python dictionary
         """
         d = {
-            "layers" : self.layers,
+            "layers" : [layer.to_dict() for layer in self.layers],
             "cost" : self.cost_function.to_dict(),
             "learning_rate" : self.learning_rate
         }
+
+        print(d)
         return d
 
     @staticmethod
@@ -163,8 +165,7 @@ class NeuralNetwork:
         cost_dict = d["cost"]
         layers = d["layers"]
 
-        return NeuralNetwork(_, Cost.from_dict(cost_dict), learning_rate=int(learning_rate))
-
+        return NeuralNetwork([Layer.from_dict(layer_dict) for layer_dict in layers ], Cost.from_dict(cost_dict), learning_rate=float(learning_rate))
 
     def save(self, path):
         """
@@ -174,9 +175,10 @@ class NeuralNetwork:
         with open(path, mode='w') as f:
             f.write(json.dumps(self.to_dict()))
 
-    def load(self, path):
+    @classmethod
+    def load(cls, path):
         with open(path) as f:
-            model = self.from_json(json.load(f))
+            model = cls.from_json(json.load(f))
 
         return model
 

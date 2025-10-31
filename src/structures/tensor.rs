@@ -8,7 +8,7 @@ use ndarray::prelude::*;
 use ndarray::{Ix1, Ix2};
 use rand;
 use numpy::{prelude::*, PyArrayDyn, PyReadonlyArrayDyn};
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyList};
 use crate::structures::tenosor_iter::TensorIter;
 use crate::utils::matmul::par_dot;
 
@@ -664,9 +664,18 @@ impl Tensor {
             let d = PyDict::new(py);
             d.set_item("dimension", self.dimension)?;
             d.set_item("shape", self.shape.clone())?;
-            d.set_item("data", self.data.clone().to_string())?;
+            d.set_item("data", self.data.clone().to_pyarray(py).to_vec()?)?;
             Ok(d.into())
         })
+    }
+    #[staticmethod]
+    pub fn from_dict(d: Bound<PyAny>) -> PyResult<Tensor> {
+        let d = d.downcast::<PyDict>()?;
+        let shape = d.get_item("shape")?.expect("No field for shape deserialization");
+        println!("{:#?}", shape);
+        let shape = shape.downcast::<PyList>()?.extract::<Vec<usize>>()?;
+        let data = d.get_item("data")?.expect("No field for data deserialization").downcast::<PyList>()?.extract::<Vec<f64>>()?;
+        Ok(Tensor::new(shape, data))
     }
 
     /// Repr method for a tensor in python

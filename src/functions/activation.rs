@@ -58,6 +58,20 @@ impl ToString for Activation {
     }
 }
 
+impl TryFrom<String> for Activation {
+    type Error = PyErr;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            "Relu" => Ok(Self::Relu),
+            "Sigmoid" => Ok(Self::Sigmoid),
+            "Tanh" => Ok(Self::Tanh),
+            "Softmax" => Ok(Self::Softmax),
+            "Linear" => Ok(Self::Linear),
+            _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid name for Cost Function deserialization"))
+        }
+    }
+}
+
 /// Rectified Linear Unit (ReLU) activation function
 /// `f(x) = max(0, x)`
 pub struct Relu;

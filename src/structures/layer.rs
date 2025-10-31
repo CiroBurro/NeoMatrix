@@ -4,7 +4,7 @@
 /// Necessary imports
 use ndarray::{s, Axis, Ix2, parallel::prelude::*};
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyInt, PyString};
 use crate::structures::tensor::Tensor;
 use crate::utils::weights_biases::{random_weights, random_biases};
 use crate::functions::activation::*;
@@ -501,6 +501,28 @@ impl Layer {
             d.set_item("activation", self.activation.to_string())?;
             Ok(d.into())
         })
+    }
+    #[staticmethod]
+    fn from_dict(d: Bound<PyDict>) -> PyResult<Self> {
+        let nodes = d.get_item("nodes")?.expect("No field for number of nodes deserialization").downcast::<PyInt>()?.extract::<usize>()?;
+        
+        let input: Tensor = Tensor::from_dict(d.get_item("input")?.expect("No field for input tensor"))?;
+        let output: Tensor = Tensor::from_dict(d.get_item("output")?.expect("No field for output tensor"))?;
+        let weights: Tensor = Tensor::from_dict(d.get_item("weights")?.expect("No field for weights tensor"))?;
+        let biases: Tensor = Tensor::from_dict(d.get_item("biases")?.expect("No field for biases tensor"))?;
+        
+        let activation_str = d.get_item("activation")?.expect("No name for activation function deserialization").downcast::<PyString>()?.extract::<String>()?;
+        let activation: Activation = Activation::try_from(activation_str)?;
+        
+        Ok(Self {
+            nodes,
+            input,
+            output,
+            weights,
+            biases,
+            activation,
+        })
+
     }
 
     /// Repr method for a layer in python
