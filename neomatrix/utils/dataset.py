@@ -16,6 +16,10 @@ def get_batches(tensor: core.Tensor, batch_size: int) -> list[core.Tensor]:
 
     :return list[core.Tensor]: A list of tensor batches.
     """
+
+    if batch_size == tensor.length():
+        return [tensor]
+
     array = tensor.data
 
     total_samples = tensor.shape[0]
