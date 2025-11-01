@@ -41,7 +41,7 @@ class NeuralNetwork:
         :param: learning_rate (float): Learning rate for updating parameters.
         """
 
-    def predict(self, ntwk_inputs: Tensor, batch_processing: bool=True, parallel: bool=False) -> Tensor:
+    def predict(self, ntwk_inputs: Tensor, batch_processing: bool = True, parallel: bool = False) -> Tensor:
         """
         Performs forward propagation through the network.
 
@@ -93,7 +93,7 @@ class NeuralNetwork:
             optimizer.params_update(layer=layer, w_grads=w_grads, b_grads=b_grads, learning_rate=self.learning_rate)
             deltas = new_deltas
     
-    def fit(self, training_set: Tensor, training_targets: Tensor, val_set: Tensor, val_targets: Tensor, optimizer: opt.Optimizer, epochs: int, parallel: bool = False):
+    def fit(self, training_set: Tensor, training_targets: Tensor, val_set: Tensor, val_targets: Tensor, optimizer: opt.Optimizer, epochs: int, patience: int = 5, parallel: bool = False):
         """
         Trains the network using the provided data.
 
@@ -108,6 +108,8 @@ class NeuralNetwork:
         batch_processing: bool = True
         training_batch_size: int = 1
         validation_batch_size: int = 1
+        min_val_loss = float('inf')
+        patience_counter = 0
 
         match optimizer:
             case opt.BatchGD():
@@ -121,14 +123,16 @@ class NeuralNetwork:
             case _:
                 print("Invalid optimizer")
                 exit(1)
-        
+
+        train_batches = utils.get_batches(training_set, training_batch_size)
+        train_target_batches = utils.get_batches(training_targets, training_batch_size)
+        val_batches = utils.get_batches(val_set, validation_batch_size)
+        val_targets_batches = utils.get_batches(val_targets, validation_batch_size)
+
         for (i, epoch) in enumerate(range(epochs)):
             os.system('cls' if os.name == 'nt' else 'clear')
             total_loss = 0
-            train_batches = utils.get_batches(training_set, training_batch_size)
-            train_target_batches = utils.get_batches(training_targets, training_batch_size)
-            val_batches = utils.get_batches(val_set, validation_batch_size)
-            val_targets_batches = utils.get_batches(val_targets, validation_batch_size)
+            total_val_loss = 0
 
             for (j, batch) in enumerate(train_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
@@ -136,15 +140,24 @@ class NeuralNetwork:
                 loss = get_cost(self.cost_function, train_target_batches[j], z=outputs, parallel=parallel, batch_processing=batch_processing)
                 total_loss += loss
                 print("-------------------------")
-                print(f"Epoch: {i + 1}, Training batch: {j}, Loss: {loss}, Total loss: {total_loss}")
+                print(f"Epoch: {i + 1}, Training batch: {j+1}, Loss: {loss}, Total loss: {total_loss}")
 
-            total_loss = 0
             for (k, batch) in enumerate(val_batches):
                 outputs = self.predict(ntwk_inputs=batch, batch_processing=batch_processing, parallel=parallel)
                 val_loss = get_cost(self.cost_function, t=val_targets_batches[k], z=outputs, parallel=parallel, batch_processing=batch_processing)
-                total_loss += val_loss
+                total_val_loss += val_loss
                 print("-------------------------")
-                print(f"Epoch: {i + 1}, Validation batch: {k}, Loss: {val_loss}, Total loss: {total_loss}")
+                print(f"Epoch: {i + 1}, Validation batch: {k+1}, Val Loss: {val_loss}, Total val loss: {total_val_loss}")
+
+            # Early stopping
+            if total_val_loss < min_val_loss:
+                min_val_loss = total_val_loss
+                patience_counter = 0
+            else:
+                patience_counter+=1
+                if patience_counter > patience:
+                    print(f"Early stopping at epoch: {i+1}")
+                    break
 
     def to_dict(self):
         """
@@ -157,7 +170,6 @@ class NeuralNetwork:
             "learning_rate" : self.learning_rate
         }
 
-        print(d)
         return d
 
     @staticmethod
