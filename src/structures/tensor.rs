@@ -225,7 +225,7 @@ impl Tensor {
             },
             
             _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "It's possible to multiply only 1D and 2D tensors (dot product)"
+                "It's possible to multiply only 1D and 2D tensors (dot product). General Tensor Contraction is not yet defined."
             ))
         }
     }

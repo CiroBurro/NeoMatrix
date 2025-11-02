@@ -55,7 +55,7 @@ impl Layer {
     ///
     /// # Arguments
     /// * `nodes` - Number of neurons in the layer
-    /// * `input` - A 1D tensor storing the input data
+    /// * `input_len` - Length of the input tensor
     /// * `activation` - Struct to specify the activation function of the layer
     ///
     /// # Returns
@@ -65,7 +65,7 @@ impl Layer {
     ///     ```python
     ///     from neomatrix import Tensor, Layer, Activation
     ///     input = Tensor([5], [1, 2, 3, 4, 5])
-    ///     layer = Layer(4, input, Activation.Relu)
+    ///     layer = Layer(4, input.len(), Activation.Relu)
     ///     ```
     #[new]
     #[pyo3(signature = (nodes, input_len, activation))]
