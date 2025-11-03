@@ -2,7 +2,7 @@
 /// and provides methods for the forward and backward propagation in each layer.
 /// It uses the Tensor struct for manipulating the data
 /// Necessary imports
-use ndarray::{s, Axis, Ix2, parallel::prelude::*};
+use ndarray::{s, Axis, Ix2, parallel::prelude::*, Ix1};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyInt, PyString};
 use crate::structures::tensor::Tensor;
@@ -158,6 +158,7 @@ impl Layer {
         }
         // Input length must be equal to the number of rows of the weights matrix
         let p = input.data.shape()[1];
+        let batch_size = input.shape[0];
         let (m, n) = self.weights.data.clone().into_dimensionality::<Ix2>().unwrap().dim();
         // If input length is equal to the number of columns of the weights matrix, transpose the weights matrix
         if m != p && p == n {
@@ -168,41 +169,18 @@ impl Layer {
             the length of the input vector should be equal to the number of rows of the weights matrix");
         }
 
-        let batch_size = input.shape[0];
-        let outputs: Vec<Tensor> = input.data.axis_iter(Axis(0)).into_par_iter().map(|row| {
-            if row.ndim() != 1 || self.weights.dimension != 2 || self.biases.dimension != 1 {
-                panic!("Layer field have wrong dimensions, expected: input (1D), weights (2D), biases (1D)");
-            }
+        // Selection of the activation function
+        let f: Box<dyn ActivationFunction> = select_activation(self);
 
-            // Selection of the activation function
-            let f: Box<dyn ActivationFunction> = select_activation(self);
-            
-            let tensor = Tensor {
-                dimension: 1,
-                shape: row.shape().to_vec(),
-                data: row.into_dyn().to_owned()
-            };
+        // Biases matrix creation: each row of this matrix contains the biases vector and will be added to the result of the matmul between input and weights
+        let biases_data: Vec<f64> = (0..batch_size).flat_map(|_|{ self.biases.data.iter().copied()}).collect();
+        let biases_matrix = Tensor::new(vec![batch_size, self.biases.shape[0]], biases_data);
 
-            // Forward prop algorithm
-            if parallel {
-                f.par_function(&mut (tensor.dot(&self.weights).unwrap() + &self.biases).unwrap())
-            } else {
-                f.function(&mut (tensor.dot(&self.weights).unwrap() + &self.biases).unwrap())
-            }
-            
-        }).collect();
-
-        if outputs.len() != batch_size {
-            panic!("Not all samples have been processed")
+        if parallel {
+            self.output = f.par_function(&mut (input.dot(&self.weights)? + biases_matrix)?);
+        } else {
+            self.output = f.function(&mut (input.dot(&self.weights)? + biases_matrix)?);
         }
-
-        self.output = outputs[0].clone();
-        for (i, tensor) in outputs.iter().enumerate() {
-            if i != 0 {
-                self.output.push_row(tensor);
-            }
-        }
-
         Ok(self.output.clone())
 
     }
