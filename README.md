@@ -116,7 +116,7 @@ print("Predictions:", predictions.get_data())
 ```
 
 ## TODO List
-- [ ] Optimize forward method
+- [X] Optimize forward method
 - [ ] Remove panics, return Err instead
 - [X] **Implement ops traits for tensor**: use std traits instead of useless tensor methods
 - [X] **Implement iterator for tensor**: make a tensor iterable 
