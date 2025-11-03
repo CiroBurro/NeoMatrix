@@ -2,7 +2,7 @@
 /// and provides methods for the forward and backward propagation in each layer.
 /// It uses the Tensor struct for manipulating the data
 /// Necessary imports
-use ndarray::{s, Axis, Ix2, parallel::prelude::*, Ix1};
+use ndarray::{s, Axis, Ix2};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyInt, PyString};
 use crate::structures::tensor::Tensor;
@@ -176,6 +176,7 @@ impl Layer {
         let biases_data: Vec<f64> = (0..batch_size).flat_map(|_|{ self.biases.data.iter().copied()}).collect();
         let biases_matrix = Tensor::new(vec![batch_size, self.biases.shape[0]], biases_data);
 
+        // Forward prop algorithm
         if parallel {
             self.output = f.par_function(&mut (input.dot(&self.weights)? + biases_matrix)?);
         } else {

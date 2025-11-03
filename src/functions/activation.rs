@@ -17,12 +17,6 @@ pub trait ActivationFunction: Send + Sync {
     fn function(&self, t: &mut Tensor) -> Tensor;
     fn par_function(&self, t: &mut Tensor) -> Tensor;
     fn derivative(&self, t: &mut Tensor) -> Tensor;
-    fn shape(t: &Tensor, msg: &str) -> Vec<usize> where Self: Sized {
-        if t.shape.is_empty() {
-            panic!("{}", msg);
-        }
-        t.shape.clone()
-    }
 }
 
 /// Activation enum
@@ -79,8 +73,8 @@ pub struct Relu;
 impl ActivationFunction for Relu {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let msg = "Unsupported tensor dimension for ReLU activation function";
-        let shape = Self::shape(t, msg);
+        let _ = "Unsupported tensor dimension for ReLU activation function";
+        let shape = t.shape.clone();
         t.data.mapv_inplace(|x| x.max(0.0));
 
         Tensor {
@@ -91,8 +85,8 @@ impl ActivationFunction for Relu {
     }
     fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let msg = "Unsupported tensor dimension for ReLU activation function";
-        let shape = Self::shape(t, msg);
+        let _ = "Unsupported tensor dimension for ReLU activation function";
+        let shape = t.shape.clone();
         t.data.par_mapv_inplace(|x| x.max(0.0));
 
         Tensor {
@@ -103,8 +97,8 @@ impl ActivationFunction for Relu {
     }
     fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let msg = "Unsupported tensor dimension for ReLU activation function derivative";
-        let shape = Self::shape(t, msg);
+        let _ = "Unsupported tensor dimension for ReLU activation function derivative";
+        let shape = t.shape.clone();
         t.data.mapv_inplace(|x| if x > 0.0 { 1.0 } else { 0.0 });
         Tensor {
             dimension,
@@ -120,8 +114,8 @@ pub struct Sigmoid;
 impl ActivationFunction for Sigmoid {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let msg = "Unsupported tensor dimension for Sigmoid activation function";
-        let shape = Self::shape(t, msg);
+        let _ = "Unsupported tensor dimension for Sigmoid activation function";
+        let shape = t.shape.clone();
         t.data.mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
         Tensor {
             dimension,
@@ -131,8 +125,8 @@ impl ActivationFunction for Sigmoid {
     }
     fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let msg = "Unsupported tensor dimension for Sigmoid activation function";
-        let shape = Self::shape(t, msg);
+        let _ = "Unsupported tensor dimension for Sigmoid activation function";
+        let shape = t.shape.clone();
         t.data.par_mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
         Tensor {
             dimension,
@@ -142,8 +136,8 @@ impl ActivationFunction for Sigmoid {
     }
     fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let msg = "Unsupported tensor dimension for Sigmoid activation function derivative";
-        let shape = Self::shape(t, msg);
+        let _ = "Unsupported tensor dimension for Sigmoid activation function derivative";
+        let shape = t.shape.clone();
         t.data.mapv_inplace(|x| x * (1.0 - x));
         Tensor {
             dimension,
@@ -159,8 +153,8 @@ pub struct Tanh;
 impl ActivationFunction for Tanh {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let msg = "Unsupported tensor dimension for Tanh activation function";
-        let shape = Self::shape(t, msg);
+        let _ = "Unsupported tensor dimension for Tanh activation function";
+        let shape = t.shape.clone();
         t.data.mapv_inplace(|x| x.tanh());
         Tensor {
             dimension,
@@ -170,8 +164,8 @@ impl ActivationFunction for Tanh {
     }
     fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let msg = "Unsupported tensor dimension for Tanh activation function";
-        let shape = Self::shape(t, msg);
+        let _ = "Unsupported tensor dimension for Tanh activation function";
+        let shape = t.shape.clone();
         t.data.par_mapv_inplace(|x| x.tanh());
         Tensor {
             dimension,
@@ -181,8 +175,8 @@ impl ActivationFunction for Tanh {
     }
     fn derivative(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let msg = "Unsupported tensor dimension for Tanh activation function derivative";
-        let shape = Self::shape(t, msg);
+        let _ = "Unsupported tensor dimension for Tanh activation function derivative";
+        let shape = t.shape.clone();
         t.data.mapv_inplace(|x| 1.0 - x.tanh().powf(2.0));
         Tensor {
             dimension,
@@ -200,7 +194,7 @@ impl ActivationFunction for Softmax {
         let dimension = t.dimension;
         let msg = "Unsupported tensor dimension for Softmax activation function";
         let shape = match t.dimension {
-            1 | 2 => Self::shape(t, msg),
+            1 | 2 => t.shape.clone(),
             _ => panic!("{}", msg),
         };
         if dimension == 1 {
@@ -229,7 +223,7 @@ impl ActivationFunction for Softmax {
         let dimension = t.dimension;
         let msg = "Unsupported tensor dimension for Softmax activation function";
         let shape = match t.dimension {
-            1 | 2 => Self::shape(t, msg),
+            1 | 2 => t.shape.clone(),
             _ => panic!("{}", msg),
         };
         if dimension == 1 {
