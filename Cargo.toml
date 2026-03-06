@@ -9,7 +9,7 @@ name = "rustybrain"
 crate-type = ["cdylib"]
 
 [dependencies]
-ndarray = { version = "0.16.1", features = ["rayon"] }
-pyo3 = "0.26"
-numpy = "0.26.0"
-rand = "0.9"
+ndarray = { version = "*", features = ["rayon"] }
+pyo3 = { version = "*", features = ["auto-initialize"] }
+numpy = "*"
+rand = "*"

@@ -241,9 +241,9 @@ impl Layer {
 
                 // Inputs and deltas tensors have to be reshaped to 2D since 1D tensors dot product returns a scalar
                 let mut inputs = self.input.clone();
-                inputs.reshape(vec![self.input.shape[0], 1]);
+                let _ = inputs.reshape(vec![self.input.shape[0], 1]);
                 let mut out_deltas = deltas.clone();
-                out_deltas.reshape(vec![1, deltas.shape[0]]);
+                let _ = out_deltas.reshape(vec![1, deltas.shape[0]]);
 
                 // Weights gradients are calculated as the dot product between the inputs of the layer and the deltas
                 let weights_gradients = inputs.dot(&out_deltas)?;
@@ -348,9 +348,9 @@ impl Layer {
 
                 // Inputs and deltas tensors have to be reshaped to 2D since 1D tensors multiplication returns a scalar
                 let mut inputs = self.input.clone();
-                inputs.reshape(vec![self.input.shape[0], 1]);
+                let _ = inputs.reshape(vec![self.input.shape[0], 1]);
                 let mut out_deltas = layer_deltas.clone();
-                out_deltas.reshape(vec![1, layer_deltas.shape[0]]);
+                let _ = out_deltas.reshape(vec![1, layer_deltas.shape[0]]);
 
                 // Weights gradients are calculated as the dot product between the inputs of the layer and the current (layer) deltas
                 let weights_gradients = inputs.dot(&out_deltas)?;

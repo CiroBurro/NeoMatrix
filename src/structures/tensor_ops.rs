@@ -92,16 +92,15 @@ impl Tensor {
     /// # Returns
     /// * `PyResult<Tensor>` - New tensor containing element-wise division or error if shapes mismatch
     fn tensor_division(&self, t: &Tensor) -> PyResult<Tensor> {
-        // Check if the shapes are compatible for addition
         if self.shape != t.shape {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                 "Tensor shapes are not compatible for element-wise division",
             ));
         }
 
-        if t.data.is_empty() {
+        if t.data.iter().any(|&x| x == 0.0) {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Cannot divide by zero",
+                "Cannot divide by zero: divisor tensor contains zero elements",
             ));
         }
 

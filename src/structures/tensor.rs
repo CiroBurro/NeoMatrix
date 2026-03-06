@@ -214,31 +214,47 @@ impl Tensor {
     ///     ```
     #[pyo3(signature = (t))]
     pub fn dot(&self, t: &Tensor) -> PyResult<Tensor> {
-        // Check if the dimensions are compatible for dot product
         match (self.dimension, t.dimension) {
-            // Vector product (1D * 1D)
             (1, 1) => {
-                // self.data ArrayD has to be converted into a defined dimensionality 
+                if self.shape[0] != t.shape[0] {
+                    return Err(PyValueError::new_err(format!(
+                        "Incompatible dimensions for dot product: [{}] · [{}]",
+                        self.shape[0], t.shape[0]
+                    )));
+                }
+                
                 let result = self.data.view().into_dimensionality::<Ix1>().map_err(|_| PyValueError::new_err("Invalid dimension"))? 
                     .dot(&t.data.view().into_dimensionality::<Ix1>().map_err(|_| PyValueError::new_err("Invalid dimension"))?);
                 Ok(Tensor {
                     dimension: 0,
-                    shape: vec![],
+                    shape: Vec::<usize>::new(),
                     data: ArrayD::from_elem(vec![], result),
                 })
             },
-            // Matrix product (1D * 2D)
             (1, 2) => {
+                if self.shape[0] != t.shape[0] {
+                    return Err(PyValueError::new_err(format!(
+                        "Incompatible dimensions for dot product: [{}] · [{}, {}]",
+                        self.shape[0], t.shape[0], t.shape[1]
+                    )));
+                }
+                
                 let result = self.data.view().into_dimensionality::<Ix1>().map_err(|_| PyValueError::new_err("Invalid dimension"))? 
                     .dot(&t.data.view().into_dimensionality::<Ix2>().map_err(|_| PyValueError::new_err("Invalid dimension"))?);
                 Ok(Tensor {
                     dimension: result.ndim(),
                     shape: result.shape().to_vec(),
-                    data: result.into_dyn() // Convert the result back to a dynamic array
+                    data: result.into_dyn()
                 })
             },
-            // Matrix product (2D * 1D)
             (2, 1) => {
+                if self.shape[1] != t.shape[0] {
+                    return Err(PyValueError::new_err(format!(
+                        "Incompatible dimensions for dot product: [{}, {}] · [{}]",
+                        self.shape[0], self.shape[1], t.shape[0]
+                    )));
+                }
+                
                 let result = self.data.view().into_dimensionality::<Ix2>().map_err(|_| PyValueError::new_err("Invalid dimension"))? 
                     .dot(&t.data.view().into_dimensionality::<Ix1>().map_err(|_| PyValueError::new_err("Invalid dimension"))?);
                 Ok(Tensor {
@@ -247,8 +263,14 @@ impl Tensor {
                     data: result.into_dyn(),
                 })
             },
-            // Matrix product (2D * 2D) in parallel (multithreading with par_dot() function)
             (2, 2) => {
+                if self.shape[1] != t.shape[0] {
+                    return Err(PyValueError::new_err(format!(
+                        "Incompatible dimensions for dot product: [{}, {}] · [{}, {}]",
+                        self.shape[0], self.shape[1], t.shape[0], t.shape[1]
+                    )));
+                }
+                
                 let result = par_dot(
                     self.data.view().into_dimensionality::<Ix2>()
                         .map_err(|_| PyValueError::new_err("Invalid dimension"))?,
@@ -506,7 +528,7 @@ impl Tensor {
     pub fn cat_inplace(&self, tensors: Vec<Tensor>, axis: usize) -> PyResult<Tensor> {
         let mut new_tensor = self.clone();
         for t in tensors.iter() {
-            new_tensor.push(t, axis);
+            new_tensor.push(t, axis)?;
         }
 
         Ok(new_tensor)
@@ -535,7 +557,7 @@ impl Tensor {
     pub fn cat(tensors: Vec<Tensor>, axis: usize) -> PyResult<Tensor> {
         let mut new_tensor = tensors[0].clone();
         for t in &tensors[1..] {
-            new_tensor.push(t, axis);
+            new_tensor.push(t, axis)?;
         }
 
         Ok(new_tensor)

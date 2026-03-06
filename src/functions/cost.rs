@@ -16,14 +16,14 @@ use pyo3::types::{PyDict, PyFloat, PyString};
 /// * `par_function_batch` - Parallel computation for batch of samples
 /// * `derivative` - Derivative computation for backpropagation
 pub trait CostFunction: Send + Sync {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f64;
-    fn function_batch(&self, t: &Tensor, z: &Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f32;
+    fn function_batch(&self, t: &Tensor, z: &Tensor) -> f32 {
         if t.shape != z.shape || t.dimension != 2 {
             panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
 
         let (m, _) = (t.shape[0], t.shape[1]);
-        let sum: f64 = t
+        let sum: f32 = t
             .data
             .axis_iter(Axis(0))
             .zip(z.data.axis_iter(Axis(0)))
@@ -41,15 +41,15 @@ pub trait CostFunction: Send + Sync {
                 self.function(&t_i, &z_i)
             })
             .sum();
-        sum / m as f64
+        sum / m as f32
     }
-    fn par_function_batch(&self, t: &Tensor, z: &Tensor) -> f64 {
+    fn par_function_batch(&self, t: &Tensor, z: &Tensor) -> f32 {
         if t.shape != z.shape || t.dimension != 2 {
             panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
         }
 
         let (m, _) = (t.shape[0], t.shape[1]);
-        let sum: f64 = t
+        let sum: f32 = t
             .data
             .axis_iter(Axis(0))
             .into_par_iter()
@@ -68,7 +68,7 @@ pub trait CostFunction: Send + Sync {
                 self.function(&t_i, &z_i)
             })
             .sum();
-        sum / m as f64
+        sum / m as f32
     }
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor;
 }
@@ -91,7 +91,7 @@ pub enum Cost {
     MeanAbsoluteError(),
     BinaryCrossEntropy(),
     CategoricalCrossEntropy(),
-    HuberLoss { delta: f64 },
+    HuberLoss { delta: f32 },
     HingeLoss(),
 }
 
@@ -170,7 +170,7 @@ impl Cost {
                     .get_item("delta")?
                     .expect("No delta for Huber Loss cost function deserialization")
                     .downcast::<PyFloat>()?
-                    .extract::<f64>()?;
+                    .extract::<f32>()?;
                 Ok(Self::HuberLoss { delta })
             }
             "HingeLoss" => Ok(Self::HingeLoss()),
@@ -191,7 +191,7 @@ impl Cost {
 /// * `batch` - Option to use batch computation
 ///
 /// # Returns
-/// * `f64` - Error of the model
+/// * `f32` - Error of the model
 ///
 /// # Python usage:
 ///     ```python
@@ -208,7 +208,7 @@ pub fn get_cost(
     z: &Tensor,
     parallel: Option<bool>,
     batch_processing: Option<bool>,
-) -> f64 {
+) -> f32 {
     let parallel = parallel.unwrap_or(false);
     let batch_processing = batch_processing.unwrap_or(true);
     let f: Box<dyn CostFunction> = match cost {
@@ -233,7 +233,7 @@ pub fn get_cost(
 /// f(t,z) = (1/n) * Σ(t_i - z_i)^2
 pub struct MeanSquaredError;
 impl CostFunction for MeanSquaredError {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
@@ -242,7 +242,7 @@ impl CostFunction for MeanSquaredError {
             .data
             .mapv(|x| x.powi(2))
             .sum();
-        let denom = t.shape[0] as f64;
+        let denom = t.shape[0] as f32;
         nomin / denom
     }
 
@@ -251,7 +251,7 @@ impl CostFunction for MeanSquaredError {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
 
-        let n = t.length() as f64;
+        let n = t.length() as f32;
 
         let gradients = (t - z)
             .expect("Tensors subtraction failed")
@@ -269,7 +269,7 @@ impl CostFunction for MeanSquaredError {
 /// `f(t,z) = (1/n) * Σ|t_i - z_i|`
 pub struct MeanAbsoluteError;
 impl CostFunction for MeanAbsoluteError {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
@@ -278,7 +278,7 @@ impl CostFunction for MeanAbsoluteError {
             .data
             .mapv(|x| x.abs())
             .sum();
-        let denom = t.shape[0] as f64;
+        let denom = t.shape[0] as f32;
         nomin / denom
     }
 
@@ -287,7 +287,7 @@ impl CostFunction for MeanAbsoluteError {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
 
-        let n = t.length() as f64;
+        let n = t.length() as f32;
 
         let gradients = (t - z)
             .expect("Tensors subtraction failed")
@@ -305,20 +305,20 @@ impl CostFunction for MeanAbsoluteError {
 /// `f(t,z) = -(1/n) * Σ(t_i * log(z_i) + (1-t_i) * log(1-z_i))`
 pub struct BinaryCrossEntropy;
 impl CostFunction for BinaryCrossEntropy {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
 
-        let sum: f64 = t
+        let sum: f32 = t
             .data
             .to_owned()
             .iter()
             .zip(z.data.to_owned().iter())
             .map(|(t_i, z_i)| t_i * z_i.ln() + (1.0 - t_i) * (1.0 - z_i).ln())
-            .sum::<f64>();
+            .sum::<f32>();
 
-        -sum / t.shape[0] as f64
+        -sum / t.shape[0] as f32
     }
 
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
@@ -326,14 +326,14 @@ impl CostFunction for BinaryCrossEntropy {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
 
-        let n = t.length() as f64;
+        let n = t.length() as f32;
 
         let gradients_vec = t
             .data
             .iter()
             .zip(z.data.iter())
             .map(|(t_i, z_i)| -((t_i / z_i) - ((1.0 - t_i) / (1.0 - z_i))) / n)
-            .collect::<Vec<f64>>();
+            .collect::<Vec<f32>>();
 
         let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
 
@@ -349,17 +349,17 @@ impl CostFunction for BinaryCrossEntropy {
 /// `f(t, z) = -(1/n) * Σ(Σ(t_ik * log(z_ik)))`
 pub struct CategoricalCrossEntropy;
 impl CostFunction for CategoricalCrossEntropy {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
-        let sum: f64 = t
+        let sum: f32 = t
             .data
             .to_owned()
             .iter()
             .zip(z.data.to_owned().iter())
             .map(|(t_k, z_k)| t_k * z_k.ln())
-            .sum::<f64>();
+            .sum::<f32>();
 
         -sum
     }
@@ -369,14 +369,14 @@ impl CostFunction for CategoricalCrossEntropy {
             panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
         }
 
-        let n = t.length() as f64;
+        let n = t.length() as f32;
 
         let gradients_vec = t
             .data
             .iter()
             .zip(z.data.iter())
             .map(|(t_i, z_i)| -(t_i / z_i) / n)
-            .collect::<Vec<f64>>();
+            .collect::<Vec<f32>>();
 
         let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
 
@@ -395,15 +395,15 @@ impl CostFunction for CategoricalCrossEntropy {
 ///                 δ|x| - 0.5δ^2 if |x| > δ
 /// ```
 pub struct HuberLoss {
-    pub delta: f64,
+    pub delta: f32,
 }
 impl CostFunction for HuberLoss {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
 
-        let sum: f64 = t
+        let sum: f32 = t
             .data
             .iter()
             .zip(z.data.iter())
@@ -416,7 +416,7 @@ impl CostFunction for HuberLoss {
             })
             .sum();
 
-        sum / t.shape[0] as f64
+        sum / t.shape[0] as f32
     }
 
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
@@ -424,7 +424,7 @@ impl CostFunction for HuberLoss {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
 
-        let n = t.length() as f64;
+        let n = t.length() as f32;
 
         let gradients_vec = t
             .data
@@ -440,7 +440,7 @@ impl CostFunction for HuberLoss {
                     (-self.delta * (t_i - z_i).abs() / (t_i - z_i)) / n
                 }
             })
-            .collect::<Vec<f64>>();
+            .collect::<Vec<f32>>();
 
         let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
 
@@ -456,19 +456,19 @@ impl CostFunction for HuberLoss {
 /// `f(t,z) = (1/n) * Σ max(0, 1 - t_i * z_i)`
 pub struct HingeLoss;
 impl CostFunction for HingeLoss {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f64 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
         if t.shape != z.shape || t.dimension != 1 {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
         }
 
-        let sum: f64 = t
+        let sum: f32 = t
             .data
             .iter()
             .zip(z.data.iter())
-            .map(|(t_i, z_i)| 0.0_f64.max(1.0 - (t_i * z_i)))
+            .map(|(t_i, z_i)| 0.0_f32.max(1.0 - (t_i * z_i)))
             .sum();
 
-        sum / t.shape[0] as f64
+        sum / t.shape[0] as f32
     }
 
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
@@ -476,7 +476,7 @@ impl CostFunction for HingeLoss {
             panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
         }
 
-        let n = t.length() as f64;
+        let n = t.length() as f32;
 
         let gradients_vec = t
             .data
@@ -487,7 +487,7 @@ impl CostFunction for HingeLoss {
 
                 x / n
             })
-            .collect::<Vec<f64>>();
+            .collect::<Vec<f32>>();
 
         let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
 
