@@ -201,14 +201,14 @@ impl ActivationFunction for Softmax {
         };
         if dimension == 1 {
             // numerically stable softmax on 1D
-            let max = t.data.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let max = t.data.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
             t.data.mapv_inplace(|x| (x - max).exp());
             let denom = t.data.sum();
             t.data.mapv_inplace(|x| x / denom);
         } else {
             // 2D: apply softmax row-by-row (axis 1)
             for mut row in t.data.axis_iter_mut(Axis(0)) {
-                let max = row.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                let max = row.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
                 row.mapv_inplace(|x| (x - max).exp());
                 let denom = row.sum();
                 row.mapv_inplace(|x| x / denom);
@@ -230,14 +230,14 @@ impl ActivationFunction for Softmax {
         };
         if dimension == 1 {
             // parallel softmax on 1D
-            let max = t.data.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let max = t.data.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
             t.data.par_mapv_inplace(|x| (x - max).exp());
             let denom = t.data.sum();
             t.data.par_mapv_inplace(|x| x / denom);
         } else {
             // 2D: row-by-row (sequential)
             for mut row in t.data.axis_iter_mut(Axis(0)) {
-                let max = row.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                let max = row.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
                 row.mapv_inplace(|x| (x - max).exp());
                 let denom = row.sum();
                 row.mapv_inplace(|x| x / denom);
@@ -254,7 +254,7 @@ impl ActivationFunction for Softmax {
         if t.dimension == 1 {
             let s = self.function(t).data;
             let n = s.len();
-            let mut jacobian_data = Array2::<f64>::zeros((n, n));
+            let mut jacobian_data = Array2::<f32>::zeros((n, n));
 
             for i in 0..n {
                 for j in 0..n {
@@ -273,7 +273,7 @@ impl ActivationFunction for Softmax {
         } else if t.dimension == 2 {
             let batch_size = t.shape[0];
 
-            let mut data: Array3<f64> = Array3::zeros((batch_size, t.shape[1], t.shape[1]));
+            let mut data: Array3<f32> = Array3::zeros((batch_size, t.shape[1], t.shape[1]));
 
             for (k, axe) in t.data.axis_iter(Axis(0)).enumerate() {
                 let mut row_t = Tensor {
@@ -283,7 +283,7 @@ impl ActivationFunction for Softmax {
                 };
                 let s = self.function(&mut row_t).data;
                 let n = s.len();
-                let mut jacobian_data = Array2::<f64>::zeros((n, n));
+                let mut jacobian_data = Array2::<f32>::zeros((n, n));
 
                 for i in 0..n {
                     for j in 0..n {

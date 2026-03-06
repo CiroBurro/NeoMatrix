@@ -34,7 +34,6 @@ pub struct Layer {
 }
 
 /// Function to select the activation function struct based on the layer's activation field
-/// ! Not a Python function !
 ///
 /// # Arguments
 /// * `l` - Layer to "activate"
@@ -186,10 +185,10 @@ impl Layer {
         let f: Box<dyn ActivationFunction> = select_activation(self);
 
         // Biases matrix creation: each row of this matrix contains the biases vector and will be added to the result of the matmul between input and weights
-        let biases_data: Vec<f64> = (0..batch_size)
+        let biases_data: Vec<f32> = (0..batch_size)
             .flat_map(|_| self.biases.data.iter().copied())
             .collect();
-        let biases_matrix = Tensor::new(vec![batch_size, self.biases.shape[0]], biases_data);
+        let biases_matrix = Tensor::new(vec![batch_size, self.biases.shape[0]], biases_data)?;
 
         // Forward prop algorithm
         if parallel {
@@ -295,7 +294,7 @@ impl Layer {
                 let mut weights_gradients = all_outputs.dot(&deltas)?;
                 weights_gradients
                     .data
-                    .par_mapv_inplace(|x| x / deltas.shape[0] as f64); // Each gradient is divided by the number of samples in the batch
+                    .par_mapv_inplace(|x| x / deltas.shape[0] as f32); // Each gradient is divided by the number of samples in the batch
 
                 // Biases gradients are calculated as the mean of the deltas in the entire batch
                 let biases_gradients = Tensor {
@@ -415,7 +414,7 @@ impl Layer {
                 // Each gradient is divided by the number of samples in the batch
                 weights_gradients
                     .data
-                    .par_mapv_inplace(|x| x / layer_deltas.shape[0] as f64);
+                    .par_mapv_inplace(|x| x / layer_deltas.shape[0] as f32);
 
                 // Biases gradients are calculated as the mean of the deltas in the entire batch
                 let biases_gradients = Tensor {
