@@ -1,3 +1,10 @@
+use crate::functions::activation::*;
+use crate::functions::cost::{
+    BinaryCrossEntropy, CategoricalCrossEntropy, Cost, CostFunction, HingeLoss, HuberLoss,
+    MeanAbsoluteError, MeanSquaredError,
+};
+use crate::structures::tensor::Tensor;
+use crate::utils::weights_biases::{random_biases, random_weights};
 /// This module defines the Layer class for a neural network
 /// and provides methods for the forward and backward propagation in each layer.
 /// It uses the Tensor struct for manipulating the data
@@ -5,10 +12,6 @@
 use ndarray::{s, Axis, Ix2};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyInt, PyString};
-use crate::structures::tensor::Tensor;
-use crate::utils::weights_biases::{random_weights, random_biases};
-use crate::functions::activation::*;
-use crate::functions::cost::{BinaryCrossEntropy, CategoricalCrossEntropy, Cost, CostFunction, HingeLoss, HuberLoss, MeanAbsoluteError, MeanSquaredError};
 
 /// Layer class definition
 ///
@@ -44,7 +47,7 @@ fn select_activation(l: &Layer) -> Box<dyn ActivationFunction> {
         Activation::Sigmoid => Box::new(Sigmoid),
         Activation::Softmax => Box::new(Softmax),
         Activation::Tanh => Box::new(Tanh),
-        Activation::Linear => Box::new(Linear)
+        Activation::Linear => Box::new(Linear),
     }
 }
 
@@ -60,7 +63,7 @@ impl Layer {
     ///
     /// # Returns
     /// * `Layer` - New layer
-	///
+    ///
     /// # Python usage
     ///     ```python
     ///     from neomatrix import Tensor, Layer, Activation
@@ -86,7 +89,7 @@ impl Layer {
     }
 
     /// Forward propagation method
-    /// 
+    ///
     /// # Arguments
     /// * `input` - 1D tensor with inputs for each node of the input layer
     /// * `parallel` - Boolean value to specify if the forward propagation should be done in parallel
@@ -103,20 +106,25 @@ impl Layer {
     #[pyo3(signature = (input, parallel=false))]
     pub fn forward(&mut self, input: Tensor, parallel: bool) -> PyResult<Tensor> {
         self.input = input;
-        
+
         // Check compatibility between dimensions
         if self.input.dimension != 1 || self.weights.dimension != 2 || self.biases.dimension != 1 {
             panic!("Layer field have wrong dimensions, expected: input (1D), weights (2D), biases (1D)");
         }
-        
+
         // Input length must be equal to the number of rows of the weights matrix
         let p = self.input.shape[0];
-        let (m, n) = self.weights.data.clone().into_dimensionality::<Ix2>().unwrap().dim();
+        let (m, n) = self
+            .weights
+            .data
+            .clone()
+            .into_dimensionality::<Ix2>()
+            .unwrap()
+            .dim();
         // If input length is equal to the number of columns of the weights matrix, transpose the weights matrix
         if m != p && p == n {
             self.weights = self.weights.transpose()?;
-        }
-        else if m != p && p != n {
+        } else if m != p && p != n {
             panic!("Inputs and weights have incompatible shapes for forward propagation:\
              the length of the input vector should be equal to the number of rows of the weights matrix");
         }
@@ -135,7 +143,7 @@ impl Layer {
     }
 
     /// Forward propagation method (batch processing)
-    /// 
+    ///
     /// # Arguments
     /// * `input` - 2D tensor with inputs for each node of the input layer of each sample in the batch
     /// * `parallel` - Boolean value to specify if the forward propagation should be done in parallel
@@ -159,12 +167,17 @@ impl Layer {
         // Input length must be equal to the number of rows of the weights matrix
         let p = input.data.shape()[1];
         let batch_size = input.shape[0];
-        let (m, n) = self.weights.data.clone().into_dimensionality::<Ix2>().unwrap().dim();
+        let (m, n) = self
+            .weights
+            .data
+            .clone()
+            .into_dimensionality::<Ix2>()
+            .unwrap()
+            .dim();
         // If input length is equal to the number of columns of the weights matrix, transpose the weights matrix
         if m != p && p == n {
             self.weights = self.weights.transpose()?;
-        }
-        else if m != p && p != n {
+        } else if m != p && p != n {
             panic!("Inputs and weights have incompatible shapes for forward propagation:\
             the length of the input vector should be equal to the number of rows of the weights matrix");
         }
@@ -173,7 +186,9 @@ impl Layer {
         let f: Box<dyn ActivationFunction> = select_activation(self);
 
         // Biases matrix creation: each row of this matrix contains the biases vector and will be added to the result of the matmul between input and weights
-        let biases_data: Vec<f64> = (0..batch_size).flat_map(|_|{ self.biases.data.iter().copied()}).collect();
+        let biases_data: Vec<f64> = (0..batch_size)
+            .flat_map(|_| self.biases.data.iter().copied())
+            .collect();
         let biases_matrix = Tensor::new(vec![batch_size, self.biases.shape[0]], biases_data);
 
         // Forward prop algorithm
@@ -183,7 +198,6 @@ impl Layer {
             self.output = f.function(&mut (input.dot(&self.weights)? + biases_matrix)?);
         }
         Ok(self.output.clone())
-
     }
 
     /// Backward propagation method
@@ -202,18 +216,22 @@ impl Layer {
     ///     (w_gradients, b_gradients, current_deltas) = layer.forward(out_layer=False, deltas=deltas, next_weights=next_weights, all_outputs=all_outputs)
     ///     ```
     #[pyo3(signature = (out_layer, deltas, next_weights = None, all_outputs = None))]
-    fn backward(&self, out_layer: bool, mut deltas: Tensor, next_weights: Option<Tensor>, all_outputs: Option<Tensor>) -> PyResult<(Tensor, Tensor, Tensor)> {
+    fn backward(
+        &self,
+        out_layer: bool,
+        mut deltas: Tensor,
+        next_weights: Option<Tensor>,
+        all_outputs: Option<Tensor>,
+    ) -> PyResult<(Tensor, Tensor, Tensor)> {
         // Deltas dimension can be 1 (single sample processing) or 2 (batch processing)
-        if deltas.dimension > 2 || deltas.dimension == 0{
+        if deltas.dimension > 2 || deltas.dimension == 0 {
             panic!("Deltas tensor has to be 1D or 2D for backpropagation");
         }
-        
+
         // Check if the layer is the output layer
         if out_layer {
-
             // Check deltas tensor dimensions (whether if the function is called for a single sample or for a batch of samples)
             if deltas.dimension == 1 {
-
                 // Each node has its own delta
                 if deltas.shape[0] != self.nodes {
                     panic!("If out_layer is True and deltas tensor is 1D, the number of deltas should be equal to the number of nodes in the output layer");
@@ -231,10 +249,7 @@ impl Layer {
                 // Weights gradients are calculated as the dot product between the inputs of the layer and the deltas
                 let weights_gradients = inputs.dot(&out_deltas)?;
                 Ok((weights_gradients, biases_gradients, deltas))
-
-            }
-            else  {
-
+            } else {
                 // If deltas tensor is 2D (batch processing), the function needs the outputs of the previous layer of the entire batch
                 if all_outputs.is_none() {
                     panic!("If deltas tensor is 2D, all_outputs must be defined");
@@ -253,36 +268,45 @@ impl Layer {
                 }
 
                 // If m is equal to the number of samples and n is equal to the number of nodes of the previous layer, transpose the all_outputs matrix
-                if all_outputs.shape[0] == deltas.shape[0] && all_outputs.shape[1] == self.input.shape[0] {
+                if all_outputs.shape[0] == deltas.shape[0]
+                    && all_outputs.shape[1] == self.input.shape[0]
+                {
                     all_outputs = all_outputs.transpose()?;
                 }
 
-                if deltas.shape[1] != self.nodes || all_outputs.shape[0] != self.input.shape[0] || deltas.shape[0] != all_outputs.shape[1] {
-                    
-                    println!("deltas shape: {:?},\nall_outputs.shape: {:?}, self.input.shape: {:?}", deltas.shape, all_outputs.shape, self.input.shape);
-                    
-                    panic!("If out_layer is True and deltas tensor is 2D:\n
+                if deltas.shape[1] != self.nodes
+                    || all_outputs.shape[0] != self.input.shape[0]
+                    || deltas.shape[0] != all_outputs.shape[1]
+                {
+                    println!(
+                        "deltas shape: {:?},\nall_outputs.shape: {:?}, self.input.shape: {:?}",
+                        deltas.shape, all_outputs.shape, self.input.shape
+                    );
+
+                    panic!(
+                        "If out_layer is True and deltas tensor is 2D:\n
                      p should be equal to the number of nodes in the output layer,\n
                      n should be equal to the number of samples in the batch,\n
-                     m should be equal to the number of nodes in the previous layer");
+                     m should be equal to the number of nodes in the previous layer"
+                    );
                 };
 
                 // Weights gradients are calculated as the dot product between the inputs of the layer and the deltas
                 let mut weights_gradients = all_outputs.dot(&deltas)?;
-                weights_gradients.data.par_mapv_inplace(|x| x / deltas.shape[0] as f64); // Each gradient is divided by the number of samples in the batch
+                weights_gradients
+                    .data
+                    .par_mapv_inplace(|x| x / deltas.shape[0] as f64); // Each gradient is divided by the number of samples in the batch
 
-                // Biases gradients are calculated as the mean of the deltas in the entire batch 
+                // Biases gradients are calculated as the mean of the deltas in the entire batch
                 let biases_gradients = Tensor {
                     dimension: 1,
                     shape: vec![self.nodes],
-                    data: deltas.data.clone().mean_axis(Axis(0)).unwrap()
+                    data: deltas.data.clone().mean_axis(Axis(0)).unwrap(),
                 };
 
-                 Ok((weights_gradients, biases_gradients, deltas))
+                Ok((weights_gradients, biases_gradients, deltas))
             }
-        }
-        else {
-
+        } else {
             if next_weights.is_none() {
                 panic!("If out_layer is False, next_weights must be defined");
             }
@@ -297,10 +321,9 @@ impl Layer {
             let f: Box<dyn ActivationFunction> = select_activation(self);
 
             if deltas.dimension == 1 {
-
                 // Deltas vector contains all deltas of the next layer and has dimension p
                 // Where p: number of nodes of the next layer
-                
+
                 // Next_weights matrix contains all weights of the next layer and has dimension (q, p)
                 // Where q: number of nodes of the current layer, p: number of nodes of the next layer
 
@@ -316,7 +339,8 @@ impl Layer {
                 }
 
                 // The total input of the layer is argument of the derivative of the activation function
-                let inputs_derivative = f.derivative(&mut (self.input.dot(&self.weights).unwrap() + &self.biases)?);
+                let inputs_derivative =
+                    f.derivative(&mut (self.input.dot(&self.weights).unwrap() + &self.biases)?);
                 // The layer deltas are calculated as the dot product between the deltas of the next layer and the weights of the next layer, and then multiplied by the derivative of the activation function
                 let layer_deltas = (next_weights.dot(&deltas)? * inputs_derivative)?;
 
@@ -332,9 +356,7 @@ impl Layer {
                 // Weights gradients are calculated as the dot product between the inputs of the layer and the current (layer) deltas
                 let weights_gradients = inputs.dot(&out_deltas)?;
                 Ok((weights_gradients, biases_gradients, layer_deltas))
-            }
-            else  {
-
+            } else {
                 // If deltas tensor is 2D (batch processing), the function needs the outputs of the previous layer of the entire batch
                 if all_outputs.is_none() {
                     panic!("If deltas tensor is 2D, all_outputs must be defined");
@@ -351,7 +373,9 @@ impl Layer {
                 // Where m: number of nodes of the previous layer, n: number of samples
 
                 // If n is equal to the number of nodes of the next layer and p is equal to the number of samples, transpose the deltas matrix
-                if deltas.shape[0] == next_weights.shape[1] && deltas.shape[1] == all_outputs.shape[1] {
+                if deltas.shape[0] == next_weights.shape[1]
+                    && deltas.shape[1] == all_outputs.shape[1]
+                {
                     deltas = deltas.transpose()?;
                 }
 
@@ -361,16 +385,22 @@ impl Layer {
                 }
 
                 // If m is equal to the number of samples and n is equal to the number of nodes of the previous layer, transpose the all_outputs matrix
-                if all_outputs.shape[0] == deltas.shape[0] && all_outputs.shape[1] == self.input.shape[0] {
+                if all_outputs.shape[0] == deltas.shape[0]
+                    && all_outputs.shape[1] == self.input.shape[0]
+                {
                     all_outputs = all_outputs.transpose()?;
                 }
 
-                if deltas.shape[1] != next_weights.shape[1] || all_outputs.shape[0] != self.input.shape[0] || deltas.shape[0] != all_outputs.shape[1] {
+                if deltas.shape[1] != next_weights.shape[1]
+                    || all_outputs.shape[0] != self.input.shape[0]
+                    || deltas.shape[0] != all_outputs.shape[1]
+                {
                     panic!("If out_layer is False and deltas tensor is 2D, p should be equal to the number of nodes in the next layer, n should be equal to the number of samples in the batch and m should be equal to the number of nodes in the previous layer");
                 };
 
                 // The total input of the layer is argument of the derivative of the activation function
-                let inputs_derivative = f.derivative(&mut (self.input.dot(&self.weights)? + &self.biases)?);
+                let inputs_derivative =
+                    f.derivative(&mut (self.input.dot(&self.weights)? + &self.biases)?);
                 // The derivative of the activation function has to be reshaped to 2D since 1D tensors multiplication returns a scalar
                 let inputs_derivative = Tensor {
                     dimension: 2,
@@ -383,23 +413,24 @@ impl Layer {
                 // Weights gradients are calculated as the dot product between the inputs of the layer of the entire batch and the current (layer) deltas
                 let mut weights_gradients = all_outputs.dot(&layer_deltas)?;
                 // Each gradient is divided by the number of samples in the batch
-                weights_gradients.data.par_mapv_inplace(|x| x / layer_deltas.shape[0] as f64);
+                weights_gradients
+                    .data
+                    .par_mapv_inplace(|x| x / layer_deltas.shape[0] as f64);
 
                 // Biases gradients are calculated as the mean of the deltas in the entire batch
                 let biases_gradients = Tensor {
                     dimension: 1,
                     shape: vec![self.nodes],
-                    data: layer_deltas.data.mean_axis(Axis(0)).unwrap()
+                    data: layer_deltas.data.mean_axis(Axis(0)).unwrap(),
                 };
 
                 Ok((weights_gradients, biases_gradients, layer_deltas))
-
             }
         }
     }
 
     /// Method to get the output deltas of the layer
-    /// 
+    ///
     /// # Arguments
     /// * `cost` - Cost function structure used to calculate the error
     /// * `t` - A 1D or 2D tensor containing the output of the layer
@@ -414,15 +445,18 @@ impl Layer {
     ///     ```
     #[pyo3(signature = (cost, t, z))]
     fn get_output_deltas(&self, cost: Cost, t: &mut Tensor, z: &Tensor) -> PyResult<Tensor> {
-
         // Optimization for the case of binary cross entropy with sigmoid activation
-        if matches!(cost, Cost::BinaryCrossEntropy()) && matches!(self.activation, Activation::Sigmoid) {
-            return z - t // Deltas are just the difference
+        if matches!(cost, Cost::BinaryCrossEntropy())
+            && matches!(self.activation, Activation::Sigmoid)
+        {
+            return z - t; // Deltas are just the difference
         }
 
         // Optimization for the case of categorical cross entropy with softmax activation
-        if matches!(cost, Cost::CategoricalCrossEntropy()) && matches!(self.activation, Activation::Softmax) {
-            return z - t // Deltas are just the difference
+        if matches!(cost, Cost::CategoricalCrossEntropy())
+            && matches!(self.activation, Activation::Softmax)
+        {
+            return z - t; // Deltas are just the difference
         }
 
         // Derivatives calculus
@@ -438,12 +472,11 @@ impl Layer {
 
         // Softmax derivative of one sample returns a matrix, the result of an entire batch is a 3D tensor
         if matches!(self.activation, Activation::Softmax) && t.dimension == 1 {
-            return activation_derivative.dot(&cost_derivative)
-            
+            return activation_derivative.dot(&cost_derivative);
         } else if matches!(self.activation, Activation::Softmax) && t.dimension == 2 {
             let batch_size = t.shape[0];
             let mut all_deltas = Tensor::zeros(vec![batch_size, self.nodes]);
-            
+
             // 3D dot product is not supported, so it is computed manually
             for i in 0..batch_size {
                 let activation_derivative_i = activation_derivative.data.slice(s![i, .., ..]);
@@ -451,7 +484,7 @@ impl Layer {
                 let delta_i = activation_derivative_i.dot(&cost_derivative_i);
                 all_deltas.data.slice_mut(s![i, ..]).assign(&delta_i);
             }
-            return Ok(all_deltas)
+            return Ok(all_deltas);
         }
 
         // In all other combinations of cost and activation function deltas = cost function derivative * activation function derivative
@@ -504,16 +537,28 @@ impl Layer {
     ///     l = Layer.from_dict(d)
     ///     ```
     fn from_dict(d: Bound<PyDict>) -> PyResult<Self> {
-        let nodes = d.get_item("nodes")?.expect("No field for number of nodes deserialization").downcast::<PyInt>()?.extract::<usize>()?;
-        
-        let input: Tensor = Tensor::from_dict(d.get_item("input")?.expect("No field for input tensor"))?;
-        let output: Tensor = Tensor::from_dict(d.get_item("output")?.expect("No field for output tensor"))?;
-        let weights: Tensor = Tensor::from_dict(d.get_item("weights")?.expect("No field for weights tensor"))?;
-        let biases: Tensor = Tensor::from_dict(d.get_item("biases")?.expect("No field for biases tensor"))?;
-        
-        let activation_str = d.get_item("activation")?.expect("No name for activation function deserialization").downcast::<PyString>()?.extract::<String>()?;
+        let nodes = d
+            .get_item("nodes")?
+            .expect("No field for number of nodes deserialization")
+            .downcast::<PyInt>()?
+            .extract::<usize>()?;
+
+        let input: Tensor =
+            Tensor::from_dict(d.get_item("input")?.expect("No field for input tensor"))?;
+        let output: Tensor =
+            Tensor::from_dict(d.get_item("output")?.expect("No field for output tensor"))?;
+        let weights: Tensor =
+            Tensor::from_dict(d.get_item("weights")?.expect("No field for weights tensor"))?;
+        let biases: Tensor =
+            Tensor::from_dict(d.get_item("biases")?.expect("No field for biases tensor"))?;
+
+        let activation_str = d
+            .get_item("activation")?
+            .expect("No name for activation function deserialization")
+            .downcast::<PyString>()?
+            .extract::<String>()?;
         let activation: Activation = Activation::try_from(activation_str)?;
-        
+
         Ok(Self {
             nodes,
             input,
@@ -522,7 +567,6 @@ impl Layer {
             biases,
             activation,
         })
-
     }
 
     /// Repr method for a layer in python

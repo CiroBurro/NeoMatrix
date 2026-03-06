@@ -7,7 +7,7 @@ use ndarray::{s, Array2, Array3, Axis};
 use pyo3::prelude::*;
 
 /// Trait defining the interface for activation functions
-/// 
+///
 /// # Methods:
 /// * `function` - Regular forward computation
 /// * `par_function` - Parallel forward computation
@@ -36,18 +36,18 @@ pub enum Activation {
     Sigmoid,
     Tanh,
     Softmax,
-    Linear
+    Linear,
 }
 
 /// ToString implementation for `Activation` struct
 impl ToString for Activation {
     fn to_string(&self) -> String {
-        match self { 
+        match self {
             Activation::Relu => String::from("Relu"),
             Activation::Sigmoid => String::from("Sigmoid"),
             Activation::Tanh => String::from("Tanh"),
             Activation::Softmax => String::from("Softmax"),
-            Activation::Linear => String::from("Linear")
+            Activation::Linear => String::from("Linear"),
         }
     }
 }
@@ -62,7 +62,9 @@ impl TryFrom<String> for Activation {
             "Tanh" => Ok(Self::Tanh),
             "Softmax" => Ok(Self::Softmax),
             "Linear" => Ok(Self::Linear),
-            _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid name for Cost Function deserialization"))
+            _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "Invalid name for Cost Function deserialization",
+            )),
         }
     }
 }
@@ -249,7 +251,6 @@ impl ActivationFunction for Softmax {
         }
     }
     fn derivative(&self, t: &mut Tensor) -> Tensor {
-
         if t.dimension == 1 {
             let s = self.function(t).data;
             let n = s.len();
@@ -269,11 +270,10 @@ impl ActivationFunction for Softmax {
                 shape: vec![n, n],
                 data: jacobian_data.into_dyn(),
             }
-        }
-        else if t.dimension == 2 {
+        } else if t.dimension == 2 {
             let batch_size = t.shape[0];
 
-            let mut data:Array3<f64> = Array3::zeros((batch_size, t.shape[1], t.shape[1]));
+            let mut data: Array3<f64> = Array3::zeros((batch_size, t.shape[1], t.shape[1]));
 
             for (k, axe) in t.data.axis_iter(Axis(0)).enumerate() {
                 let mut row_t = Tensor {
@@ -323,6 +323,10 @@ impl ActivationFunction for Linear {
         let dimension = t.dimension;
         let shape = t.shape.clone();
         t.data.par_mapv_inplace(|_| 1.0);
-        Tensor { dimension, shape, data: t.data.to_owned() }
+        Tensor {
+            dimension,
+            shape,
+            data: t.data.to_owned(),
+        }
     }
 }

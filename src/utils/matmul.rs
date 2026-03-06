@@ -1,39 +1,43 @@
-/// This module provides a function for executing matrix multiplication in parallel using Rayon crate
-/// Necessary imports
-use ndarray::Array2;
-use ndarray::Axis;
+//! Parallel matrix multiplication using Rayon for multi-threaded performance.
+//!
+//! Provides `par_dot` for 2D×2D matrix multiplication with row-level parallelization.
+//! Uses zero-copy `ArrayView2` to avoid unnecessary data duplication.
+//!
+//! # Performance
+//!
+//! - **Parallelization**: Rayon threads over output rows
+//! - **Algorithm**: Row(i) · Column(j) for each element
+//! - **Memory**: Zero-copy via `ArrayView2` (no clone on input)
+//! - **Dimensions**: Assumes compatible shapes (n×m) · (m×p) → (n×p)
+//!
+//! # Example
+//!
+//! ```rust
+//! use ndarray::Array2;
+//! use neomatrix::utils::matmul::par_dot;
+//!
+//! let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+//! let b = Array2::from_shape_vec((3, 2), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]).unwrap();
+//! let c = par_dot(a.view(), b.view());  // 2×2 result
+//! ```
+
 use ndarray::parallel::prelude::*;
+use ndarray::{Array2, ArrayView2, Axis};
 
-/// Function to execute the dot product of two matrices in parallel
-/// ! Not a Python function !
-/// 
-/// # Arguments
-/// * `t_1` - First array of the dot product
-/// * `t_2` - Second array of the dot product
-/// 
-/// # Returns
-/// * `Array2<f64>` - 2D Array containing the result of the dot product
-pub fn par_dot(t_1: Array2<f64>, t_2: Array2<f64>) -> Array2<f64> {
+pub fn par_dot(t_1: ArrayView2<f32>, t_2: ArrayView2<f32>) -> Array2<f32> {
+    let (m, _) = t_1.dim();
+    let (_, p) = t_2.dim();
 
-    // Check for dimension compatibility
-    let (m, n) = t_1.dim();
-    let (n2, p) = t_2.dim();
-    if n != n2 {
-        panic!("Matrix dimensions do not match for multiplication: {}x{} and {}x{}, {} should be equal to {}", m, n, n2, p, n, n2);
-    }
-
-    // Empty array to store the data
     let mut a = Array2::zeros((m, p));
 
-    // Parallel iteration over the rows of 'a' array
     a.axis_iter_mut(Axis(0))
-    .into_par_iter()
-    .enumerate()
-    .for_each(|(i, mut row)| {
-        for j in 0..p {
-            row[j] = t_1.row(i).dot(&t_2.column(j)); //a row of t_1 is multiplied by a column of t_2 to get a row of the new array
-        }
-    });
+        .into_par_iter()
+        .enumerate()
+        .for_each(|(i, mut row)| {
+            for j in 0..p {
+                row[j] = t_1.row(i).dot(&t_2.column(j));
+            }
+        });
 
     a
 }
