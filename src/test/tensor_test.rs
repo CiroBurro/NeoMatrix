@@ -179,13 +179,13 @@ mod tensor_shape_operations {
     use super::*;
 
     #[test]
-    fn reshape_changes_shape_preserves_data() {
+    fn reshape_inplace_changes_shape_preserves_data() {
         let content = vec![
             1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
         ];
         let mut tensor = Tensor::new(vec![2, 6], content.clone()).unwrap();
 
-        tensor.reshape(vec![3, 4]).unwrap();
+        tensor.reshape_inplace(vec![3, 4]).unwrap();
 
         assert_eq!(tensor.shape, vec![3, 4]);
         assert_eq!(tensor.dimension, 2);
@@ -193,26 +193,26 @@ mod tensor_shape_operations {
     }
 
     #[test]
-    fn reshape_fails_on_incompatible_size() {
+    fn reshape_inplace_fails_on_incompatible_size() {
         let mut tensor = Tensor::new(vec![2, 3], vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let result = tensor.reshape(vec![2, 2]); // 6 elements can't fit 2x2
+        let result = tensor.reshape_inplace(vec![2, 2]); // 6 elements can't fit 2x2
 
         assert!(result.is_err());
     }
 
     #[test]
-    fn reshape_to_1d() {
+    fn reshape_inplace_to_1d() {
         let mut tensor = Tensor::new(vec![2, 3], vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        tensor.reshape(vec![6]).unwrap();
+        tensor.reshape_inplace(vec![6]).unwrap();
 
         assert_eq!(tensor.shape, vec![6]);
         assert_eq!(tensor.dimension, 1);
     }
 
     #[test]
-    fn reshape_from_1d_to_multidimensional() {
+    fn reshape_inplace_from_1d_to_multidimensional() {
         let mut tensor = Tensor::new(vec![24], (0..24).map(|x| x as f32).collect()).unwrap();
-        tensor.reshape(vec![2, 3, 4]).unwrap();
+        tensor.reshape_inplace(vec![2, 3, 4]).unwrap();
 
         assert_eq!(tensor.shape, vec![2, 3, 4]);
         assert_eq!(tensor.dimension, 3);
@@ -220,9 +220,9 @@ mod tensor_shape_operations {
     }
 
     #[test]
-    fn flatten_converts_to_1d() {
+    fn flatten_inplace_converts_to_1d() {
         let mut tensor = Tensor::new(vec![2, 3, 2], vec![1.0; 12]).unwrap();
-        tensor.flatten();
+        tensor.flatten_inplace();
 
         assert_eq!(tensor.shape, vec![12]);
         assert_eq!(tensor.dimension, 1);
@@ -230,23 +230,71 @@ mod tensor_shape_operations {
     }
 
     #[test]
-    fn flatten_preserves_order() {
+    fn flatten_inplace_preserves_order() {
         let content = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         let mut tensor = Tensor::new(vec![2, 3], content.clone()).unwrap();
-        tensor.flatten();
+        tensor.flatten_inplace();
 
         assert_eq!(tensor.data.as_slice().unwrap(), content.as_slice());
     }
 
     #[test]
-    fn flatten_already_1d_is_noop() {
+    fn flatten_inplace_already_1d_is_noop() {
         let content = vec![1.0, 2.0, 3.0, 4.0];
         let mut tensor = Tensor::new(vec![4], content.clone()).unwrap();
-        tensor.flatten();
+        tensor.flatten_inplace();
 
         assert_eq!(tensor.shape, vec![4]);
         assert_eq!(tensor.data.as_slice().unwrap(), content.as_slice());
     }
+
+    #[test]
+    fn reshape_returns_new_tensor() {
+        let content = vec![
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+        ];
+        let tensor = Tensor::new(vec![2, 6], content.clone()).unwrap();
+
+        let reshaped = tensor.reshape(vec![3, 4]).unwrap();
+
+        assert_eq!(reshaped.shape, vec![3, 4]);
+        assert_eq!(reshaped.dimension, 2);
+        assert_eq!(reshaped.data.as_slice().unwrap(), content.as_slice());
+        
+        // Verifica che l'originale non sia stato modificato
+        assert_eq!(tensor.shape, vec![2, 6]);
+    }
+
+    #[test]
+    fn reshape_fails_on_incompatible_size() {
+        let tensor = Tensor::new(vec![2, 3], vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let result = tensor.reshape(vec![2, 2]); // 6 elements can't fit 2x2
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn flatten_returns_new_1d_tensor() {
+        let tensor = Tensor::new(vec![2, 3, 2], vec![1.0; 12]).unwrap();
+        let flattened = tensor.flatten();
+
+        assert_eq!(flattened.shape, vec![12]);
+        assert_eq!(flattened.dimension, 1);
+        assert_eq!(flattened.data.ndim(), 1);
+        
+        // Verifica che l'originale non sia stato modificato
+        assert_eq!(tensor.shape, vec![2, 3, 2]);
+    }
+
+    #[test]
+    fn flatten_preserves_order() {
+        let content = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let tensor = Tensor::new(vec![2, 3], content.clone()).unwrap();
+        let flattened = tensor.flatten();
+
+        assert_eq!(flattened.data.as_slice().unwrap(), content.as_slice());
+    }
+
 
     #[test]
     fn transpose_2d_swaps_dimensions() {

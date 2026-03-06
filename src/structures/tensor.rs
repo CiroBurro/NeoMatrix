@@ -433,6 +433,30 @@ impl Tensor {
         Ok(())
     }
 
+    /// Reshape method for Tensor
+    ///
+    /// # Arguments
+    /// * `shape` - Vector representing the new shape
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix import Tensor
+    ///     t = Tensor([2, 2], [1, 2, 3, 4])
+    ///     reshaped = t.reshape([4])
+    ///     ```
+    #[pyo3(signature = (shape))]
+    pub fn reshape(&self, shape: Vec<usize>) -> PyResult<Tensor> {
+        let dim = shape.len();
+        let data = self.data.to_owned().into_shape_with_order(shape.as_slice()).map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("Incompatible shape"))?;
+        
+        Ok(Tensor {
+            shape: shape,
+            dimension: dim,
+            data: data,
+            
+        })
+    }
+
     /// Reshape inplace method for Tensor
     ///
     /// # Arguments
@@ -442,10 +466,10 @@ impl Tensor {
     ///     ```python
     ///     from neomatrix import Tensor
     ///     t = Tensor([2, 2], [1, 2, 3, 4])
-    ///     t.reshape([4])
+    ///     t.reshape_inplace([4])
     ///     ```
     #[pyo3(signature = (shape))]
-    pub fn reshape(&mut self, shape: Vec<usize>) -> PyResult<()> {
+    pub fn reshape_inplace(&mut self, shape: Vec<usize>) -> PyResult<()> {
         self.shape = shape.clone();
         self.dimension = shape.len();
         self.data = self
@@ -456,15 +480,33 @@ impl Tensor {
         Ok(())
     }
 
+    /// Flatten method for Tensor
+    ///
+    /// # Python usage
+    ///     ```python
+    ///     from neomatrix import Tensor
+    ///     t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
+    ///     flattened = t.flatten()
+    ///     ```
+    pub fn flatten(&self) -> Tensor {
+        let flattened_data = self.data.flatten();
+
+        Tensor {        
+            shape: flattened_data.shape().to_vec(),
+            dimension: flattened_data.ndim(),
+            data: flattened_data.to_owned().into_dyn(),
+        }
+    }
+
     /// Flatten inplace method for Tensor
     ///
     /// # Python usage
     ///     ```python
     ///     from neomatrix import Tensor
     ///     t = Tensor([2, 3], [1, 2, 3, 4, 5, 6])
-    ///     t.flatten()
+    ///     t.flatten_inplace()
     ///     ```
-    pub fn flatten(&mut self) {
+    pub fn flatten_inplace(&mut self) {
         let flattened_data = self.data.flatten();
         self.shape = flattened_data.shape().to_vec();
         self.dimension = flattened_data.ndim();
