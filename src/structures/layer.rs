@@ -133,7 +133,7 @@ impl Layer {
 
         // Forward prop algorithm
         if parallel {
-            self.output = f.par_function(&mut (&self.input.dot(&self.weights)? + &self.biases)?);
+            self.output = f.function(&mut (&self.input.dot(&self.weights)? + &self.biases)?);
         } else {
             self.output = f.function(&mut (self.input.dot(&self.weights)? + &self.biases)?);
         }
@@ -192,7 +192,7 @@ impl Layer {
 
         // Forward prop algorithm
         if parallel {
-            self.output = f.par_function(&mut (input.dot(&self.weights)? + biases_matrix)?);
+            self.output = f.function(&mut (input.dot(&self.weights)? + biases_matrix)?);
         } else {
             self.output = f.function(&mut (input.dot(&self.weights)? + biases_matrix)?);
         }
@@ -467,7 +467,7 @@ impl Layer {
             Cost::CategoricalCrossEntropy() => CategoricalCrossEntropy.derivative(t, z),
             Cost::HuberLoss { delta } => HuberLoss { delta }.derivative(t, z),
             Cost::HingeLoss() => HingeLoss.derivative(t, z),
-        };
+        }?;
 
         // Softmax derivative of one sample returns a matrix, the result of an entire batch is a 3D tensor
         if matches!(self.activation, Activation::Softmax) && t.dimension == 1 {

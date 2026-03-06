@@ -12,40 +12,13 @@ use pyo3::types::{PyDict, PyFloat, PyString};
 ///
 /// # Methods:
 /// * `function` - Regular computation for single sample
-/// * `function_batch` - Regular computation for batch of samples
-/// * `par_function_batch` - Parallel computation for batch of samples
+/// * `function_batch` - Parallel computation for batch of samples
 /// * `derivative` - Derivative computation for backpropagation
 pub trait CostFunction: Send + Sync {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f32;
-    fn function_batch(&self, t: &Tensor, z: &Tensor) -> f32 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> PyResult<f32>;
+    fn function_batch(&self, t: &Tensor, z: &Tensor) -> PyResult<f32> {
         if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
-        }
-
-        let (m, _) = (t.shape[0], t.shape[1]);
-        let sum: f32 = t
-            .data
-            .axis_iter(Axis(0))
-            .zip(z.data.axis_iter(Axis(0)))
-            .map(|(t_i, z_i)| {
-                let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
-                    data: t_i.to_owned(),
-                };
-                let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
-                    data: z_i.to_owned(),
-                };
-                self.function(&t_i, &z_i)
-            })
-            .sum();
-        sum / m as f32
-    }
-    fn par_function_batch(&self, t: &Tensor, z: &Tensor) -> f32 {
-        if t.shape != z.shape || t.dimension != 2 {
-            panic!("Tensors shape have to be the same and dimension 2 for batch computation of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same and dimension 2 for batch computation of the cost function"));
         }
 
         let (m, _) = (t.shape[0], t.shape[1]);
@@ -54,7 +27,7 @@ pub trait CostFunction: Send + Sync {
             .axis_iter(Axis(0))
             .into_par_iter()
             .zip(z.data.axis_iter(Axis(0)).into_par_iter())
-            .map(|(t_i, z_i)| {
+            .map(|(t_i, z_i)| -> PyResult<f32> {
                 let t_i = Tensor {
                     dimension: 1,
                     shape: vec![t.shape[1]],
@@ -67,10 +40,10 @@ pub trait CostFunction: Send + Sync {
                 };
                 self.function(&t_i, &z_i)
             })
-            .sum();
-        sum / m as f32
+            .sum::<PyResult<f32>>()?;
+        Ok(sum / m as f32)
     }
-    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor;
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> PyResult<Tensor>;
 }
 
 /// Cost enum
@@ -156,9 +129,12 @@ impl Cost {
     ///     c = Cost.from_dict(d)
     ///     ```
     fn from_dict(d: Bound<PyDict>) -> PyResult<Self> {
-        let binding = d
-            .get_item("name")?
-            .expect("No name for cost function deserialization");
+        let binding =
+            d.get_item("name")?
+                .ok_or(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    "No name for cost function deserialization",
+                ))?;
+
         let name = binding.downcast::<PyString>()?.extract::<&str>()?;
         match name {
             "MSE" => Ok(Self::MeanSquaredError()),
@@ -168,7 +144,9 @@ impl Cost {
             "HuberLoss" => {
                 let delta = d
                     .get_item("delta")?
-                    .expect("No delta for Huber Loss cost function deserialization")
+                    .ok_or(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        "No delta for Huber Loss cost function deserialization",
+                    ))?
                     .downcast::<PyFloat>()?
                     .extract::<f32>()?;
                 Ok(Self::HuberLoss { delta })
@@ -198,18 +176,16 @@ impl Cost {
 ///     from neomatrix import Tensor, Cost, get_cost
 ///     t = Tensor([4], [1, 2, 3, 4])
 ///     z = Tensor([4], [1.1, 2.1, 2.9, 4.2])
-///     cost = get_cost(Cost.MeanSquaredError, t, z, parallel=True, batch=True)
+///     cost = get_cost(Cost.MeanSquaredError, t, z, batch=True)
 ///     ```
 #[pyfunction]
-#[pyo3(signature = (cost, t, z, *, parallel = None, batch_processing = None))]
+#[pyo3(signature = (cost, t, z, *, batch_processing = None))]
 pub fn get_cost(
     cost: Cost,
     t: &Tensor,
     z: &Tensor,
-    parallel: Option<bool>,
     batch_processing: Option<bool>,
-) -> f32 {
-    let parallel = parallel.unwrap_or(false);
+) -> PyResult<f32> {
     let batch_processing = batch_processing.unwrap_or(true);
     let f: Box<dyn CostFunction> = match cost {
         Cost::MeanSquaredError() => Box::new(MeanSquaredError),
@@ -222,8 +198,6 @@ pub fn get_cost(
 
     if !batch_processing {
         f.function(t, z)
-    } else if parallel {
-        f.par_function_batch(t, z)
     } else {
         f.function_batch(t, z)
     }
@@ -233,35 +207,36 @@ pub fn get_cost(
 /// f(t,z) = (1/n) * Σ(t_i - z_i)^2
 pub struct MeanSquaredError;
 impl CostFunction for MeanSquaredError {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> PyResult<f32> {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same and dimension 1 for computation of the cost function"));
         }
-        let nomin = (t - z)
-            .expect("Tensors subtraction failed")
-            .data
-            .mapv(|x| x.powi(2))
-            .sum();
+        let tensor_diff = (t - z).map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors subtraction failed")
+        })?;
+        let nomin = tensor_diff.data.mapv(|x| x.powi(2)).sum();
         let denom = t.shape[0] as f32;
-        nomin / denom
+        Ok(nomin / denom)
     }
 
-    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> PyResult<Tensor> {
         if t.shape != z.shape {
-            panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same for computation of the derivative of the cost function"));
         }
 
         let n = t.length() as f32;
 
         let gradients = (t - z)
-            .expect("Tensors subtraction failed")
+            .map_err(|_| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors subtraction failed")
+            })?
             .data
             .mapv(|x| -x * 2.0 / n);
-        Tensor {
+        Ok(Tensor {
             dimension: gradients.ndim(),
             shape: gradients.shape().to_vec(),
             data: gradients,
-        }
+        })
     }
 }
 
@@ -269,35 +244,36 @@ impl CostFunction for MeanSquaredError {
 /// `f(t,z) = (1/n) * Σ|t_i - z_i|`
 pub struct MeanAbsoluteError;
 impl CostFunction for MeanAbsoluteError {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> PyResult<f32> {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same and dimension 1 for computation of the cost function"));
         }
-        let nomin = (t - z)
-            .expect("Tensors subtraction failed")
-            .data
-            .mapv(|x| x.abs())
-            .sum();
+        let tensor_diff = (t - z).map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors subtraction failed")
+        })?;
+        let nomin = tensor_diff.data.mapv(|x| x.abs()).sum();
         let denom = t.shape[0] as f32;
-        nomin / denom
+        Ok(nomin / denom)
     }
 
-    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> PyResult<Tensor> {
         if t.shape != z.shape {
-            panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same for computation of the derivative of the cost function"));
         }
 
         let n = t.length() as f32;
 
         let gradients = (t - z)
-            .expect("Tensors subtraction failed")
+            .map_err(|_| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors subtraction failed")
+            })?
             .data
             .mapv(|x| -(x.abs() / x) / n);
-        Tensor {
+        Ok(Tensor {
             dimension: gradients.ndim(),
             shape: gradients.shape().to_vec(),
             data: gradients,
-        }
+        })
     }
 }
 
@@ -305,9 +281,9 @@ impl CostFunction for MeanAbsoluteError {
 /// `f(t,z) = -(1/n) * Σ(t_i * log(z_i) + (1-t_i) * log(1-z_i))`
 pub struct BinaryCrossEntropy;
 impl CostFunction for BinaryCrossEntropy {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> PyResult<f32> {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same and dimension 1 for computation of the cost function"));
         }
 
         let sum: f32 = t
@@ -318,12 +294,12 @@ impl CostFunction for BinaryCrossEntropy {
             .map(|(t_i, z_i)| t_i * z_i.ln() + (1.0 - t_i) * (1.0 - z_i).ln())
             .sum::<f32>();
 
-        -sum / t.shape[0] as f32
+        Ok(-sum / t.shape[0] as f32)
     }
 
-    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> PyResult<Tensor> {
         if t.shape != z.shape {
-            panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same for computation of the derivative of the cost function"));
         }
 
         let n = t.length() as f32;
@@ -335,13 +311,14 @@ impl CostFunction for BinaryCrossEntropy {
             .map(|(t_i, z_i)| -((t_i / z_i) - ((1.0 - t_i) / (1.0 - z_i))) / n)
             .collect::<Vec<f32>>();
 
-        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
+        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
 
-        Tensor {
+        Ok(Tensor {
             dimension: gradients.ndim(),
             shape: gradients.shape().to_vec(),
             data: gradients,
-        }
+        })
     }
 }
 
@@ -349,9 +326,9 @@ impl CostFunction for BinaryCrossEntropy {
 /// `f(t, z) = -(1/n) * Σ(Σ(t_ik * log(z_ik)))`
 pub struct CategoricalCrossEntropy;
 impl CostFunction for CategoricalCrossEntropy {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> PyResult<f32> {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same and dimension 1 for computation of the cost function"));
         }
         let sum: f32 = t
             .data
@@ -361,12 +338,12 @@ impl CostFunction for CategoricalCrossEntropy {
             .map(|(t_k, z_k)| t_k * z_k.ln())
             .sum::<f32>();
 
-        -sum
+        Ok(-sum)
     }
 
-    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> PyResult<Tensor> {
         if t.shape != z.shape {
-            panic!("Tensors shape have to be the same for computation of the derivative of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same for computation of the derivative of the cost function"));
         }
 
         let n = t.length() as f32;
@@ -378,13 +355,14 @@ impl CostFunction for CategoricalCrossEntropy {
             .map(|(t_i, z_i)| -(t_i / z_i) / n)
             .collect::<Vec<f32>>();
 
-        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
+        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
 
-        Tensor {
+        Ok(Tensor {
             dimension: gradients.ndim(),
             shape: gradients.shape().to_vec(),
             data: gradients,
-        }
+        })
     }
 }
 
@@ -398,9 +376,9 @@ pub struct HuberLoss {
     pub delta: f32,
 }
 impl CostFunction for HuberLoss {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> PyResult<f32> {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same and dimension 1 for computation of the cost function"));
         }
 
         let sum: f32 = t
@@ -416,12 +394,12 @@ impl CostFunction for HuberLoss {
             })
             .sum();
 
-        sum / t.shape[0] as f32
+        Ok(sum / t.shape[0] as f32)
     }
 
-    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> PyResult<Tensor> {
         if t.shape != z.shape {
-            panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function"));
         }
 
         let n = t.length() as f32;
@@ -442,13 +420,14 @@ impl CostFunction for HuberLoss {
             })
             .collect::<Vec<f32>>();
 
-        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
+        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
 
-        Tensor {
+        Ok(Tensor {
             dimension: gradients.ndim(),
             shape: gradients.shape().to_vec(),
             data: gradients,
-        }
+        })
     }
 }
 
@@ -456,9 +435,9 @@ impl CostFunction for HuberLoss {
 /// `f(t,z) = (1/n) * Σ max(0, 1 - t_i * z_i)`
 pub struct HingeLoss;
 impl CostFunction for HingeLoss {
-    fn function(&self, t: &Tensor, z: &Tensor) -> f32 {
+    fn function(&self, t: &Tensor, z: &Tensor) -> PyResult<f32> {
         if t.shape != z.shape || t.dimension != 1 {
-            panic!("Tensors shape have to be the same and dimension 1 for computation of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same and dimension 1 for computation of the cost function"));
         }
 
         let sum: f32 = t
@@ -468,12 +447,12 @@ impl CostFunction for HingeLoss {
             .map(|(t_i, z_i)| 0.0_f32.max(1.0 - (t_i * z_i)))
             .sum();
 
-        sum / t.shape[0] as f32
+        Ok(sum / t.shape[0] as f32)
     }
 
-    fn derivative(&self, t: &Tensor, z: &Tensor) -> Tensor {
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> PyResult<Tensor> {
         if t.shape != z.shape {
-            panic!("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function")
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Tensors shape have to be the same and dimension 1 for computation of the derivative of the cost function"));
         }
 
         let n = t.length() as f32;
@@ -489,12 +468,13 @@ impl CostFunction for HingeLoss {
             })
             .collect::<Vec<f32>>();
 
-        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec).unwrap();
+        let gradients = ArrayD::from_shape_vec(t.shape.clone(), gradients_vec)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
 
-        Tensor {
+        Ok(Tensor {
             dimension: gradients.ndim(),
             shape: gradients.shape().to_vec(),
             data: gradients,
-        }
+        })
     }
 }

@@ -10,12 +10,9 @@ use pyo3::prelude::*;
 ///
 /// # Methods:
 /// * `function` - Regular forward computation
-/// * `par_function` - Parallel forward computation
 /// * `derivative` - Derivative computation for backpropagation
-/// * `shape` - Static method to check and get the shape of a tensor
 pub trait ActivationFunction: Send + Sync {
     fn function(&self, t: &mut Tensor) -> Tensor;
-    fn par_function(&self, t: &mut Tensor) -> Tensor;
     fn derivative(&self, t: &mut Tensor) -> Tensor;
 }
 
@@ -75,19 +72,6 @@ pub struct Relu;
 impl ActivationFunction for Relu {
     fn function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
-        let _ = "Unsupported tensor dimension for ReLU activation function";
-        let shape = t.shape.clone();
-        t.data.mapv_inplace(|x| x.max(0.0));
-
-        Tensor {
-            dimension,
-            shape,
-            data: t.data.to_owned(),
-        }
-    }
-    fn par_function(&self, t: &mut Tensor) -> Tensor {
-        let dimension = t.dimension;
-        let _ = "Unsupported tensor dimension for ReLU activation function";
         let shape = t.shape.clone();
         t.data.par_mapv_inplace(|x| x.max(0.0));
 
@@ -115,17 +99,6 @@ impl ActivationFunction for Relu {
 pub struct Sigmoid;
 impl ActivationFunction for Sigmoid {
     fn function(&self, t: &mut Tensor) -> Tensor {
-        let dimension = t.dimension;
-        let _ = "Unsupported tensor dimension for Sigmoid activation function";
-        let shape = t.shape.clone();
-        t.data.mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
-        Tensor {
-            dimension,
-            shape,
-            data: t.data.to_owned(),
-        }
-    }
-    fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
         let _ = "Unsupported tensor dimension for Sigmoid activation function";
         let shape = t.shape.clone();
@@ -157,17 +130,6 @@ impl ActivationFunction for Tanh {
         let dimension = t.dimension;
         let _ = "Unsupported tensor dimension for Tanh activation function";
         let shape = t.shape.clone();
-        t.data.mapv_inplace(|x| x.tanh());
-        Tensor {
-            dimension,
-            shape,
-            data: t.data.to_owned(),
-        }
-    }
-    fn par_function(&self, t: &mut Tensor) -> Tensor {
-        let dimension = t.dimension;
-        let _ = "Unsupported tensor dimension for Tanh activation function";
-        let shape = t.shape.clone();
         t.data.par_mapv_inplace(|x| x.tanh());
         Tensor {
             dimension,
@@ -193,35 +155,6 @@ impl ActivationFunction for Tanh {
 pub struct Softmax;
 impl ActivationFunction for Softmax {
     fn function(&self, t: &mut Tensor) -> Tensor {
-        let dimension = t.dimension;
-        let msg = "Unsupported tensor dimension for Softmax activation function";
-        let shape = match t.dimension {
-            1 | 2 => t.shape.clone(),
-            _ => panic!("{}", msg),
-        };
-        if dimension == 1 {
-            // numerically stable softmax on 1D
-            let max = t.data.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-            t.data.mapv_inplace(|x| (x - max).exp());
-            let denom = t.data.sum();
-            t.data.mapv_inplace(|x| x / denom);
-        } else {
-            // 2D: apply softmax row-by-row (axis 1)
-            for mut row in t.data.axis_iter_mut(Axis(0)) {
-                let max = row.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-                row.mapv_inplace(|x| (x - max).exp());
-                let denom = row.sum();
-                row.mapv_inplace(|x| x / denom);
-            }
-        }
-
-        Tensor {
-            dimension,
-            shape,
-            data: t.data.to_owned(),
-        }
-    }
-    fn par_function(&self, t: &mut Tensor) -> Tensor {
         let dimension = t.dimension;
         let msg = "Unsupported tensor dimension for Softmax activation function";
         let shape = match t.dimension {
@@ -314,9 +247,6 @@ impl ActivationFunction for Softmax {
 pub struct Linear;
 impl ActivationFunction for Linear {
     fn function(&self, t: &mut Tensor) -> Tensor {
-        t.clone()
-    }
-    fn par_function(&self, t: &mut Tensor) -> Tensor {
         t.clone()
     }
     fn derivative(&self, t: &mut Tensor) -> Tensor {
