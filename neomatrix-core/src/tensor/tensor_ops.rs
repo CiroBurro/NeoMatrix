@@ -1,12 +1,28 @@
+//! Arithmetic operator overloading for tensor operations.
+//!
+//! This module implements the `Add`, `Sub`, `Mul`, and `Div` traits for `Tensor` and scalars,
+//! enabling natural element-wise arithmetic with NumPy-style broadcasting support.
+
 use crate::errors::TensorError;
 use crate::tensor::Tensor;
 use ndarray::{ArrayD, Zip};
 use std::ops::{Add, Div, Mul, Sub};
 
 impl Tensor {
-    /// Computes the broadcast-compatible output shape for two arrays.
-    /// Follows NumPy/ndarray broadcasting rules.
-    /// Returns an error (with the given error variant) if the shapes are incompatible.
+    /// Computes the broadcast-compatible output shape for two arrays following NumPy broadcasting rules.
+    ///
+    /// Broadcasting rules:
+    /// - Dimensions are compared element-wise starting from the rightmost
+    /// - If one dimension is 1, it can be broadcast to match the other
+    /// - If dimensions differ completely, the larger ndim wins
+    ///
+    /// # Arguments
+    /// * `a` - First array reference
+    /// * `b` - Second array reference
+    /// * `err` - Error variant to return on incompatibility
+    ///
+    /// # Returns
+    /// * `Result<Vec<usize>, TensorError>` - Broadcast shape, or error if incompatible
     fn broadcast_shape(
         a: &ArrayD<f32>,
         b: &ArrayD<f32>,
@@ -99,15 +115,13 @@ impl Tensor {
         })
     }
 
-    /// Internal method that implements addition of a scalar to all elements.
-    /// This method is not meant to be called directly but is used to implement
-    /// the `+` operator between a tensor and a scalar.
+    /// Adds a scalar value to each element (internal helper for `+` operator).
     ///
     /// # Arguments
-    /// * `scalar` - The scalar value to add to each element
+    /// * `scalar` - The value to add to all elements
     ///
     /// # Returns
-    /// * `Tensor` - New tensor with scalar added to all elements
+    /// * `Tensor` - New tensor with scalar added to each element
     fn scalar_sum(&self, scalar: f32) -> Tensor {
         let result = &self.data + scalar;
         Tensor {
@@ -116,15 +130,13 @@ impl Tensor {
             data: result.into_dyn(),
         }
     }
-    /// Internal method that implements subtraction of a scalar from all elements.
-    /// This method is not meant to be called directly but is used to implement
-    /// the `-` operator between a tensor and a scalar.
+    /// Subtracts a scalar from each element (internal helper for `-` operator).
     ///
     /// # Arguments
-    /// * `scalar` - The scalar value to subtract from each element
+    /// * `scalar` - The value to subtract from all elements
     ///
     /// # Returns
-    /// * `Tensor` - New tensor with scalar subtracted from all elements
+    /// * `Tensor` - New tensor with scalar subtracted from each element
     fn scalar_subtraction(&self, scalar: f32) -> Tensor {
         let result = &self.data - scalar;
         Tensor {
@@ -133,12 +145,10 @@ impl Tensor {
             data: result.into_dyn(),
         }
     }
-    /// Internal method that implements multiplication of all elements by a scalar.
-    /// This method is not meant to be called directly but is used to implement
-    /// the `*` operator between a tensor and a scalar.
+    /// Multiplies each element by a scalar (internal helper for `*` operator).
     ///
     /// # Arguments
-    /// * `scalar` - The scalar value to multiply each element by
+    /// * `scalar` - The value to multiply each element by
     ///
     /// # Returns
     /// * `Tensor` - New tensor with all elements multiplied by scalar
@@ -150,15 +160,16 @@ impl Tensor {
             data: result.into_dyn(),
         }
     }
-    /// Internal method that implements division of all elements by a scalar.
-    /// This method is not meant to be called directly but is used to implement
-    /// the `/` operator between a tensor and a scalar.
+    /// Divides each element by a scalar (internal helper for `/` operator).
     ///
     /// # Arguments
-    /// * `scalar` - The scalar value to divide each element by
+    /// * `scalar` - The divisor value (must not be zero)
     ///
     /// # Returns
-    /// * `Tensor` - New tensor with all elements divided by scalar
+    /// * `Result<Tensor, TensorError>` - New tensor with all elements divided by scalar
+    ///
+    /// # Errors
+    /// Returns `TensorError::CannotDivideByZero` if scalar equals 0.0
     fn scalar_division(&self, scalar: f32) -> Result<Tensor, TensorError> {
         if scalar == 0.0 {
             return Err(TensorError::CannotDivideByZero);

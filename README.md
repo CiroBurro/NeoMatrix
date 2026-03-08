@@ -1,128 +1,334 @@
-from neomatrix.core.model import NeuralNetwork
-
 # NeoMatrix
 
-NeoMatrix is a keras-inspired machine learning library, written in Rust with an high-level Python API. It aims to combine the computational speed of Rust with the simplicity and flexibility of Python for building and training neural networks.
+[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
+[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-## How It Works
+**NeoMatrix** is a Keras-inspired machine learning library that combines the computational performance of Rust with the simplicity and flexibility of Python for building and training neural networks.
 
-The core of NeoMatrix is a Rust library named `rustybrain`, which handles all computationally intensive operations:
-- **Tensor Operations**: Manipulation of multi-dimensional arrays (tensors).
-- **Linear Algebra**: Optimized dot and matrix products with support for parallelism.
-- **Propagation**: Calculation of forward and backward propagation passes.
+## Architecture Overview
 
-A Python wrapper exposes these features through a simple API inspired by libraries like Keras and PyTorch. This allows users to define, train, and evaluate deep learning models without writing any Rust code.
+NeoMatrix is structured as a multi-layered system:
 
-## Features and Functionality
-
-- **Rust Backend**: Leverages the speed and safety of Rust for high-performance numerical computations.
-- **Pythonic API**: A clean and simple interface for model building.
-- **Flexible Structures**:
-    - `Tensor`: A multi-dimensional tensor compatible with NumPy for data manipulation.
-    - `Layer`: The basic building block for neural network layers, with customizable weights, biases, and activation functions.
-- **Included Activation Functions**:
-    - `Linear`
-    - `Sigmoid`
-    - `ReLU`
-    - `Tanh`
-    - `Softmax`
-- **Cost Functions**:
-    - `MeanSquaredError`
-    - `MeanAbsoluteError`
-    - `BinaryCrossEntropy` (optimized for `Sigmoid`)
-    - `CategoricalCrossEntropy` (optimized for `Softmax`)
-    - `HuberLoss`
-    - `HingeLoss`
-- **Optimizers**:
-    - `SGD` (Stochastic Gradient Descent)
-    - `BatchGD` (Batch Gradient Descent)
-    - `MiniBatchGD` (Mini-Batch Gradient Descent)
-- **Parallel Computing**: Support for parallel execution of complex operations to maximize efficiency.
-
-## Usage
-
-The NeoMatrix API is designed to be intuitive. Here is an example of how to define, compile, and train a neural network.
-
-### 1. Create a Model
-
-You can build a `NeuralNetwork` model by assembling a list of `Layer`s. Each layer requires the number of neurons, the input length, and an activation function.
-
-```python
-from neomatrix.core import Tensor, Layer, Activation, Cost, model
-from neomatrix.core.optimizer import MiniBatchGD
-from neomatrix.utils.dataset import get_batches  # Utility function for data handling
-
-# Define the network architecture
-layers = [
-    Layer(nodes=10, input_len=2, activation=Activation.Relu),
-    Layer(nodes=5, input_len=10, activation=Activation.Relu),
-    Layer(nodes=1, input_len=5, activation=Activation.Sigmoid)
-]
-
-# Create the model
-model = model.NeuralNetwork(
-    layers=layers,
-    cost_function=Cost.MeanSquaredError(),
-    learning_rate=0.01
-)
+```
+┌─────────────────────────────────────────┐
+│   Python API (neomatrix)                │  ← High-level model building
+│   • NeuralNetwork, Layer, Optimizer     │
+└─────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────┐
+│   PyO3 Bindings (neomatrix-python-      │  ← Python ↔ Rust bridge
+│   wrapper)                               │     (In Development)
+│   • Expose Rust types to Python         │
+└─────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────┐
+│   Rust Core (neomatrix-core)            │  ← High-performance backend
+│   • Tensor ops, layers, math            │     ✅ Fully Implemented
+│   • Parallel computation (Rayon)        │
+└─────────────────────────────────────────┘
 ```
 
-### 2. Prepare the Data
+### Components
 
-Input data must be NeoMatrix `Tensor` objects.
+#### 1. **neomatrix-core** (Rust Library) ✅
 
-```python
-# Sample data (training)
-training_set = Tensor.random([100, 2])
-training_targets = Tensor.random([100, 1])
+The computational engine of NeoMatrix, written in pure Rust with comprehensive documentation.
 
-# Sample data (validation)
-val_set = Tensor.random([50, 2])
-val_targets = Tensor.random([50, 1])
+**Features:**
+- **Tensors**: Multi-dimensional arrays (`f32`) with automatic shape inference and broadcasting
+- **Layers**: Composable neural network building blocks
+  - `Dense`: Fully-connected layer with learnable weights and biases
+  - Activation layers: `ReLu`, `Sigmoid`, `Tanh`, `Softmax`
+- **Activation Functions**: ReLU, Sigmoid, Tanh, Softmax, Linear
+- **Loss Functions**:
+  - Regression: MSE, MAE, Huber
+  - Classification: Binary Cross-Entropy, Categorical Cross-Entropy, Hinge
+- **Weight Initialization**:
+  - Xavier/Glorot (optimal for Sigmoid/Tanh)
+  - He (optimal for ReLU)
+  - Random uniform
+- **Parallel Computing**: Rayon-powered matrix multiplication for multi-core performance
+- **Error Handling**: Comprehensive `Result`-based error types (no panics in library code)
+
+
+#### 2. **neomatrix-python-wrapper** (PyO3 Bindings) 🚧
+
+*Status: In Development*
+
+Python bindings exposing the Rust core to Python via PyO3. This crate will provide:
+- Zero-copy tensor operations between Python and Rust
+- Pythonic API for all Rust types (Tensor, Layer, Dense, etc.)
+- Seamless conversion between NumPy arrays and NeoMatrix tensors
+- Full access to parallel computation features
+
+
+#### 3. **neomatrix** (Python Package) 🚧
+
+*Status: In Development*
+
+High-level Python API inspired by Keras, built on top of the Rust backend. Will provide:
+- `NeuralNetwork`: Sequential model container
+- `Layer`: High-level layer abstraction
+- `Optimizer`: Training algorithms (SGD, MiniBatchGD, BatchGD)
+- `Cost`: Loss function wrappers
+- Model persistence (save/load trained models)
+- Dataset utilities for batch processing
+
+---
+
+## Features
+
+### Current Implementation ✅
+
+- [x] **Rust Backend**: Complete core library with tensor operations and neural network layers
+- [x] **Comprehensive Documentation**: All modules, functions, and mathematical operations documented in English
+- [x] **Mathematical Rigor**: Backpropagation algorithms with gradient formulas
+- [x] **Parallel Computation**: Multi-threaded matrix multiplication via Rayon
+- [x] **Type Safety**: `Result`-based error handling throughout
+- [x] **Operator Overloading**: Pythonic tensor arithmetic (`+`, `-`, `*`, `/`)
+- [x] **Iterator Support**: Tensors implement Rust's `Iterator` trait
+- [x] **216 Unit Tests**: Comprehensive test coverage for all modules
+
+### Activation Functions
+
+| Function | Formula | Derivative | Use Case |
+|----------|---------|------------|----------|
+| **ReLU** | `max(0, x)` | `1 if x > 0, else 0` | Hidden layers (most common) |
+| **Sigmoid** | `1 / (1 + e^(-x))` | `σ(x) · (1 - σ(x))` | Binary classification output |
+| **Tanh** | `(e^x - e^(-x)) / (e^x + e^(-x))` | `1 - tanh²(x)` | Hidden layers (zero-centered) |
+| **Softmax** | `e^(x_i) / Σ_j e^(x_j)` | Jacobian matrix | Multi-class classification output |
+| **Linear** | `x` | `1` | Regression output |
+
+### Loss Functions
+
+| Function | Formula | Best For |
+|----------|---------|----------|
+| **MSE** | `(1/n) Σ(y - ŷ)²` | Regression |
+| **MAE** | `(1/n) Σ|y - ŷ|` | Robust regression |
+| **Huber** | Smooth MSE/MAE transition | Outlier-resistant regression |
+| **BCE** | `-[y·log(ŷ) + (1-y)·log(1-ŷ)]` | Binary classification (with Sigmoid) |
+| **CCE** | `-Σ y_i · log(ŷ_i)` | Multi-class classification (with Softmax) |
+| **Hinge** | `max(0, 1 - y·ŷ)` | SVM-style classification |
+
+### Weight Initialization
+
+| Strategy | Formula | Recommended For |
+|----------|---------|-----------------|
+| **Xavier** | `W ~ N(0, √(2/(n_in + n_out)))` | Sigmoid, Tanh activations |
+| **He** | `W ~ N(0, √(2/n_in))` | ReLU, Leaky ReLU activations |
+| **Random** | `U(a, b)` uniform | Legacy (not recommended) |
+
+---
+
+## Installation
+
+### Building from Source
+
+**Prerequisites:**
+- Rust 1.70+ ([Install Rust](https://www.rust-lang.org/tools/install))
+- Python 3.8+
+- maturin (`pip install maturin` or `uv add maturin`)
+
+**Build the Rust core:**
+```bash
+cd neomatrix-core
+cargo build --release
+cargo test  # Run 216 unit tests
+cargo doc --no-deps --open  # View documentation
 ```
 
-### 3. Train the Model
+**Build the Python extension (when wrapper is ready):**
+```bash
+# Development build
+maturin develop
 
-Use the `fit` method to train the network. Select an optimizer and the number of epochs.
-
-```python
-# Choose an optimizer
-optimizer = MiniBatchGD(training_batch_size=10, validation_batch_size=5)
-
-# Train the model
-model.fit(
-    training_set=training_set,
-    training_targets=training_targets,
-    val_set=val_set,
-    val_targets=val_targets,
-    optimizer=optimizer,
-    epochs=20,
-    parallel=True  # Enable parallel computation
-)
+# Release wheel
+maturin build --release
 ```
 
-### 4. Make Predictions
+---
 
-After training, you can use the `predict` method to get the model's predictions.
+## Usage Examples
 
-```python
-# Test data
-test_data = Tensor.random([2, 2])
+### Current Status (Rust Core)
 
-# Make predictions
-predictions = model.predict(test_data)
+The Rust core is fully functional and can be used directly:
 
-print("Predictions:", predictions.get_data())
+```rust
+use neomatrix_core::tensor::Tensor;
+use neomatrix_core::layers::{dense::Dense, init::Init, Layer};
+use neomatrix_core::math::activations::{Relu, ActivationFunction};
+
+// Create tensors
+let input = Tensor::new(vec![1, 784], vec![/* ... */]).unwrap();
+
+// Build a dense layer with He initialization
+let mut layer = Dense::new(784, 128, Some(Init::He), None);
+
+// Forward pass
+let output = layer.forward(&input, true).unwrap();
+
+// Compute loss and backward pass
+let grad = /* compute gradient from loss */;
+let input_grad = layer.backward(&grad).unwrap();
+
+// Access parameters for optimization
+if let Some(params) = layer.get_params_and_grads() {
+    for (weight, gradient) in params {
+        // Update weights: w = w - lr * grad
+    }
+}
 ```
 
-## TODO List
-- [X] Optimize forward method
-- [ ] Remove panics, return Err instead
-- [X] **Implement ops traits for tensor**: use std traits instead of useless tensor methods
-- [X] **Implement iterator for tensor**: make a tensor iterable 
-- [ ] **Implement more optimizers**: Adam, RMSprop, Adagrad.
-- [X] **Add signature**: specify functions and methods signatures for an easier usage in python
-- [ ] **Add examples**: Implementation linear, logistic, and softmax regression, and a simple neuralnetwork
-- [X] **Save and Load Models**: Functionality to serialize and deserialize trained models.
-- [X] **Advanced Documentation**: Create more detailed documentation.
-- [ ] **Add evaluation metrics**: Accuracy, Precision, Recall, F1-score.
+
+## Project Structure
+
+```
+NeoMatrix/
+├── neomatrix-core/          # ✅ Rust core library (COMPLETE)
+│   ├── src/
+│   │   ├── lib.rs          # Crate root
+│   │   ├── tensor/         # Tensor operations
+│   │   ├── math/           # Activations, losses, matmul
+│   │   ├── layers/         # Dense, activation layers, init
+│   │   ├── errors.rs       # Error types
+│   │   └── test/           # 216 unit tests
+│   └── Cargo.toml
+├── neomatrix-python-wrapper/ # 🚧 PyO3 bindings (IN DEVELOPMENT)
+│   ├── src/
+│   │   ├── lib.rs          # Module registration
+│   │   ├── tensor.rs       # Python Tensor class
+│   │   └── ...             # Layer, Dense, etc. (planned)
+│   └── Cargo.toml
+├── neomatrix/              # 🚧 Python package (IN DEVELOPMENT)
+│   ├── core/               # High-level API
+│   │   ├── model.py        # NeuralNetwork class
+│   │   └── optimizer.py    # Training algorithms
+│   └── utils/              # Utilities (dataset, metrics)
+├── examples/               # Usage examples
+│   ├── NeuralNetwork.py
+│   └── LinearRegression.py
+├── pyproject.toml          # Python project config (maturin)
+├── Cargo.toml              # Rust workspace
+└── README.md               # This file
+```
+
+---
+
+## Development Status
+
+### Completed ✅
+
+- [x] Complete Rust core implementation (`neomatrix-core`)
+- [x] Comprehensive English documentation for all modules
+- [x] Tensor operations with operator overloading
+- [x] Neural network layers (Dense, Activation)
+- [x] 5 activation functions with backpropagation
+- [x] 6 loss functions with numerical stability
+- [x] 3 weight initialization strategies
+- [x] Parallel matrix multiplication (Rayon)
+- [x] 216 unit tests with 100% pass rate
+- [x] Error handling with `Result` types (no panics)
+
+### In Progress 🚧
+
+- [ ] PyO3 Python bindings (`neomatrix-python-wrapper`)
+  - [x] Basic Tensor class (760 lines, iterator support)
+  - [ ] Layer, Dense, Activation bindings
+  - [ ] Loss function bindings
+  - [ ] NumPy interoperability
+- [ ] High-level Python API (`neomatrix` package)
+  - [ ] NeuralNetwork class
+  - [ ] Optimizer implementations
+  - [ ] Model save/load
+  - [ ] Dataset utilities
+
+### Planned 📋
+
+- [ ] Additional optimizers: Adam, RMSprop, Adagrad
+- [ ] Evaluation metrics: Accuracy, Precision, Recall, F1-score
+- [ ] Regularization: L1, L2, Dropout
+- [ ] Batch normalization layer
+- [ ] Convolutional layers (Conv2D, MaxPool2D)
+- [ ] Recurrent layers (LSTM, GRU)
+- [ ] GPU acceleration (CUDA/Metal)
+
+---
+
+## Documentation
+
+### Rust Core Documentation
+
+Full API documentation is available via `cargo doc`:
+
+```bash
+cd neomatrix-core
+cargo doc --no-deps --open
+```
+
+Key documentation sections:
+- **Module-level docs** (`//!`) describe the purpose of each module
+- **Struct/Enum docs** (`///`) explain data structures and their fields
+- **Function docs** (`///`) detail parameters, returns, and usage examples
+- **Mathematical formulas** (`//`) accompany all activation/loss computations
+- **Implementation notes** (`//`) clarify complex algorithms (e.g., backpropagation)
+
+### Examples
+
+See the `examples/` directory for usage demonstrations:
+- `LinearRegression.py` - Simple linear regression model
+- `NeuralNetwork.py` - Multi-layer neural network for classification
+
+---
+
+## Performance
+
+NeoMatrix leverages Rust's performance and safety guarantees:
+
+- **Zero-cost abstractions**: Generic types compile to optimal machine code
+- **Memory safety**: No garbage collection, no null pointers, no data races
+- **Parallel execution**: Rayon automatically parallelizes matrix operations across CPU cores
+- **SIMD optimization**: ndarray uses vectorized operations where possible
+
+Benchmarks (coming soon): Training performance comparisons with NumPy, PyTorch, and TensorFlow.
+
+---
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+## Roadmap
+
+### Phase 1: Core Implementation ✅ (COMPLETE)
+- Rust core library with full documentation
+- Tensor operations and linear algebra
+- Dense layers and activation functions
+- Loss functions with numerical stability
+- Weight initialization strategies
+- Parallel computation support
+
+### Phase 2: Python Integration 🚧 (IN PROGRESS)
+- Complete PyO3 bindings for all Rust types
+- NumPy interoperability
+- High-level Python API
+- Model persistence (save/load)
+
+### Phase 3: Advanced Features 📋 (PLANNED)
+- Additional optimizers (Adam, RMSprop, etc.)
+- Regularization techniques
+- Evaluation metrics
+- Batch normalization
+
+### Phase 4: Expansion 🔮 (FUTURE)
+- Convolutional layers for image processing
+- Recurrent layers for sequence modeling
+- GPU acceleration
+- Distributed training
+
+---
+
+**Status**: Active development | Core complete, Python integration in progress

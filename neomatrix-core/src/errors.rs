@@ -1,5 +1,14 @@
+//! Error types for NeoMatrix library operations.
+//!
+//! This module defines all error types used throughout the library,
+//! organized by domain (tensor operations, layers, mathematical functions).
+
 use thiserror::Error;
 
+/// Errors that can occur during tensor operations.
+///
+/// Covers shape mismatches, dimension errors, and invalid operations
+/// on tensor data structures.
 #[derive(Error, Debug, PartialEq)]
 pub enum TensorError {
     #[error("Shape and content do not match")]
@@ -54,6 +63,10 @@ pub enum TensorError {
     CannotDivideByZero,
 }
 
+/// Errors that can occur during neural network layer operations.
+///
+/// Wraps tensor and math errors, plus layer-specific errors like
+/// uninitialized state (calling backward before forward).
 #[derive(Error, Debug)]
 pub enum LayerError {
     #[error(transparent)]
@@ -66,9 +79,12 @@ pub enum LayerError {
     NotInitialized,
 }
 
+/// Errors that can occur during mathematical operations.
+///
+/// Covers activation functions, loss functions, and their derivatives.
+/// Includes shape mismatches, unsupported dimensions, and unknown function names.
 #[derive(Error, Debug)]
 pub enum MathError {
-    // --- Activation errors ---
     #[error("Unsupported tensor dimension for Softmax: expected 1D or 2D")]
     SoftmaxUnsupportedDimension,
 

@@ -1,3 +1,9 @@
+//! Multi-dimensional array structure and core tensor operations.
+//!
+//! This module provides the `Tensor` struct, which wraps `ndarray::ArrayD<f32>` and serves as
+//! the primary data structure for numerical computing in NeoMatrix. It supports creation,
+//! manipulation, and mathematical operations on tensors of arbitrary dimensions.
+
 use crate::errors::TensorError;
 use crate::math::matmul::par_dot;
 use ndarray::prelude::*;
@@ -6,24 +12,36 @@ use std::ops::Range;
 
 use rand;
 
+/// Multi-dimensional array for numerical computing.
+///
+/// A `Tensor` wraps an `ndarray::ArrayD<f32>` and maintains metadata about its shape and dimensionality.
+/// Supports operations including creation, reshaping, transposition, concatenation, and element-wise arithmetic.
 #[derive(Clone, Debug)]
 pub struct Tensor {
+    /// Number of dimensions in this tensor.
     pub dimension: usize,
+    /// Shape vector describing the size along each dimension.
     pub shape: Vec<usize>,
+    /// The underlying multi-dimensional array storing all data elements as f32 values.
     pub data: ArrayD<f32>,
 }
 
 /// `Tensor` struct methods
 
 impl Tensor {
-    /// Constructor method for the Tensor
+    /// Creates a new tensor from a shape and content vector.
     ///
     /// # Arguments
     /// * `shape` - A vector of usize representing the shape of the tensor
-    /// * `content` - A vector of f32 representing the content of the tensor
+    /// * `content` - A vector of f32 representing the data elements
     ///
     /// # Returns
-    /// * `Tensor` - New tensor
+    /// * `Result<Tensor, TensorError>` - New tensor, or error if shape and content size mismatch
+    ///
+    /// # Example
+    /// ```ignore
+    /// let tensor = Tensor::new(vec![2, 3], vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])?;
+    /// ```
     pub fn new(shape: Vec<usize>, content: Vec<f32>) -> Result<Tensor, TensorError> {
         let dimension = shape.len();
         let data = match Array::from_shape_vec(shape.clone(), content) {
@@ -37,13 +55,18 @@ impl Tensor {
         })
     }
 
-    /// Constructor method for an empty tensor
+    /// Creates a tensor with all elements initialized to zero.
     ///
     /// # Arguments
     /// * `shape` - A vector of usize representing the shape of the tensor
     ///
     /// # Returns
-    /// * `Tensor` - An empty tensor
+    /// * `Tensor` - A tensor with all elements set to 0.0
+    ///
+    /// # Example
+    /// ```ignore
+    /// let tensor = Tensor::zeros(vec![2, 3]);  // 2×3 matrix of zeros
+    /// ```
     pub fn zeros(shape: Vec<usize>) -> Self {
         let dimension = shape.len();
         let data = Array::zeros(shape.clone());
@@ -54,13 +77,19 @@ impl Tensor {
         }
     }
 
-    /// Constructor method for a random tensor
+    /// Creates a tensor with random elements within a specified range.
     ///
     /// # Arguments
     /// * `shape` - A vector of usize representing the shape of the tensor
+    /// * `rg` - A `Range<f32>` specifying the range of random values (e.g., `-1.0..1.0`)
     ///
     /// # Returns
-    /// * `Tensor` - A tensor with random data
+    /// * `Tensor` - A tensor with random elements distributed within the given range
+    ///
+    /// # Example
+    /// ```ignore
+    /// let tensor = Tensor::random(vec![2, 3], -1.0..1.0);  // Random 2×3 matrix
+    /// ```
     pub fn random(shape: Vec<usize>, rg: Range<f32>) -> Self {
         let mut tensor = Tensor::zeros(shape);
 
@@ -71,13 +100,22 @@ impl Tensor {
         tensor
     }
 
-    /// Dot product method for 1D and 2D tensors
+    /// Computes the dot product with another tensor.
+    ///
+    /// Supports dot products for 1D and 2D tensors:
+    /// - 1D · 1D = scalar (returned as 0-dimensional tensor)
+    /// - 1D · 2D = 1D
+    /// - 2D · 1D = 1D
+    /// - 2D · 2D = 2D (uses parallel computation when applicable)
     ///
     /// # Arguments
-    /// * `t` - The tensor to be multiplied with
+    /// * `t` - The tensor to multiply with
     ///
     /// # Returns
-    /// * `Result<Tensor, TensorError>` - Result of the dot product (tensor)
+    /// * `Result<Tensor, TensorError>` - Result tensor, or error if dimensions are incompatible
+    ///
+    /// # Errors
+    /// Returns `TensorError::IncompatibleDimensionsForDotProduct` if inner dimensions don't match
     pub fn dot(&self, t: &Tensor) -> Result<Tensor, TensorError> {
         match (self.dimension, t.dimension) {
             (1, 1) => {
@@ -185,18 +223,21 @@ impl Tensor {
         }
     }
 
-    /// Length method for tensor
+    /// Returns the total number of elements in the tensor.
     ///
     /// # Returns
-    /// * `usize` - Length of the tensor
+    /// * `usize` - The total count of elements (product of all shape dimensions)
     pub fn length(&self) -> usize {
         self.data.len()
     }
 
-    /// Transpose method for 2D tensors
+    /// Transposes a 2D tensor (swaps rows and columns).
     ///
     /// # Returns
-    /// * `Result<Tensor, TensorError>` - Transposed tensor
+    /// * `Result<Tensor, TensorError>` - Transposed tensor, or error if tensor is not 2D
+    ///
+    /// # Errors
+    /// Returns `TensorError::TransposeOnly2D` if dimension != 2
     pub fn transpose(&self) -> Result<Tensor, TensorError> {
         // Check if the shapes are compatible for addition
         if self.dimension != 2 {
@@ -210,23 +251,37 @@ impl Tensor {
         })
     }
 
-    /// Transpose inplace method for 2D tensors
+    /// Transposes a 2D tensor in-place (swaps rows and columns).
+    ///
+    /// # Returns
+    /// * `Result<(), TensorError>` - Success, or error if tensor is not 2D
+    ///
+    /// # Errors
+    /// Returns `TensorError::TransposeOnly2D` if dimension != 2
     pub fn transpose_inplace(&mut self) -> Result<(), TensorError> {
         // Check if the shapes are compatible for addition
         if self.dimension != 2 {
             return Err(TensorError::TransposeOnly2D);
         }
 
-        self.data.to_owned().reversed_axes();
+        self.data = self.data.to_owned().reversed_axes();
         self.dimension = self.data.ndim();
         self.shape = self.data.shape().to_vec();
         Ok(())
     }
 
-    /// Reshape method for Tensor
+    /// Reshapes the tensor to a new shape without modifying the original.
+    ///
+    /// Reorganizes elements into a new shape; total element count must remain the same.
     ///
     /// # Arguments
-    /// * `shape` - Vector representing the new shape
+    /// * `shape` - New shape as a vector of usize
+    ///
+    /// # Returns
+    /// * `Result<Tensor, TensorError>` - Reshaped tensor, or error if shapes are incompatible
+    ///
+    /// # Errors
+    /// Returns `TensorError::IncompatibleShape` if the new shape has different total size
     pub fn reshape(&self, shape: Vec<usize>) -> Result<Tensor, TensorError> {
         let dim = shape.len();
         let data = self
@@ -242,10 +297,16 @@ impl Tensor {
         })
     }
 
-    /// Reshape inplace method for Tensor
+    /// Reshapes the tensor in-place to a new shape.
     ///
     /// # Arguments
-    /// * `shape` - Vector representing the new shape
+    /// * `shape` - New shape as a vector of usize
+    ///
+    /// # Returns
+    /// * `Result<(), TensorError>` - Success, or error if shapes are incompatible
+    ///
+    /// # Errors
+    /// Returns `TensorError::IncompatibleShape` if the new shape has different total size
     pub fn reshape_inplace(&mut self, shape: Vec<usize>) -> Result<(), TensorError> {
         self.shape = shape.clone();
         self.dimension = shape.len();
@@ -257,7 +318,10 @@ impl Tensor {
         Ok(())
     }
 
-    /// Flatten method for Tensor
+    /// Flattens the tensor to a 1D shape without modifying the original.
+    ///
+    /// # Returns
+    /// * `Tensor` - Flattened 1D tensor with all elements in row-major order
     pub fn flatten(&self) -> Tensor {
         let flattened_data = self.data.flatten();
 
@@ -268,7 +332,9 @@ impl Tensor {
         }
     }
 
-    /// Flatten inplace method for Tensor
+    /// Flattens the tensor to 1D shape in-place.
+    ///
+    /// Mutates self to become a 1D tensor with all elements in row-major order.
     pub fn flatten_inplace(&mut self) {
         let flattened_data = self.data.flatten();
         self.shape = flattened_data.shape().to_vec();
@@ -276,12 +342,19 @@ impl Tensor {
         self.data = flattened_data.to_owned().into_dyn();
     }
 
-    /// Push method for 2 tensors
-    /// Pushes a tensor into self
+    /// Appends another tensor along a specified axis (mutating operation).
+    ///
+    /// Concatenates `t` to `self` along the given axis. Self is modified in-place.
     ///
     /// # Arguments
-    /// * `t` - Tensor to be pushed
-    /// * `axis` - Index of the axe along which tensors should be concatenated
+    /// * `t` - Tensor to append
+    /// * `axis` - Axis along which to concatenate (0-indexed)
+    ///
+    /// # Returns
+    /// * `Result<(), TensorError>` - Success, or error if dimensions are incompatible
+    ///
+    /// # Errors
+    /// Returns `TensorError::IncompatibleDimensionsForPushing` if shapes don't match
     pub fn push(&mut self, t: &Tensor, axis: usize) -> Result<(), TensorError> {
         let mut vec_data = Vec::new();
         self.data.flatten().for_each(|x| vec_data.push(*x));
@@ -300,14 +373,17 @@ impl Tensor {
         Ok(())
     }
 
-    /// Concatenate inplace method for multiple tensors
+    /// Concatenates multiple tensors along a specified axis, without modifying the original.
     ///
     /// # Arguments
-    /// * `tensors` - Vector of tensors to be concatenated to self
-    /// * `axis` - Index of the axe along which tensors should be concatenated
+    /// * `tensors` - Vector of tensors to concatenate with self
+    /// * `axis` - Axis along which to concatenate (0-indexed)
     ///
     /// # Returns
-    /// * `Result<Tensor, TensorError>` - Tensor containing all the input tensors concatenated
+    /// * `Result<Tensor, TensorError>` - Concatenated tensor, or error if dimensions are incompatible
+    ///
+    /// # Errors
+    /// Returns `TensorError::IncompatibleDimensionsForPushing` if shapes don't match
     pub fn cat_inplace(&self, tensors: Vec<Tensor>, axis: usize) -> Result<Tensor, TensorError> {
         let mut new_tensor = self.clone();
         for t in tensors.iter() {
@@ -317,14 +393,17 @@ impl Tensor {
         Ok(new_tensor)
     }
 
-    /// Concatenate method for multiple tensors
+    /// Concatenates multiple tensors along a specified axis (static method).
     ///
     /// # Arguments
-    /// * `tensors` - Vector of tensors to be concatenated
-    /// * `axis` - Index of the axe along which tensors should be concatenated
+    /// * `tensors` - Vector of tensors to concatenate
+    /// * `axis` - Axis along which to concatenate (0-indexed)
     ///
     /// # Returns
-    /// * `Result<Tensor, TensorError>` - Tensor containing all the input tensors concatenated
+    /// * `Result<Tensor, TensorError>` - Concatenated tensor, or error if dimensions are incompatible
+    ///
+    /// # Errors
+    /// Returns `TensorError::IncompatibleDimensionsForPushing` if shapes don't match
     pub fn cat(tensors: Vec<Tensor>, axis: usize) -> Result<Tensor, TensorError> {
         let mut new_tensor = tensors[0].clone();
         for t in &tensors[1..] {
@@ -333,10 +412,19 @@ impl Tensor {
 
         Ok(new_tensor)
     }
-    /// Push row method for Tensor
+    /// Appends a 1D tensor as a new row to the end (in-place).
+    ///
+    /// Mutates self to add `t` as a new row. Self must be 1D or 2D; if 1D, it's first reshaped to 2D.
     ///
     /// # Arguments
-    /// * `t` - Tensor representing the row to be added
+    /// * `t` - 1D tensor representing the row to add
+    ///
+    /// # Returns
+    /// * `Result<(), TensorError>` - Success, or error if `t` is not 1D or self is > 2D
+    ///
+    /// # Errors
+    /// - `TensorError::RowMustBe1D` if `t` has dimension != 1
+    /// - `TensorError::PushingRowOnly1D2D` if self has dimension > 2
     pub fn push_row(&mut self, t: &Tensor) -> Result<(), TensorError> {
         if t.dimension != 1 {
             return Err(TensorError::RowMustBe1D);
@@ -365,10 +453,19 @@ impl Tensor {
         Ok(())
     }
 
-    /// Push column method for Tensor
+    /// Appends a 1D tensor as a new column to the end (in-place).
+    ///
+    /// Mutates self to add `t` as a new column. Self must be 1D or 2D; if 1D, it's first reshaped to 2D.
     ///
     /// # Arguments
-    /// * `t` - Tensor representing the column to be added
+    /// * `t` - 1D tensor representing the column to add
+    ///
+    /// # Returns
+    /// * `Result<(), TensorError>` - Success, or error if `t` is not 1D or self is > 2D
+    ///
+    /// # Errors
+    /// - `TensorError::ColumnMustBe1D` if `t` has dimension != 1
+    /// - `TensorError::PushingColumnOnly1D2D` if self has dimension > 2
     pub fn push_column(&mut self, t: &Tensor) -> Result<(), TensorError> {
         if t.dimension != 1 {
             return Err(TensorError::ColumnMustBe1D);

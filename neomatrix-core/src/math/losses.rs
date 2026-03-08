@@ -1,24 +1,117 @@
-/// Cost functions for neural networks.
-/// Implements: MSE, MAE, Binary Cross-Entropy, Categorical Cross-Entropy, Huber Loss, Hinge Loss.
+//! Loss (cost) functions for neural network training.
+//!
+//! This module provides the `LossFunction` trait and implementations for common loss functions
+//! used in supervised learning. Each loss function measures the discrepancy between predicted
+//! outputs and true labels, with their derivatives used for backpropagation during training.
+//!
+//! # Available Loss Functions
+//!
+//! - **MSE** (`MeanSquaredError`): L2 loss - penalizes large errors quadratically
+//! - **MAE** (`MeanAbsoluteError`): L1 loss - robust to outliers, linear penalty
+//! - **BCE** (`BinaryCrossEntropy`): For binary classification with sigmoid output
+//! - **CCE** (`CategoricalCrossEntropy`): For multi-class classification with softmax output
+//! - **Huber Loss** (`HuberLoss`): Hybrid MSE/MAE - quadratic for small errors, linear for large
+//! - **Hinge Loss** (`HingeLoss`): For SVM-style margin-based classification
+//!
+//! # Performance
+//!
+//! All loss functions leverage Rayon's parallel iterators for batch processing, automatically
+//! distributing computation across available CPU cores when processing multiple samples.
+//!
+//! # Numerical Stability
+//!
+//! Cross-entropy losses (BCE, CCE) use epsilon clamping (`1e-7`) to prevent `log(0)` and
+//! division by zero errors during gradient computation.
+
 use crate::errors::MathError;
 use crate::tensor::Tensor;
 use ndarray::parallel::prelude::*;
-use ndarray::{ArrayD, Axis};
+use ndarray::{Axis, Zip};
 
-/// Trait defining the interface for cost functions
+/// Trait defining the interface for loss functions.
 ///
-/// # Methods:
-/// * `function` - Computation for a single 1D sample
-/// * `function_batch` - Parallel computation over a 2D batch (default impl)
-/// * `derivative` - Gradient w.r.t. predictions for backpropagation
-pub trait CostFunction: Send + Sync {
+/// All loss functions must implement this trait to be used for training neural networks.
+/// Both methods operate on tensors representing batches of samples.
+///
+/// # Parameters
+///
+/// - `t`: True labels (ground truth)
+/// - `z`: Predicted outputs from the model
+///
+/// # Methods
+///
+/// - `function`: Computes the scalar loss value for a batch
+/// - `derivative`: Computes the gradient w.r.t. predictions for backpropagation
+///
+/// # Thread Safety
+///
+/// The `Send + Sync` bounds allow loss functions to be safely shared across threads,
+/// enabling parallel batch processing during training.
+///
+/// # Shape Requirements
+///
+/// Both `t` and `z` must have identical shapes, or an error is returned. The first
+/// dimension is typically the batch dimension.
+pub trait LossFunction: Send + Sync {
+    /// Computes the loss value for a batch of samples.
+    ///
+    /// # Parameters
+    ///
+    /// - `t`: True labels tensor (shape: `[batch_size, ...]`)
+    /// - `z`: Predicted outputs tensor (shape: `[batch_size, ...]`)
+    ///
+    /// # Returns
+    ///
+    /// A scalar f32 representing the average loss across the batch, or an error
+    /// if shapes don't match or computation fails.
     fn function(&self, t: &Tensor, z: &Tensor) -> Result<f32, MathError>;
 
-    fn function_batch(&self, t: &Tensor, z: &Tensor) -> Result<f32, MathError> {
-        if t.shape != z.shape || t.dimension != 2 {
+    /// Computes the gradient of the loss w.r.t. predictions.
+    ///
+    /// # Parameters
+    ///
+    /// - `t`: True labels tensor
+    /// - `z`: Predicted outputs tensor
+    ///
+    /// # Returns
+    ///
+    /// A tensor with the same shape as the input, containing the gradient values
+    /// for backpropagation, or an error if shapes don't match.
+    fn derivative(&self, t: &Tensor, z: &Tensor) -> Result<Tensor, MathError>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Implementations
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Mean Squared Error (MSE) loss function.
+///
+/// # Mathematical Definition
+///
+/// - **Function**: `L(t,z) = (1/n) * Σ(t_i - z_i)²`
+/// - **Derivative**: `∂L/∂z_i = -2(t_i - z_i) / n`
+///
+/// # Properties
+///
+/// - L2 loss - penalizes large errors quadratically
+/// - Sensitive to outliers due to squaring
+/// - Commonly used for regression tasks
+/// - Differentiable everywhere
+///
+/// # Use Cases
+///
+/// - Regression problems
+/// - When large errors should be heavily penalized
+/// - Gaussian noise assumptions
+pub struct MeanSquaredError;
+
+impl LossFunction for MeanSquaredError {
+    fn function(&self, t: &Tensor, z: &Tensor) -> Result<f32, MathError> {
+        if t.shape != z.shape {
             return Err(MathError::CostFunctionBatchShapeMismatch);
         }
-        let m = t.shape[0];
+
+        // Parallel computation across batch dimension
         let sum: f32 = t
             .data
             .axis_iter(Axis(0))
@@ -26,111 +119,25 @@ pub trait CostFunction: Send + Sync {
             .zip(z.data.axis_iter(Axis(0)).into_par_iter())
             .map(|(t_i, z_i)| -> Result<f32, MathError> {
                 let t_i = Tensor {
-                    dimension: 1,
-                    shape: vec![t.shape[1]],
+                    dimension: t_i.ndim(),
+                    shape: t_i.shape().to_vec(),
                     data: t_i.to_owned(),
                 };
                 let z_i = Tensor {
-                    dimension: 1,
-                    shape: vec![z.shape[1]],
+                    dimension: z_i.ndim(),
+                    shape: z_i.shape().to_vec(),
                     data: z_i.to_owned(),
                 };
-                self.function(&t_i, &z_i)
+                // Σ(t_i - z_i)²
+                let diff = (&t_i - &z_i).map_err(|_| MathError::TensorSubtractionFailed)?;
+                Ok(diff.data.mapv(|x| x.powi(2)).sum())
             })
             .collect::<Result<Vec<f32>, MathError>>()?
             .into_iter()
             .sum();
-        Ok(sum / m as f32)
-    }
 
-    fn derivative(&self, t: &Tensor, z: &Tensor) -> Result<Tensor, MathError>;
-}
-
-/// Enum for cost function selection
-#[derive(Clone, Debug)]
-pub enum Cost {
-    MeanSquaredError,
-    MeanAbsoluteError,
-    BinaryCrossEntropy,
-    CategoricalCrossEntropy,
-    HuberLoss { delta: f32 },
-    HingeLoss,
-}
-
-impl Cost {
-    pub fn name(&self) -> &str {
-        match self {
-            Cost::MeanSquaredError => "MSE",
-            Cost::MeanAbsoluteError => "MAE",
-            Cost::BinaryCrossEntropy => "BCE",
-            Cost::CategoricalCrossEntropy => "CCE",
-            Cost::HuberLoss { .. } => "HuberLoss",
-            Cost::HingeLoss => "HingeLoss",
-        }
-    }
-}
-
-impl TryFrom<&str> for Cost {
-    type Error = MathError;
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        match s {
-            "MSE" => Ok(Cost::MeanSquaredError),
-            "MAE" => Ok(Cost::MeanAbsoluteError),
-            "BCE" => Ok(Cost::BinaryCrossEntropy),
-            "CCE" => Ok(Cost::CategoricalCrossEntropy),
-            "HingeLoss" => Ok(Cost::HingeLoss),
-            other => Err(MathError::UnknownCostFunction(other.to_string())),
-        }
-    }
-}
-
-/// Helper: dispatch a `Cost` variant to a `Box<dyn CostFunction>`
-fn cost_to_fn(cost: &Cost) -> Box<dyn CostFunction> {
-    match cost {
-        Cost::MeanSquaredError => Box::new(MeanSquaredError),
-        Cost::MeanAbsoluteError => Box::new(MeanAbsoluteError),
-        Cost::BinaryCrossEntropy => Box::new(BinaryCrossEntropy),
-        Cost::CategoricalCrossEntropy => Box::new(CategoricalCrossEntropy),
-        Cost::HuberLoss { delta } => Box::new(HuberLoss { delta: *delta }),
-        Cost::HingeLoss => Box::new(HingeLoss),
-    }
-}
-
-/// Compute the cost between two tensors
-///
-/// # Arguments
-/// * `cost` - Cost function variant to use
-/// * `t` - Target tensor
-/// * `z` - Predicted tensor
-/// * `batch_processing` - If `true` (default), uses the batch (parallel) method
-pub fn get_cost(
-    cost: &Cost,
-    t: &Tensor,
-    z: &Tensor,
-    batch_processing: bool,
-) -> Result<f32, MathError> {
-    let f = cost_to_fn(cost);
-    if batch_processing {
-        f.function_batch(t, z)
-    } else {
-        f.function(t, z)
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Implementations
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Mean Squared Error — `f(t,z) = (1/n) * Σ(t_i - z_i)²`
-pub struct MeanSquaredError;
-impl CostFunction for MeanSquaredError {
-    fn function(&self, t: &Tensor, z: &Tensor) -> Result<f32, MathError> {
-        if t.shape != z.shape || t.dimension != 1 {
-            return Err(MathError::CostFunctionShapeMismatch);
-        }
-        let diff = (t - z).map_err(|_| MathError::TensorSubtractionFailed)?;
-        let n = t.shape[0] as f32;
-        Ok(diff.data.mapv(|x| x.powi(2)).sum() / n)
+        // (1/n) * Σ(...)
+        Ok(sum / (t.length() as f32))
     }
 
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Result<Tensor, MathError> {
@@ -139,6 +146,7 @@ impl CostFunction for MeanSquaredError {
         }
         let n = t.length() as f32;
         let diff = (t - z).map_err(|_| MathError::TensorSubtractionFailed)?;
+        // ∂L/∂z_i = -2(t_i - z_i) / n
         let gradients = diff.data.mapv(|x| -x * 2.0 / n);
         Ok(Tensor {
             dimension: gradients.ndim(),
@@ -148,25 +156,76 @@ impl CostFunction for MeanSquaredError {
     }
 }
 
-/// Mean Absolute Error — `f(t,z) = (1/n) * Σ|t_i - z_i|`
+/// Mean Absolute Error (MAE) loss function.
+///
+/// # Mathematical Definition
+///
+/// - **Function**: `L(t,z) = (1/n) * Σ|t_i - z_i|`
+/// - **Derivative**: `∂L/∂z_i = -sign(t_i - z_i) / n`
+///
+/// # Properties
+///
+/// - L1 loss - penalizes errors linearly
+/// - More robust to outliers than MSE
+/// - Not differentiable at zero (uses sign function)
+/// - Gradients have constant magnitude regardless of error size
+///
+/// # Use Cases
+///
+/// - Regression with outliers in data
+/// - When all errors should be weighted equally
+/// - Robust optimization scenarios
 pub struct MeanAbsoluteError;
-impl CostFunction for MeanAbsoluteError {
+
+impl LossFunction for MeanAbsoluteError {
     fn function(&self, t: &Tensor, z: &Tensor) -> Result<f32, MathError> {
-        if t.shape != z.shape || t.dimension != 1 {
-            return Err(MathError::CostFunctionShapeMismatch);
+        if t.shape != z.shape {
+            return Err(MathError::CostFunctionBatchShapeMismatch);
         }
-        let diff = (t - z).map_err(|_| MathError::TensorSubtractionFailed)?;
-        let n = t.shape[0] as f32;
-        Ok(diff.data.mapv(|x| x.abs()).sum() / n)
+
+        // Parallel computation across batch dimension
+        let sum: f32 = t
+            .data
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
+            .map(|(t_i, z_i)| -> Result<f32, MathError> {
+                let t_i = Tensor {
+                    dimension: t_i.ndim(),
+                    shape: t_i.shape().to_vec(),
+                    data: t_i.to_owned(),
+                };
+                let z_i = Tensor {
+                    dimension: z_i.ndim(),
+                    shape: z_i.shape().to_vec(),
+                    data: z_i.to_owned(),
+                };
+                // Σ|t_i - z_i|
+                let diff = (&t_i - &z_i).map_err(|_| MathError::TensorSubtractionFailed)?;
+                Ok(diff.data.mapv(|x| x.abs()).sum())
+            })
+            .collect::<Result<Vec<f32>, MathError>>()?
+            .into_iter()
+            .sum();
+
+        // (1/n) * Σ|...|
+        Ok(sum / (t.length() as f32))
     }
 
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Result<Tensor, MathError> {
         if t.shape != z.shape {
             return Err(MathError::DerivativeShapeMismatch);
         }
-        let n = t.length() as f32;
         let diff = (t - z).map_err(|_| MathError::TensorSubtractionFailed)?;
-        let gradients = diff.data.mapv(|x| -(x.abs() / x) / n);
+        // ∂L/∂z_i = -sign(t_i - z_i) / n
+        // At zero: gradient is undefined, we return 0
+        let gradients = diff.data.mapv(|x| {
+            if x == 0.0 {
+                0.0
+            } else {
+                -(x.abs() / x) / t.length() as f32
+            }
+        });
         Ok(Tensor {
             dimension: gradients.ndim(),
             shape: gradients.shape().to_vec(),
@@ -175,35 +234,78 @@ impl CostFunction for MeanAbsoluteError {
     }
 }
 
-/// Binary Cross-Entropy — `f(t,z) = -(1/n) * Σ(t_i·log(z_i) + (1-t_i)·log(1-z_i))`
+/// Binary Cross-Entropy (BCE) loss function.
+///
+/// # Mathematical Definition
+///
+/// - **Function**: `L(t,z) = -(1/n) * Σ[t_i·log(z_i) + (1-t_i)·log(1-z_i)]`
+/// - **Derivative**: `∂L/∂z_i = -[t_i/z_i - (1-t_i)/(1-z_i)] / n`
+///
+/// # Properties
+///
+/// - Designed for binary classification tasks
+/// - Expects labels in {0, 1} and predictions in (0, 1)
+/// - Typically used with sigmoid activation in output layer
+/// - Numerically stabilized with epsilon clamping to prevent `log(0)`
+///
+/// # Numerical Stability
+///
+/// Predictions are clamped to `[1e-7, 1-1e-7]` to avoid `log(0)` and division by zero.
+///
+/// # Use Cases
+///
+/// - Binary classification problems
+/// - Multi-label classification (independent binary decisions per label)
+/// - When output layer uses sigmoid activation
 pub struct BinaryCrossEntropy;
-impl CostFunction for BinaryCrossEntropy {
+
+impl LossFunction for BinaryCrossEntropy {
     fn function(&self, t: &Tensor, z: &Tensor) -> Result<f32, MathError> {
-        if t.shape != z.shape || t.dimension != 1 {
-            return Err(MathError::CostFunctionShapeMismatch);
+        if t.shape != z.shape {
+            return Err(MathError::CostFunctionBatchShapeMismatch);
         }
+        // Clamp predictions to prevent log(0)
+        let epsilon = 1e-7;
+
+        // Parallel computation across batch dimension
         let sum: f32 = t
             .data
-            .iter()
-            .zip(z.data.iter())
-            .map(|(t_i, z_i)| t_i * z_i.ln() + (1.0 - t_i) * (1.0 - z_i).ln())
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
+            .map(|(t_i, z_i)| -> Result<f32, MathError> {
+                // L = -Σ[t·log(z) + (1-t)·log(1-z)]
+                let sum: f32 = t_i
+                    .iter()
+                    .zip(z_i.iter())
+                    .map(|(t_j, z_j)| {
+                        let z_clamped = z_j.clamp(epsilon, 1.0 - epsilon);
+                        t_j * z_clamped.ln() + (1.0 - t_j) * (1.0 - z_clamped).ln()
+                    })
+                    .sum();
+                Ok(-sum)
+            })
+            .collect::<Result<Vec<f32>, MathError>>()?
+            .into_iter()
             .sum();
-        Ok(-sum / t.shape[0] as f32)
+
+        // (1/n) * Σ(...)
+        Ok(sum / (t.length() as f32))
     }
 
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Result<Tensor, MathError> {
         if t.shape != z.shape {
             return Err(MathError::DerivativeShapeMismatch);
         }
-        let n = t.length() as f32;
-        let grad_vec: Vec<f32> = t
-            .data
-            .iter()
-            .zip(z.data.iter())
-            .map(|(t_i, z_i)| -((t_i / z_i) - ((1.0 - t_i) / (1.0 - z_i))) / n)
-            .collect();
-        let gradients = ArrayD::from_shape_vec(t.shape.clone(), grad_vec)
-            .map_err(|_| MathError::GradientShapeMismatch)?;
+
+        let epsilon = 1e-7;
+
+        // ∂L/∂z = -[t/z - (1-t)/(1-z)] / n
+        let gradients = Zip::from(&t.data).and(&z.data).par_map_collect(|t_i, z_i| {
+            let z_clamped = z_i.clamp(epsilon, 1.0 - epsilon);
+            -((t_i / z_clamped) - ((1.0 - t_i) / (1.0 - z_clamped))) / t.length() as f32
+        });
+
         Ok(Tensor {
             dimension: gradients.ndim(),
             shape: gradients.shape().to_vec(),
@@ -212,35 +314,79 @@ impl CostFunction for BinaryCrossEntropy {
     }
 }
 
-/// Categorical Cross-Entropy — `f(t,z) = -Σ(t_k·log(z_k))`
+/// Categorical Cross-Entropy (CCE) loss function.
+///
+/// # Mathematical Definition
+///
+/// - **Function**: `L(t,z) = -(1/n) * ΣΣ t_i,k·log(z_i,k)`
+/// - **Derivative**: `∂L/∂z_i,k = -t_i,k / z_i,k / n`
+///
+/// # Properties
+///
+/// - Designed for multi-class classification (mutually exclusive classes)
+/// - Expects one-hot encoded labels: `t_i,k ∈ {0,1}` with `Σt_i,k = 1`
+/// - Expects softmax-normalized predictions: `z_i,k ∈ (0,1)` with `Σz_i,k = 1`
+/// - Typically used with softmax activation in output layer
+/// - Numerically stabilized with epsilon clamping
+///
+/// # Numerical Stability
+///
+/// Predictions are clamped to `[1e-7, 1-1e-7]` to avoid `log(0)`.
+///
+/// # Use Cases
+///
+/// - Multi-class classification (single label per sample)
+/// - When output layer uses softmax activation
+/// - Image classification, NLP classification tasks
 pub struct CategoricalCrossEntropy;
-impl CostFunction for CategoricalCrossEntropy {
+
+impl LossFunction for CategoricalCrossEntropy {
     fn function(&self, t: &Tensor, z: &Tensor) -> Result<f32, MathError> {
-        if t.shape != z.shape || t.dimension != 1 {
-            return Err(MathError::CostFunctionShapeMismatch);
+        if t.shape != z.shape {
+            return Err(MathError::CostFunctionBatchShapeMismatch);
         }
+        // Clamp predictions to prevent log(0)
+        let epsilon = 1e-7;
+
+        // Parallel computation across batch dimension
         let sum: f32 = t
             .data
-            .iter()
-            .zip(z.data.iter())
-            .map(|(t_k, z_k)| t_k * z_k.ln())
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
+            .map(|(t_i, z_i)| -> Result<f32, MathError> {
+                // L = -Σ t_k·log(z_k)
+                let sum: f32 = t_i
+                    .iter()
+                    .zip(z_i.iter())
+                    .map(|(t_j, z_j)| {
+                        let z_clamped = z_j.clamp(epsilon, 1.0 - epsilon);
+                        t_j * z_clamped.ln()
+                    })
+                    .sum();
+                Ok(-sum)
+            })
+            .collect::<Result<Vec<f32>, MathError>>()?
+            .into_iter()
             .sum();
-        Ok(-sum)
+
+        // (1/n) * Σ(...)
+        Ok(sum / (t.length() as f32))
     }
 
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Result<Tensor, MathError> {
         if t.shape != z.shape {
             return Err(MathError::DerivativeShapeMismatch);
         }
-        let n = t.length() as f32;
-        let grad_vec: Vec<f32> = t
-            .data
-            .iter()
-            .zip(z.data.iter())
-            .map(|(t_i, z_i)| -(t_i / z_i) / n)
-            .collect();
-        let gradients = ArrayD::from_shape_vec(t.shape.clone(), grad_vec)
-            .map_err(|_| MathError::GradientShapeMismatch)?;
+
+        let epsilon = 1e-7;
+
+        // ∂L/∂z = -t / z / n
+        let gradients = Zip::from(&t.data).and(&z.data).par_map_collect(|t_i, z_i| {
+            let z_clamped = z_i.clamp(epsilon, 1.0 - epsilon);
+            -(t_i / z_clamped) / t.length() as f32
+        });
+
         Ok(Tensor {
             dimension: gradients.ndim(),
             shape: gradients.shape().to_vec(),
@@ -249,58 +395,100 @@ impl CostFunction for CategoricalCrossEntropy {
     }
 }
 
-/// Huber Loss
+/// Huber Loss function.
+///
+/// # Mathematical Definition
+///
+/// ```text
+/// L(t,z) = (1/n) * Σ L_δ(t_i - z_i)
+///
+/// where L_δ(x) = {
+///   0.5·x²          if |x| ≤ δ
+///   δ·|x| - 0.5·δ²  if |x| > δ
+/// }
 /// ```
-/// f(t,z) = (1/n) * Σ Lδ(t_i - z_i)
-/// Lδ(x) = 0.5·x²        if |x| ≤ δ
-///          δ·|x| - 0.5δ² if |x| > δ
+///
+/// Derivative:
+/// ```text
+/// ∂L/∂z_i = {
+///   (z_i - t_i) / n           if |t_i - z_i| ≤ δ
+///   -δ·sign(t_i - z_i) / n    if |t_i - z_i| > δ
+/// }
 /// ```
+///
+/// # Properties
+///
+/// - Hybrid loss combining MSE and MAE characteristics
+/// - Quadratic for small errors (|x| ≤ δ): smooth, differentiable
+/// - Linear for large errors (|x| > δ): robust to outliers
+/// - Transition point controlled by delta parameter (δ)
+/// - More robust than MSE, smoother gradient than MAE
+///
+/// # Parameters
+///
+/// - `delta`: Threshold determining quadratic/linear transition point
+///
+/// # Use Cases
+///
+/// - Regression with occasional outliers
+/// - When you want MSE smoothness for typical errors but MAE robustness for outliers
+/// - Object detection bounding box regression
 pub struct HuberLoss {
+    /// Threshold δ for switching between quadratic and linear loss.
     pub delta: f32,
 }
-impl CostFunction for HuberLoss {
+
+impl LossFunction for HuberLoss {
     fn function(&self, t: &Tensor, z: &Tensor) -> Result<f32, MathError> {
-        if t.shape != z.shape || t.dimension != 1 {
-            return Err(MathError::CostFunctionShapeMismatch);
+        if t.shape != z.shape {
+            return Err(MathError::CostFunctionBatchShapeMismatch);
         }
+
+        // Parallel computation across batch dimension
         let sum: f32 = t
             .data
-            .iter()
-            .zip(z.data.iter())
-            .map(|(t_i, z_i)| {
-                let diff = t_i - z_i;
-                if diff.abs() <= self.delta {
-                    diff.powi(2) / 2.0
-                } else {
-                    self.delta * diff.abs() - self.delta.powi(2) / 2.0
-                }
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
+            .map(|(t_i, z_i)| -> Result<f32, MathError> {
+                let sum: f32 = t_i
+                    .iter()
+                    .zip(z_i.iter())
+                    .map(|(t_j, z_j)| {
+                        let diff = t_j - z_j;
+                        // L_δ(x) = 0.5·x² if |x| ≤ δ, else δ·|x| - 0.5·δ²
+                        if diff.abs() <= self.delta {
+                            diff.powi(2) / 2.0
+                        } else {
+                            self.delta * diff.abs() - self.delta.powi(2) / 2.0
+                        }
+                    })
+                    .sum();
+                Ok(sum)
             })
+            .collect::<Result<Vec<f32>, MathError>>()?
+            .into_iter()
             .sum();
-        Ok(sum / t.shape[0] as f32)
+
+        // (1/n) * Σ(...)
+        Ok(sum / (t.length() as f32))
     }
 
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Result<Tensor, MathError> {
         if t.shape != z.shape {
             return Err(MathError::DerivativeShapeMismatch);
         }
-        let n = t.length() as f32;
-        let grad_vec: Vec<f32> = t
-            .data
-            .iter()
-            .zip(z.data.iter())
-            .map(|(t_i, z_i)| {
-                let diff = t_i - z_i;
-                if diff.abs() <= self.delta {
-                    (z_i - t_i) / n
-                } else if diff == 0.0 {
-                    0.0
-                } else {
-                    (-self.delta * diff.abs() / diff) / n
-                }
-            })
-            .collect();
-        let gradients = ArrayD::from_shape_vec(t.shape.clone(), grad_vec)
-            .map_err(|_| MathError::GradientShapeMismatch)?;
+
+        // ∂L/∂z = (z - t)/n if |t - z| ≤ δ, else -δ·sign(t - z)/n
+        let gradients = Zip::from(&t.data).and(&z.data).par_map_collect(|t_i, z_i| {
+            let diff = t_i - z_i;
+            if diff.abs() <= self.delta {
+                (z_i - t_i) / t.length() as f32
+            } else {
+                (-self.delta * diff.abs() / diff) / t.length() as f32
+            }
+        });
+
         Ok(Tensor {
             dimension: gradients.ndim(),
             shape: gradients.shape().to_vec(),
@@ -309,38 +497,74 @@ impl CostFunction for HuberLoss {
     }
 }
 
-/// Hinge Loss — `f(t,z) = (1/n) * Σ max(0, 1 - t_i·z_i)`
+/// Hinge Loss function.
+///
+/// # Mathematical Definition
+///
+/// - **Function**: `L(t,z) = (1/n) * Σ max(0, 1 - t_i·z_i)`
+/// - **Derivative**: `∂L/∂z_i = -t_i / n` if `t_i·z_i < 1`, else `0`
+///
+/// # Properties
+///
+/// - Designed for binary classification with margin-based learning
+/// - Expects labels in {-1, +1} (not {0, 1})
+/// - Penalizes predictions that are on the wrong side or too close to the decision boundary
+/// - Zero loss when correct prediction with sufficient margin (`t·z ≥ 1`)
+/// - Used in Support Vector Machines (SVMs)
+///
+/// # Margin Interpretation
+///
+/// - `t·z > 1`: Correct with margin → loss = 0
+/// - `0 < t·z < 1`: Correct but insufficient margin → linear penalty
+/// - `t·z < 0`: Incorrect prediction → larger linear penalty
+///
+/// # Use Cases
+///
+/// - Binary classification with margin enforcement
+/// - Support Vector Machines (SVMs)
+/// - When you want to encourage confident predictions
 pub struct HingeLoss;
-impl CostFunction for HingeLoss {
+
+impl LossFunction for HingeLoss {
     fn function(&self, t: &Tensor, z: &Tensor) -> Result<f32, MathError> {
-        if t.shape != z.shape || t.dimension != 1 {
-            return Err(MathError::CostFunctionShapeMismatch);
+        if t.shape != z.shape {
+            return Err(MathError::CostFunctionBatchShapeMismatch);
         }
+
+        // Parallel computation across batch dimension
         let sum: f32 = t
             .data
-            .iter()
-            .zip(z.data.iter())
-            .map(|(t_i, z_i)| 0.0_f32.max(1.0 - t_i * z_i))
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .zip(z.data.axis_iter(Axis(0)).into_par_iter())
+            .map(|(t_i, z_i)| -> Result<f32, MathError> {
+                // L = Σ max(0, 1 - t·z)
+                let sum: f32 = t_i
+                    .iter()
+                    .zip(z_i.iter())
+                    .map(|(t_j, z_j)| 0.0_f32.max(1.0 - t_j * z_j))
+                    .sum();
+                Ok(sum)
+            })
+            .collect::<Result<Vec<f32>, MathError>>()?
+            .into_iter()
             .sum();
-        Ok(sum / t.shape[0] as f32)
+
+        // (1/n) * Σ(...)
+        Ok(sum / (t.length() as f32))
     }
 
     fn derivative(&self, t: &Tensor, z: &Tensor) -> Result<Tensor, MathError> {
         if t.shape != z.shape {
             return Err(MathError::DerivativeShapeMismatch);
         }
-        let n = t.length() as f32;
-        let grad_vec: Vec<f32> = t
-            .data
-            .iter()
-            .zip(z.data.iter())
-            .map(|(t_i, z_i)| {
-                let x = if t_i * z_i < 1.0 { -t_i } else { 0.0 };
-                x / n
-            })
-            .collect();
-        let gradients = ArrayD::from_shape_vec(t.shape.clone(), grad_vec)
-            .map_err(|_| MathError::GradientShapeMismatch)?;
+
+        // ∂L/∂z = -t/n if t·z < 1, else 0
+        let gradients = Zip::from(&t.data).and(&z.data).par_map_collect(|t_i, z_i| {
+            let x = if t_i * z_i < 1.0 { -t_i } else { 0.0 };
+            x / t.length() as f32
+        });
+
         Ok(Tensor {
             dimension: gradients.ndim(),
             shape: gradients.shape().to_vec(),
