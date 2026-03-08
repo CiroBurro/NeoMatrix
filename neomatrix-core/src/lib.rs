@@ -28,6 +28,8 @@
 //! let result = t1.dot(&t2).unwrap();
 //! ```
 
+extern crate openblas_src;
+
 pub mod errors;
 pub mod layers;
 pub mod math;

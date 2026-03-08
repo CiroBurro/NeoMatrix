@@ -10,7 +10,6 @@
 //! - **Sigmoid** (`Sigmoid`): Squashes values to (0, 1) - commonly used for binary classification
 //! - **Tanh** (`Tanh`): Squashes values to (-1, 1) - zero-centered alternative to Sigmoid
 //! - **Softmax** (`Softmax`): Converts logits to probability distribution - used for multi-class classification
-//! - **Linear** (`Linear`): Identity function - used when no non-linearity is needed
 //!
 //! # Performance
 //!
@@ -54,7 +53,7 @@ use ndarray::{s, Array2, Array3, Axis};
 /// 1. Clone the input tensor's data once
 /// 2. Apply transformations in-place using parallel operations where possible
 /// 3. Return appropriate errors for unsupported tensor dimensions
-pub trait ActivationFunction: Send + Sync {
+pub(crate) trait ActivationFunction: Send + Sync {
     /// Applies the activation function to the input tensor.
     ///
     /// # Parameters
@@ -103,7 +102,7 @@ pub trait ActivationFunction: Send + Sync {
 ///
 /// - Input: `(-∞, +∞)`
 /// - Output: `[0, +∞)`
-pub struct Relu;
+pub(crate) struct Relu;
 
 impl ActivationFunction for Relu {
     fn function(&self, t: &Tensor) -> Result<Tensor, MathError> {
@@ -151,7 +150,7 @@ impl ActivationFunction for Relu {
 ///
 /// The derivative expects the **output** of the sigmoid function (not the input),
 /// which is more numerically efficient since `σ' = σ(1 - σ)`.
-pub struct Sigmoid;
+pub(crate) struct Sigmoid;
 
 impl ActivationFunction for Sigmoid {
     fn function(&self, t: &Tensor) -> Result<Tensor, MathError> {
@@ -198,7 +197,7 @@ impl ActivationFunction for Sigmoid {
 /// # Implementation Note
 ///
 /// The derivative expects the **input** (not output), computing `1 - tanh²(x)` directly.
-pub struct Tanh;
+pub(crate) struct Tanh;
 
 impl ActivationFunction for Tanh {
     fn function(&self, t: &Tensor) -> Result<Tensor, MathError> {
@@ -249,7 +248,7 @@ impl ActivationFunction for Tanh {
 ///
 /// - Input: `(-∞, +∞)`
 /// - Output: `(0, 1)` with `Σf(x_i) = 1`
-pub struct Softmax;
+pub(crate) struct Softmax;
 
 impl ActivationFunction for Softmax {
     fn function(&self, t: &Tensor) -> Result<Tensor, MathError> {
@@ -335,42 +334,5 @@ impl ActivationFunction for Softmax {
         } else {
             Err(MathError::SoftmaxDerivativeUnsupportedDimension)
         }
-    }
-}
-
-/// Linear (identity) activation function.
-///
-/// # Mathematical Definition
-///
-/// - **Function**: `f(x) = x`
-/// - **Derivative**: `f'(x) = 1`
-///
-/// # Properties
-///
-/// - No transformation applied to input (identity mapping)
-/// - Constant derivative of 1 everywhere
-/// - Used when no non-linearity is needed (e.g., regression output layers)
-/// - Computationally trivial but included for API consistency
-///
-/// # Range
-///
-/// - Input: `(-∞, +∞)`
-/// - Output: `(-∞, +∞)`
-pub struct Linear;
-
-impl ActivationFunction for Linear {
-    fn function(&self, t: &Tensor) -> Result<Tensor, MathError> {
-        // f(x) = x (identity)
-        Ok(t.clone())
-    }
-
-    fn derivative(&self, t: &Tensor) -> Result<Tensor, MathError> {
-        // f'(x) = 1 (constant derivative)
-        let data = t.data.mapv(|_| 1.0);
-        Ok(Tensor {
-            dimension: data.ndim(),
-            shape: data.shape().to_vec(),
-            data,
-        })
     }
 }

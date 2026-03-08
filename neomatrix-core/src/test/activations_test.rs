@@ -3,7 +3,7 @@
 //! Tests verify both the forward pass (function) and backward pass (derivative)
 //! for all activation functions: Relu, Sigmoid, Tanh, Softmax, Linear.
 
-use crate::math::activations::{ActivationFunction, Linear, Relu, Sigmoid, Softmax, Tanh};
+use crate::math::activations::{ActivationFunction, Relu, Sigmoid, Softmax, Tanh};
 use crate::tensor::Tensor;
 
 // =============================================================================
@@ -471,81 +471,5 @@ mod softmax_tests {
         let result = softmax.derivative(&t);
 
         assert!(result.is_err());
-    }
-}
-
-// =============================================================================
-// LINEAR ACTIVATION
-// =============================================================================
-
-#[cfg(test)]
-mod linear_tests {
-    use super::*;
-
-    #[test]
-    fn linear_function_is_identity() {
-        let t = Tensor::new(vec![4], vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let linear = Linear;
-        let result = linear.function(&t).unwrap();
-
-        assert_eq!(result.data.as_slice().unwrap(), t.data.as_slice().unwrap());
-    }
-
-    #[test]
-    fn linear_function_negative_values() {
-        let t = Tensor::new(vec![3], vec![-1.0, -2.0, -3.0]).unwrap();
-        let linear = Linear;
-        let result = linear.function(&t).unwrap();
-
-        assert_eq!(result.data.as_slice().unwrap(), t.data.as_slice().unwrap());
-    }
-
-    #[test]
-    fn linear_function_preserves_shape() {
-        let t = Tensor::new(vec![2, 3, 4], vec![1.0; 24]).unwrap();
-        let linear = Linear;
-        let result = linear.function(&t).unwrap();
-
-        assert_eq!(result.shape, vec![2, 3, 4]);
-        assert_eq!(result.dimension, 3);
-    }
-
-    #[test]
-    fn linear_derivative_is_ones() {
-        let t = Tensor::new(vec![5], vec![1.0, 2.0, 3.0, 4.0, 5.0]).unwrap();
-        let linear = Linear;
-        let result = linear.derivative(&t).unwrap();
-
-        assert_eq!(result.data.as_slice().unwrap(), &[1.0, 1.0, 1.0, 1.0, 1.0]);
-    }
-
-    #[test]
-    fn linear_derivative_negative_input() {
-        let t = Tensor::new(vec![3], vec![-10.0, -20.0, -30.0]).unwrap();
-        let linear = Linear;
-        let result = linear.derivative(&t).unwrap();
-
-        // Derivative is always 1 regardless of input
-        assert_eq!(result.data.as_slice().unwrap(), &[1.0, 1.0, 1.0]);
-    }
-
-    #[test]
-    fn linear_derivative_preserves_shape() {
-        let t = Tensor::new(vec![2, 3], vec![1.0; 6]).unwrap();
-        let linear = Linear;
-        let result = linear.derivative(&t).unwrap();
-
-        assert_eq!(result.shape, vec![2, 3]);
-        assert_eq!(result.dimension, 2);
-        assert!(result.data.iter().all(|&x| x == 1.0));
-    }
-
-    #[test]
-    fn linear_derivative_on_zeros() {
-        let t = Tensor::zeros(vec![4, 4]);
-        let linear = Linear;
-        let result = linear.derivative(&t).unwrap();
-
-        assert!(result.data.iter().all(|&x| x == 1.0));
     }
 }

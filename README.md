@@ -88,7 +88,7 @@ High-level Python API inspired by Keras, built on top of the Rust backend. Will 
 - [x] **Type Safety**: `Result`-based error handling throughout
 - [x] **Operator Overloading**: Pythonic tensor arithmetic (`+`, `-`, `*`, `/`)
 - [x] **Iterator Support**: Tensors implement Rust's `Iterator` trait
-- [x] **216 Unit Tests**: Comprehensive test coverage for all modules
+- [x] **209 Unit Tests**: Comprehensive test coverage for all modules
 
 ### Activation Functions
 

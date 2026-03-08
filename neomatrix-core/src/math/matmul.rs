@@ -44,7 +44,7 @@ use ndarray::{Array2, ArrayView2, Axis};
 /// let b = Array2::from_shape_vec((3, 2), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]).unwrap();
 /// let c = par_dot(a.view(), b.view()); // Shape: (2, 2)
 /// ```
-pub fn par_dot(t_1: ArrayView2<f32>, t_2: ArrayView2<f32>) -> Array2<f32> {
+pub(crate) fn par_dot(t_1: ArrayView2<f32>, t_2: ArrayView2<f32>) -> Array2<f32> {
     let (m, _) = t_1.dim();
     let (_, p) = t_2.dim();
 

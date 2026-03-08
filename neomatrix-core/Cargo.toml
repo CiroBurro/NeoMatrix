@@ -9,7 +9,9 @@ name = "neomatrix_core"
 crate-type = ["cdylib"]
 
 [dependencies]
-ndarray = { version = "*", features = ["rayon"] }
+ndarray = { version = "*", features = ["rayon", "blas"] }
 ndarray-rand = "*"
 rand = "*"
 thiserror = "*"
+openblas-src = { version = "*", features = ["static"] }
+blas-src = { version = "*", features = ["openblas"] }

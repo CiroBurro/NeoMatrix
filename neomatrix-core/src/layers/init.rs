@@ -115,7 +115,7 @@ impl Init {
     /// let weights = Init::He.init(128, 64, None);
     /// assert_eq!(weights.shape(), &[128, 64]);
     /// ```
-    pub fn init(&self, in_feat: usize, out_feat: usize, rg: Option<Range<f32>>) -> Tensor {
+    pub(crate) fn init(&self, in_feat: usize, out_feat: usize, rg: Option<Range<f32>>) -> Tensor {
         match self {
             Init::Random => Tensor::random(vec![in_feat, out_feat], rg.unwrap_or(-1.0..1.0)),
             Init::Xavier => {
