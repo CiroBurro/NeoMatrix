@@ -3,11 +3,7 @@
 //! Tests cover construction, arithmetic, linear algebra, shape operations,
 //! concatenation, serialization, and iteration using PyO3 0.26.x patterns.
 
-use crate::structures::tensor::Tensor;
-use numpy::{IntoPyArray, PyArrayMethods};
-use pyo3::prelude::*;
-use pyo3::py_run;
-use pyo3::types::PyDict;
+use crate::tensor::Tensor;
 
 // =============================================================================
 // TENSOR CONSTRUCTION
@@ -103,7 +99,7 @@ mod tensor_construction {
     #[test]
     fn random_creates_values_in_correct_range() {
         let shape = vec![100, 100];
-        let tensor = Tensor::random(shape);
+        let tensor = Tensor::random(shape, 0.0..100.0);
 
         // random_range(0.0..100.0) generates values in [0.0, 100.0)
         assert!(tensor.data.iter().all(|&x| x >= 0.0 && x < 100.0));
@@ -115,8 +111,8 @@ mod tensor_construction {
     #[test]
     fn random_creates_different_values() {
         let shape = vec![10, 10];
-        let t1 = Tensor::random(shape.clone());
-        let t2 = Tensor::random(shape);
+        let t1 = Tensor::random(shape.clone(), 0.0..100.0);
+        let t2 = Tensor::random(shape, 0.0..100.0);
 
         // Statistical test: at least 90% of values should differ
         let different_count = t1
@@ -126,47 +122,6 @@ mod tensor_construction {
             .filter(|(&a, &b)| (a - b).abs() > 0.001)
             .count();
         assert!(different_count > 90);
-    }
-
-    #[test]
-    fn from_numpy_creates_tensor_from_array() {
-        Python::attach(|py| {
-            let arr = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0].into_pyarray(py);
-            let arr_reshaped = arr.reshape([2, 3]).expect("reshape failed");
-            let arr_dyn = arr_reshaped
-                .as_any()
-                .downcast::<numpy::PyArrayDyn<f32>>()
-                .unwrap();
-            let arr_readonly = arr_dyn.readonly();
-
-            let tensor = Tensor::from_numpy(arr_readonly).unwrap();
-
-            assert_eq!(tensor.shape, vec![2, 3]);
-            assert_eq!(tensor.dimension, 2);
-            assert_eq!(
-                tensor.data.as_slice().unwrap(),
-                &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-            );
-        });
-    }
-
-    #[test]
-    fn from_numpy_preserves_shape() {
-        Python::attach(|py| {
-            let data: Vec<f32> = (0..24).map(|x| x as f32).collect();
-            let arr = data.into_pyarray(py);
-            let arr_reshaped = arr.reshape([2, 3, 4]).expect("reshape failed");
-            let arr_dyn = arr_reshaped
-                .as_any()
-                .downcast::<numpy::PyArrayDyn<f32>>()
-                .unwrap();
-            let arr_readonly = arr_dyn.readonly();
-
-            let tensor = Tensor::from_numpy(arr_readonly).unwrap();
-
-            assert_eq!(tensor.shape, vec![2, 3, 4]);
-            assert_eq!(tensor.dimension, 3);
-        });
     }
 }
 
@@ -260,7 +215,7 @@ mod tensor_shape_operations {
         assert_eq!(reshaped.shape, vec![3, 4]);
         assert_eq!(reshaped.dimension, 2);
         assert_eq!(reshaped.data.as_slice().unwrap(), content.as_slice());
-        
+
         // Verifica che l'originale non sia stato modificato
         assert_eq!(tensor.shape, vec![2, 6]);
     }
@@ -281,7 +236,7 @@ mod tensor_shape_operations {
         assert_eq!(flattened.shape, vec![12]);
         assert_eq!(flattened.dimension, 1);
         assert_eq!(flattened.data.ndim(), 1);
-        
+
         // Verifica che l'originale non sia stato modificato
         assert_eq!(tensor.shape, vec![2, 3, 2]);
     }
@@ -294,7 +249,6 @@ mod tensor_shape_operations {
 
         assert_eq!(flattened.data.as_slice().unwrap(), content.as_slice());
     }
-
 
     #[test]
     fn transpose_2d_swaps_dimensions() {
@@ -572,8 +526,8 @@ mod tensor_dot_product {
     #[test]
     fn dot_large_matrices_uses_parallel() {
         // This test verifies parallel matmul works for large matrices
-        let m1 = Tensor::random(vec![100, 100]);
-        let m2 = Tensor::random(vec![100, 100]);
+        let m1 = Tensor::random(vec![100, 100], 0.0..100.0);
+        let m2 = Tensor::random(vec![100, 100], 0.0..100.0);
         let result = m1.dot(&m2);
 
         assert!(result.is_ok());
@@ -732,212 +686,6 @@ mod tensor_concatenation {
 }
 
 // =============================================================================
-// TENSOR SERIALIZATION
-// =============================================================================
-
-#[cfg(test)]
-mod tensor_serialization {
-    use super::*;
-
-    #[test]
-    fn to_dict_from_dict_roundtrip() {
-        Python::attach(|py| {
-            let original = Tensor::new(vec![2, 3], vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-            let dict = original.to_dict().unwrap();
-            let dict_bound = dict.bind(py);
-            let restored = Tensor::from_dict(dict_bound.clone()).unwrap();
-
-            assert_eq!(restored.shape, original.shape);
-            assert_eq!(restored.dimension, original.dimension);
-            assert_eq!(
-                restored.data.as_slice().unwrap(),
-                original.data.as_slice().unwrap()
-            );
-        });
-    }
-
-    #[test]
-    fn to_dict_preserves_all_fields() {
-        Python::attach(|py| {
-            let tensor = Tensor::new(vec![2, 3, 4], vec![1.0; 24]).unwrap();
-            let dict = tensor.to_dict().unwrap();
-            let dict_bound = dict.bind(py);
-
-            let dimension: usize = dict_bound
-                .get_item("dimension")
-                .expect("dimension missing")
-                .extract()
-                .unwrap();
-            assert_eq!(dimension, 3);
-
-            let shape: Vec<usize> = dict_bound
-                .get_item("shape")
-                .expect("shape missing")
-                .extract()
-                .unwrap();
-            assert_eq!(shape, vec![2, 3, 4]);
-
-            let data: Vec<f32> = dict_bound
-                .get_item("data")
-                .expect("data missing")
-                .extract()
-                .unwrap();
-            assert_eq!(data.len(), 24);
-        });
-    }
-
-    #[test]
-    fn from_dict_validates_shape_data_consistency() {
-        Python::attach(|py| {
-            let dict = PyDict::new(py);
-            dict.set_item("dimension", 2).unwrap();
-            dict.set_item("shape", vec![2, 2]).unwrap();
-            dict.set_item("data", vec![1.0_f32, 2.0, 3.0]).unwrap(); // Only 3 elements for 2x2
-
-            let result = Tensor::from_dict(dict.into_any());
-
-            assert!(result.is_err());
-        });
-    }
-
-    #[test]
-    fn from_dict_rejects_missing_fields() {
-        Python::attach(|py| {
-            let dict = PyDict::new(py);
-            dict.set_item("dimension", 2).unwrap();
-            // Missing "shape" and "data"
-
-            let result = Tensor::from_dict(dict.into_any());
-
-            assert!(result.is_err());
-        });
-    }
-
-    #[test]
-    fn serialization_preserves_f32_precision() {
-        Python::attach(|py| {
-            let original =
-                Tensor::new(vec![3], vec![1.234567_f32, 9.876543_f32, 0.000001_f32]).unwrap();
-            let dict = original.to_dict().unwrap();
-            let restored = Tensor::from_dict(dict.bind(py).clone()).unwrap();
-
-            for (a, b) in original.data.iter().zip(restored.data.iter()) {
-                assert!((a - b).abs() < 1e-6);
-            }
-        });
-    }
-}
-
-// =============================================================================
-// TENSOR ITERATION
-// =============================================================================
-
-#[cfg(test)]
-mod tensor_iteration {
-    use super::*;
-
-    #[test]
-    fn iter_yields_all_elements_in_order() {
-        Python::attach(|py| {
-            let content = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-            let tensor = Tensor::new(vec![2, 3], content.clone()).unwrap();
-            let tensor_py = Py::new(py, tensor).unwrap();
-
-            // Get iterator via __iter__
-            let iter_obj = tensor_py.bind(py).call_method0("__iter__").unwrap();
-
-            // Collect values via __next__
-            let mut collected = vec![];
-            loop {
-                match iter_obj.call_method0("__next__") {
-                    Ok(val) => collected.push(val.extract::<f32>().unwrap()),
-                    Err(_) => break, // StopIteration
-                }
-            }
-
-            assert_eq!(collected, content);
-        });
-    }
-
-    #[test]
-    fn iter_empty_tensor_stops_immediately() {
-        Python::attach(|py| {
-            let tensor = Tensor::new(vec![0], vec![]).unwrap();
-            let tensor_py = Py::new(py, tensor).unwrap();
-
-            let iter_obj = tensor_py.bind(py).call_method0("__iter__").unwrap();
-
-            // First __next__ should raise StopIteration
-            let result = iter_obj.call_method0("__next__");
-            assert!(result.is_err());
-        });
-    }
-
-    #[test]
-    fn iter_single_element() {
-        Python::attach(|py| {
-            let tensor = Tensor::new(vec![1], vec![42.0]).unwrap();
-            let tensor_py = Py::new(py, tensor).unwrap();
-
-            let iter_obj = tensor_py.bind(py).call_method0("__iter__").unwrap();
-
-            let first = iter_obj
-                .call_method0("__next__")
-                .unwrap()
-                .extract::<f32>()
-                .unwrap();
-            assert_eq!(first, 42.0);
-
-            // Second call should raise StopIteration
-            let result = iter_obj.call_method0("__next__");
-            assert!(result.is_err());
-        });
-    }
-
-    #[test]
-    fn iter_multidimensional_flattens() {
-        Python::attach(|py| {
-            let tensor = Tensor::new(vec![2, 2, 3], vec![1.0; 12]).unwrap();
-            let tensor_py = Py::new(py, tensor).unwrap();
-
-            let iter_obj = tensor_py.bind(py).call_method0("__iter__").unwrap();
-
-            let mut count = 0;
-            loop {
-                match iter_obj.call_method0("__next__") {
-                    Ok(val) => {
-                        assert_eq!(val.extract::<f32>().unwrap(), 1.0);
-                        count += 1;
-                    }
-                    Err(_) => break,
-                }
-            }
-
-            assert_eq!(count, 12);
-        });
-    }
-
-    #[test]
-    fn iter_via_python_for_loop() {
-        Python::attach(|py| {
-            let tensor = Tensor::new(vec![3], vec![1.0, 2.0, 3.0]).unwrap();
-            let tensor_py = Py::new(py, tensor).unwrap();
-
-            py_run!(
-                py,
-                tensor_py,
-                r#"
-result = []
-for x in tensor_py:
-    result.append(x)
-assert result == [1.0, 2.0, 3.0], f"Expected [1.0, 2.0, 3.0], got {result}"
-            "#
-            );
-        });
-    }
-}
-
-// =============================================================================
 // TENSOR EDGE CASES
 // =============================================================================
 
@@ -978,7 +726,7 @@ mod tensor_edge_cases {
     fn large_tensor_operations_complete() {
         let shape = vec![1000];
         let t1 = Tensor::zeros(shape.clone());
-        let t2 = Tensor::random(shape);
+        let t2 = Tensor::random(shape, 0.0..100.0);
         let result = (&t1 + &t2).unwrap();
 
         assert_eq!(result.data.len(), 1000);
@@ -1007,63 +755,5 @@ mod tensor_edge_cases {
     fn length_method_returns_total_elements() {
         let t = Tensor::new(vec![2, 3, 4], vec![1.0; 24]).unwrap();
         assert_eq!(t.length(), 24);
-    }
-
-    #[test]
-    fn repr_includes_shape_and_dimension() {
-        Python::attach(|py| {
-            let tensor = Tensor::new(vec![2, 3], vec![1.0; 6]).unwrap();
-            let tensor_py = Py::new(py, tensor).unwrap();
-
-            py_run!(
-                py,
-                tensor_py,
-                r#"
-repr_str = repr(tensor_py)
-assert "dimension=2" in repr_str, f"Missing dimension in {repr_str}"
-assert "shape=[2, 3]" in repr_str, f"Missing shape in {repr_str}"
-            "#
-            );
-        });
-    }
-
-    #[test]
-    fn get_data_returns_numpy_array() {
-        Python::attach(|py| {
-            let tensor = Tensor::new(vec![2, 2], vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-            let tensor_py = Py::new(py, tensor).unwrap();
-
-            py_run!(
-                py,
-                tensor_py,
-                r#"
-import numpy as np
-arr = tensor_py.data
-assert isinstance(arr, np.ndarray), f"Expected ndarray, got {type(arr)}"
-assert arr.shape == (2, 2), f"Expected (2, 2), got {arr.shape}"
-assert arr.dtype == np.float32, f"Expected float32, got {arr.dtype}"
-            "#
-            );
-        });
-    }
-
-    #[test]
-    fn set_data_updates_tensor() {
-        Python::attach(|py| {
-            let tensor = Tensor::new(vec![2], vec![1.0, 2.0]).unwrap();
-            let tensor_py = Py::new(py, tensor).unwrap();
-
-            py_run!(
-                py,
-                tensor_py,
-                r#"
-import numpy as np
-new_data = np.array([10.0, 20.0], dtype=np.float32)
-tensor_py.data = new_data
-assert tensor_py.data[0] == 10.0, f"Expected 10.0, got {tensor_py.data[0]}"
-assert tensor_py.data[1] == 20.0, f"Expected 20.0, got {tensor_py.data[1]}"
-            "#
-            );
-        });
     }
 }

@@ -4,11 +4,12 @@ build-backend = "maturin"
 
 [project]
 name = "neomatrix"
+description = "ML framework with rust backend"
 requires-python = ">=3.8"
 dependencies = [
-    "dataclasses>=0.8",
-    "numpy>=1.24.4",
-    "pandas>=2.0.3",
+    "dataclasses",
+    "numpy",
+    "pandas",
 ]
 classifiers = [
     "Programming Language :: Rust",
@@ -16,15 +17,22 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
+readme = "README.md"
 
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-module-name = "rustybrain"
+module-name = "neomatrix._backend"
+manifest-path = "neomatrix-python-wrapper/Cargo.toml"
+python-source = "."
 
 [tool.uv]
 cache-keys = [
 	{ file = "pyproject.toml" },
 	{ file = "Cargo.toml" },
 	{ file = "**/*.rs" }
+]
+dev-dependencies = [
+    "maturin>=1.8",
+    "pytest",
 ]

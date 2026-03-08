@@ -1,53 +1,13 @@
-//! Multi-dimensional tensor operations for neural network computations.
-//!
-//! This module provides the core `Tensor` type, a wrapper around `ndarray::ArrayD<f32>`
-//! with Python bindings for NumPy interoperability. Supports construction, arithmetic,
-//! linear algebra, shape manipulation, and serialization.
-//!
-//! # Memory Model
-//!
-//! All tensors use f32 precision (32-bit float) for optimal performance:
-//! - 50% memory usage vs f64
-//! - 2x SIMD vectorization width on modern CPUs
-//! - ~7 significant digits (sufficient for ML gradients)
-//!
-//! # Supported Operations
-//!
-//! - **Construction**: `new`, `zeros`, `random`, `from_numpy`
-//! - **Arithmetic**: element-wise `+`, `-`, `*`, `/` (tensor-tensor or tensor-scalar)
-//! - **Linear algebra**: `dot` (1D·1D → scalar, 1D·2D → 1D, 2D·2D → 2D with parallel matmul)
-//! - **Shape ops**: `reshape`, `flatten`, `transpose` (2D only)
-//! - **Concatenation**: `push`, `push_row`, `push_column`, `cat`
-//! - **Serialization**: `to_dict`, `from_dict` (Python dict with shape + data)
-//!
-//! # Example
-//!
-//! ```python
-//! from neomatrix.core import Tensor
-//!
-//! # Construction
-//! t = Tensor([2, 3], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-//! zeros = Tensor.zeros([3, 3])
-//!
-//! # Arithmetic (returns PyResult for error handling)
-//! result = (t + 10.0) * 2.0
-//!
-//! # Linear algebra (parallel 2D matmul)
-//! m1 = Tensor([2, 3], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-//! m2 = Tensor([3, 2], [7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
-//! product = m1.dot(m2)  # 2x2 matrix
-//! ```
-
-use crate::structures::tensor_iter::TensorIter;
+use crate::tensor::tensor_iter::TensorIter;
 use crate::utils::matmul::par_dot;
 use ndarray::prelude::*;
 use ndarray::{Ix1, Ix2};
-use numpy::{prelude::*, PyArrayDyn, PyReadonlyArrayDyn};
+use numpy::{PyArrayDyn, PyReadonlyArrayDyn, prelude::*};
+use pyo3::Bound;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use pyo3::Bound;
 use rand;
 
 #[pyclass(module = "neomatrix")]
@@ -92,7 +52,7 @@ impl Tensor {
             Err(_) => {
                 return Err(PyErr::new::<PyRuntimeError, _>(
                     "Shape and content do not match",
-                ))
+                ));
             }
         };
         Ok(Tensor {
@@ -222,15 +182,24 @@ impl Tensor {
                         self.shape[0], t.shape[0]
                     )));
                 }
-                
-                let result = self.data.view().into_dimensionality::<Ix1>().map_err(|_| PyValueError::new_err("Invalid dimension"))? 
-                    .dot(&t.data.view().into_dimensionality::<Ix1>().map_err(|_| PyValueError::new_err("Invalid dimension"))?);
+
+                let result = self
+                    .data
+                    .view()
+                    .into_dimensionality::<Ix1>()
+                    .map_err(|_| PyValueError::new_err("Invalid dimension"))?
+                    .dot(
+                        &t.data
+                            .view()
+                            .into_dimensionality::<Ix1>()
+                            .map_err(|_| PyValueError::new_err("Invalid dimension"))?,
+                    );
                 Ok(Tensor {
                     dimension: 0,
                     shape: Vec::<usize>::new(),
                     data: ArrayD::from_elem(vec![], result),
                 })
-            },
+            }
             (1, 2) => {
                 if self.shape[0] != t.shape[0] {
                     return Err(PyValueError::new_err(format!(
@@ -238,15 +207,24 @@ impl Tensor {
                         self.shape[0], t.shape[0], t.shape[1]
                     )));
                 }
-                
-                let result = self.data.view().into_dimensionality::<Ix1>().map_err(|_| PyValueError::new_err("Invalid dimension"))? 
-                    .dot(&t.data.view().into_dimensionality::<Ix2>().map_err(|_| PyValueError::new_err("Invalid dimension"))?);
+
+                let result = self
+                    .data
+                    .view()
+                    .into_dimensionality::<Ix1>()
+                    .map_err(|_| PyValueError::new_err("Invalid dimension"))?
+                    .dot(
+                        &t.data
+                            .view()
+                            .into_dimensionality::<Ix2>()
+                            .map_err(|_| PyValueError::new_err("Invalid dimension"))?,
+                    );
                 Ok(Tensor {
                     dimension: result.ndim(),
                     shape: result.shape().to_vec(),
-                    data: result.into_dyn()
+                    data: result.into_dyn(),
                 })
-            },
+            }
             (2, 1) => {
                 if self.shape[1] != t.shape[0] {
                     return Err(PyValueError::new_err(format!(
@@ -254,15 +232,24 @@ impl Tensor {
                         self.shape[0], self.shape[1], t.shape[0]
                     )));
                 }
-                
-                let result = self.data.view().into_dimensionality::<Ix2>().map_err(|_| PyValueError::new_err("Invalid dimension"))? 
-                    .dot(&t.data.view().into_dimensionality::<Ix1>().map_err(|_| PyValueError::new_err("Invalid dimension"))?);
+
+                let result = self
+                    .data
+                    .view()
+                    .into_dimensionality::<Ix2>()
+                    .map_err(|_| PyValueError::new_err("Invalid dimension"))?
+                    .dot(
+                        &t.data
+                            .view()
+                            .into_dimensionality::<Ix1>()
+                            .map_err(|_| PyValueError::new_err("Invalid dimension"))?,
+                    );
                 Ok(Tensor {
                     dimension: result.ndim(),
                     shape: result.shape().to_vec(),
                     data: result.into_dyn(),
                 })
-            },
+            }
             (2, 2) => {
                 if self.shape[1] != t.shape[0] {
                     return Err(PyValueError::new_err(format!(
@@ -270,12 +257,16 @@ impl Tensor {
                         self.shape[0], self.shape[1], t.shape[0], t.shape[1]
                     )));
                 }
-                
+
                 let result = par_dot(
-                    self.data.view().into_dimensionality::<Ix2>()
+                    self.data
+                        .view()
+                        .into_dimensionality::<Ix2>()
                         .map_err(|_| PyValueError::new_err("Invalid dimension"))?,
-                    t.data.view().into_dimensionality::<Ix2>()
-                        .map_err(|_| PyValueError::new_err("Invalid dimension"))?
+                    t.data
+                        .view()
+                        .into_dimensionality::<Ix2>()
+                        .map_err(|_| PyValueError::new_err("Invalid dimension"))?,
                 );
 
                 Ok(Tensor {
@@ -283,11 +274,11 @@ impl Tensor {
                     shape: result.shape().to_vec(),
                     data: result.into_dyn(),
                 })
-            },
-            
+            }
+
             _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "It's possible to multiply only 1D and 2D tensors (dot product). General Tensor Contraction is not yet defined."
-            ))
+                "It's possible to multiply only 1D and 2D tensors (dot product). General Tensor Contraction is not yet defined.",
+            )),
         }
     }
 
@@ -447,13 +438,16 @@ impl Tensor {
     #[pyo3(signature = (shape))]
     pub fn reshape(&self, shape: Vec<usize>) -> PyResult<Tensor> {
         let dim = shape.len();
-        let data = self.data.to_owned().into_shape_with_order(shape.as_slice()).map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("Incompatible shape"))?;
-        
+        let data = self
+            .data
+            .to_owned()
+            .into_shape_with_order(shape.as_slice())
+            .map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("Incompatible shape"))?;
+
         Ok(Tensor {
             shape: shape,
             dimension: dim,
             data: data,
-            
         })
     }
 
@@ -491,7 +485,7 @@ impl Tensor {
     pub fn flatten(&self) -> Tensor {
         let flattened_data = self.data.flatten();
 
-        Tensor {        
+        Tensor {
             shape: flattened_data.shape().to_vec(),
             dimension: flattened_data.ndim(),
             data: flattened_data.to_owned().into_dyn(),
