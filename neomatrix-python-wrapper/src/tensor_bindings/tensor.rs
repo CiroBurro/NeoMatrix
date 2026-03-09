@@ -2,9 +2,10 @@ use neomatrix_core::tensor::Tensor;
 use numpy::{prelude::*, PyArrayDyn, PyReadonlyArrayDyn};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
 use pyo3::Bound;
 
-use crate::tensor_iter::TensorIter;
+use crate::tensor_bindings::tensor_iter::TensorIter;
 
 #[pyclass(name = "Tensor")]
 #[derive(Clone, Debug)]
@@ -18,7 +19,6 @@ enum TensorOrScalar<'py> {
     Scalar(f32),
 }
 
-/// `Tensor` struct methods
 #[pymethods]
 impl PyTensor {
     #[pyo3(signature = (shape, content))]
@@ -328,5 +328,32 @@ impl PyTensor {
             "Tensor(shape={:?}, data={:?})",
             self.inner.shape, self.inner.data
         )
+    }
+
+    #[pyo3(signature = (dtype=None, copy=None))]
+    fn __array__<'py>(
+        &self,
+        py: Python<'py>,
+        dtype: Option<Bound<'py, PyAny>>,
+        copy: Option<Bound<'py, PyAny>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        if let Some(copy_val) = copy {
+            let copy_bool: bool = copy_val.extract()?;
+            if !copy_bool {
+                return Err(PyRuntimeError::new_err(
+                    "Cannot avoid copy when converting PyTensor to NumPy array",
+                ));
+            }
+        }
+
+        let numpy_array = self.to_numpy(py);
+
+        if let Some(dtype_val) = dtype {
+            let numpy_mod = py.import("numpy")?;
+            let kwargs = [("dtype", dtype_val)].into_py_dict(py)?;
+            return numpy_mod.call_method("asarray", (numpy_array,), Some(&kwargs));
+        }
+
+        Ok(numpy_array.into_any())
     }
 }
