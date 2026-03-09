@@ -44,7 +44,7 @@
 
 use crate::tensor::Tensor;
 use ndarray::Array2;
-use ndarray_rand::{rand_distr::Normal, RandomExt};
+use ndarray_rand::rand_distr::{Distribution, Normal};
 use std::ops::Range;
 
 /// Weight initialization strategies for neural network layers.
@@ -121,9 +121,11 @@ impl Init {
             Init::Xavier => {
                 // Xavier initialization: W ~ N(0, sqrt(2 / (n_in + n_out)))
                 let std_dev = (2.0 / (in_feat + out_feat) as f32).sqrt();
-                let dist = Normal::new(0.0, std_dev).unwrap();
+                let dist = Normal::new(0.0f32, std_dev).unwrap();
+                let mut rng = rand::rng();
 
-                let data = Array2::random((in_feat, out_feat), dist).into_dyn();
+                let data = Array2::from_shape_fn((in_feat, out_feat), |_| dist.sample(&mut rng))
+                    .into_dyn();
                 Tensor {
                     dimension: 2,
                     shape: vec![in_feat, out_feat],
@@ -132,10 +134,12 @@ impl Init {
             }
             Init::He => {
                 // He initialization: W ~ N(0, sqrt(2 / n_in))
-                let std_dev = (2.0 / (in_feat) as f32).sqrt();
-                let dist = Normal::new(0.0, std_dev).unwrap();
+                let std_dev = (2.0 / in_feat as f32).sqrt();
+                let dist = Normal::new(0.0f32, std_dev).unwrap();
+                let mut rng = rand::rng();
 
-                let data = Array2::random((in_feat, out_feat), dist).into_dyn();
+                let data = Array2::from_shape_fn((in_feat, out_feat), |_| dist.sample(&mut rng))
+                    .into_dyn();
                 Tensor {
                     dimension: 2,
                     shape: vec![in_feat, out_feat],

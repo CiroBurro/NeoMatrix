@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+pyo3 = { version = "*", features = ["extension-module"] }
+neomatrix_core = { path = "../neomatrix-core", package = "neomatrix-core" }
+numpy = "*"
+ndarray = "*"
+rand = "*"
