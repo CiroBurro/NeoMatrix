@@ -57,6 +57,14 @@ pub struct ReLu {
     /// Cached input from forward pass, used for derivative computation in backward pass.
     input_cache: Option<Tensor>,
 }
+impl ReLu {
+    pub fn new() -> Self {
+        Self {
+            inner: activations::Relu,
+            input_cache: None,
+        }
+    }
+}
 impl Layer for ReLu {
     fn forward(&mut self, input: &Tensor, training: bool) -> Result<Tensor, LayerError> {
         // Cache input for computing derivative during backward pass
@@ -101,6 +109,14 @@ pub struct Sigmoid {
     /// Cached output from forward pass, used for derivative computation in backward pass.
     output_cache: Option<Tensor>,
 }
+impl Sigmoid {
+    pub fn new() -> Self {
+        Self {
+            inner: activations::Sigmoid,
+            output_cache: None,
+        }
+    }
+}
 impl Layer for Sigmoid {
     fn forward(&mut self, input: &Tensor, training: bool) -> Result<Tensor, LayerError> {
         let output = self.inner.function(input).map_err(LayerError::from);
@@ -141,6 +157,14 @@ pub struct Tanh {
     /// Cached output from forward pass, used for derivative computation in backward pass.
     output_cache: Option<Tensor>,
 }
+impl Tanh {
+    pub fn new() -> Self {
+        Self {
+            inner: activations::Tanh,
+            output_cache: None,
+        }
+    }
+}
 impl Layer for Tanh {
     fn forward(&mut self, input: &Tensor, training: bool) -> Result<Tensor, LayerError> {
         let output = self.inner.function(input).map_err(LayerError::from);
@@ -165,38 +189,59 @@ impl Layer for Tanh {
     }
 }
 
-/// Softmax activation layer with simplified backpropagation.
+/// Softmax activation layer with backpropagation support.
 ///
 /// Applies the softmax normalization: `f(x_i) = e^(x_i) / Σ_j e^(x_j)`.
-/// Caches the **input** during forward pass.
+/// Caches the **output** during forward pass for derivative computation.
 ///
-/// # Derivative (Simplified)
+/// # Derivative
 ///
-/// For softmax used with cross-entropy loss, the gradient simplifies to a passthrough.
-/// This implementation uses a simplified backward pass that returns the gradient unchanged.
-/// The full Jacobian computation is handled implicitly by the loss function.
+/// The Jacobian matrix of softmax is:
+/// - Diagonal: `s_i(1 - s_i)`  
+/// - Off-diagonal: `-s_i · s_j`
 ///
-/// # Note
+/// This implementation computes the full Jacobian-vector product during backpropagation.
 ///
-/// This simplified approach is valid when softmax is used as the output layer with
-/// cross-entropy loss, which is the standard configuration for classification tasks.
+/// # Optimization with Cross-Entropy
+///
+/// When used with categorical cross-entropy loss, the combined gradient simplifies to
+/// `softmax(logits) - y_true`. Use the `backward_with_logits` method in the Python API
+/// for this optimized path.
 pub struct Softmax {
     inner: activations::Softmax,
-    /// Cached input from forward pass (for potential future use).
-    input_cache: Option<Tensor>,
+    /// Cached output from forward pass, used for derivative computation in backward pass.
+    output_cache: Option<Tensor>,
+}
+impl Softmax {
+    pub fn new() -> Self {
+        Self {
+            inner: activations::Softmax,
+            output_cache: None,
+        }
+    }
 }
 impl Layer for Softmax {
     fn forward(&mut self, input: &Tensor, training: bool) -> Result<Tensor, LayerError> {
-        // Cache input (though not currently used in simplified backward pass)
+        let output = self.inner.function(input).map_err(LayerError::from)?;
+
         if training {
-            self.input_cache = Some(input.clone());
+            self.output_cache = Some(output.clone());
         }
 
-        self.inner.function(input).map_err(LayerError::from)
+        Ok(output)
     }
 
     fn backward(&mut self, output_gradient: &Tensor) -> Result<Tensor, LayerError> {
-        // Simplified gradient: passthrough (valid when used with cross-entropy loss)
-        Ok(output_gradient.clone())
+        let softmax_output = self
+            .output_cache
+            .as_ref()
+            .ok_or(LayerError::NotInitialized)?;
+
+        let jacobian = self
+            .inner
+            .derivative(softmax_output)
+            .map_err(LayerError::from)?;
+
+        jacobian.dot(output_gradient).map_err(LayerError::from)
     }
 }

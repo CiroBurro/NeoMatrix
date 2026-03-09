@@ -155,8 +155,14 @@ pub(crate) struct Sigmoid;
 impl ActivationFunction for Sigmoid {
     fn function(&self, t: &Tensor) -> Result<Tensor, MathError> {
         let mut data = t.data.to_owned();
-        // f(x) = 1 / (1 + e^(-x))
-        data.par_mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
+        data.par_mapv_inplace(|x| {
+            if x >= 0.0 {
+                1.0 / (1.0 + (-x).exp())
+            } else {
+                let exp_x = x.exp();
+                exp_x / (1.0 + exp_x)
+            }
+        });
         Ok(Tensor {
             dimension: data.ndim(),
             shape: data.shape().to_vec(),

@@ -1,3 +1,58 @@
+//! Fully-connected (dense) layer implementation.
+//!
+//! This module provides the [`Dense`] layer, the fundamental building block of feedforward
+//! neural networks. A dense layer performs an affine transformation on its input, applying
+//! learned weights and biases.
+//!
+//! # Mathematical Operation
+//!
+//! Given input `X` with shape `[batch_size, in_features]`:
+//! ```text
+//! Y = X · W + b
+//! ```
+//! where:
+//! - `W`: weight matrix `[in_features, out_features]`
+//! - `b`: bias vector `[out_features]` (broadcasted across batch)
+//! - `Y`: output `[batch_size, out_features]`
+//!
+//! # Backpropagation
+//!
+//! During backward pass, the layer computes three gradients:
+//! - **Weight gradient**: `∇W = Xᵀ · ∇Y`
+//! - **Bias gradient**: `∇b = sum(∇Y, axis=0)`
+//! - **Input gradient**: `∇X = ∇Y · Wᵀ` (propagated to previous layer)
+//!
+//! # Weight Initialization
+//!
+//! Supports multiple initialization strategies via [`Init`]:
+//! - **Xavier/Glorot**: Uniform distribution scaled by fan-in/fan-out (tanh, sigmoid)
+//! - **He**: Normal distribution scaled by fan-in (ReLU activations)
+//! - **LeCun**: Normal distribution scaled by fan-in (SELU activations)
+//! - **Random**: Uniform distribution in specified range
+//!
+//! Biases are always initialized to zero.
+//!
+//! # Example
+//!
+//! ```rust,ignore
+//! use neomatrix_core::layers::{dense::Dense, init::Init, Layer};
+//! use neomatrix_core::tensor::Tensor;
+//!
+//! // Create 784 → 128 → 10 network
+//! let mut hidden = Dense::new(784, 128, Some(Init::He), None);
+//! let mut output = Dense::new(128, 10, Some(Init::Xavier), None);
+//!
+//! // Forward pass
+//! let x = Tensor::random(&[32, 784], -1.0..1.0).unwrap();
+//! let h = hidden.forward(&x, true).unwrap();
+//! let y = output.forward(&h, true).unwrap();
+//!
+//! // Backward pass
+//! let grad_y = Tensor::ones(&[32, 10]).unwrap();
+//! let grad_h = output.backward(&grad_y).unwrap();
+//! let grad_x = hidden.backward(&grad_h).unwrap();
+//! ```
+
 use std::ops::Range;
 
 use ndarray::Axis;
@@ -45,6 +100,7 @@ use crate::tensor::Tensor;
 /// let input = Tensor::random(&[32, 784], -1.0..1.0).unwrap();
 /// let output = layer.forward(&input, true).unwrap(); // shape: [32, 128]
 /// ```
+#[derive(Clone, Debug)]
 pub struct Dense {
     /// Cached input tensor from forward pass, used during backpropagation.
     /// Only populated when `training=true` in forward pass.

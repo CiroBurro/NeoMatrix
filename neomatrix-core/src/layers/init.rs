@@ -51,6 +51,7 @@ use std::ops::Range;
 ///
 /// Each variant implements a different initialization algorithm, optimized for specific
 /// activation functions and network architectures.
+#[derive(Clone, Debug)]
 pub enum Init {
     /// Simple uniform random initialization.
     ///
@@ -115,7 +116,7 @@ impl Init {
     /// let weights = Init::He.init(128, 64, None);
     /// assert_eq!(weights.shape(), &[128, 64]);
     /// ```
-    pub(crate) fn init(&self, in_feat: usize, out_feat: usize, rg: Option<Range<f32>>) -> Tensor {
+    pub fn init(&self, in_feat: usize, out_feat: usize, rg: Option<Range<f32>>) -> Tensor {
         match self {
             Init::Random => Tensor::random(vec![in_feat, out_feat], rg.unwrap_or(-1.0..1.0)),
             Init::Xavier => {
