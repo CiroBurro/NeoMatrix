@@ -39,7 +39,7 @@ pub struct Tensor { pub dimension: usize, pub shape: Vec<usize>, pub data: Array
 - `zeros(shape)`, `random(shape, rg: Range<f32>)` — constructors
 - `dot(&self, t) -> Result<Tensor, TensorError>` — 1D×1D, 1D×2D, 2D×1D, 2D×2D only
 - `transpose() -> Result<Tensor, TensorError>` — 2D only
-- `transpose_inplace()` — ⚠️ BUG: result discarded, self not mutated
+- `transpose_inplace()` — mutates self (fixed)
 - `reshape(shape)`, `flatten()` — non-mutating (return new Tensor)
 - `reshape_inplace()`, `flatten_inplace()` — mutating variants
 - `push_row(&mut self, t)`, `push_column(&mut self, t)` — append 1D tensor

@@ -85,9 +85,10 @@ Python user code
 
 ## KNOWN BUGS
 
-1. `Tensor.transpose_inplace()` (both Rust and Python): result discarded — transposition never applied
-2. `Tensor.random()` in Python wrapper: range is `0..100`, not `-1..1` like Rust core
-3. `Tensor.cat_inplace()` in Python wrapper: returns new Tensor instead of mutating self
+None currently identified. Previous bugs have been fixed:
+- `transpose_inplace`, `random` range, `cat_inplace` semantics (fixed)
+- `f32 - Tensor` used hardcoded `1.0` instead of `self` (fixed in tensor_ops.rs L329)
+- `f32 / Tensor` called `scalar_division` computing `Tensor / f32` instead of `f32 / Tensor` (fixed via `inverse_scalar_division`)
 
 ## ANTI-PATTERNS
 

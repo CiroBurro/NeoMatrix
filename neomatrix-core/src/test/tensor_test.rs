@@ -434,6 +434,53 @@ mod tensor_arithmetic {
         // (t + 1) * 2 - 1 = ([2,3,4] * 2) - 1 = [4,6,8] - 1 = [3,5,7]
         assert_eq!(result.data.as_slice().unwrap(), &[3.0, 5.0, 7.0]);
     }
+
+    #[test]
+    fn test_scalar_minus_tensor() {
+        let t = Tensor::new(vec![2], vec![3.0, 7.0]).unwrap();
+
+        // 10.0 - tensor should give [7.0, 3.0]
+        let result = 10.0 - &t;
+        assert_eq!(result.data[0], 7.0);
+        assert_eq!(result.data[1], 3.0);
+
+        // Verify non-commutativity: tensor - 10.0 should give [-7.0, -3.0]
+        let result2 = &t - 10.0;
+        assert_eq!(result2.data[0], -7.0);
+        assert_eq!(result2.data[1], -3.0);
+    }
+
+    #[test]
+    fn test_scalar_div_tensor() {
+        let t = Tensor::new(vec![2], vec![2.0, 4.0]).unwrap();
+
+        // 12.0 / tensor should give [6.0, 3.0]
+        let result = (12.0 / &t).unwrap();
+        assert_eq!(result.data[0], 6.0);
+        assert_eq!(result.data[1], 3.0);
+    }
+
+    #[test]
+    fn test_commutative_add() {
+        let t = Tensor::new(vec![2], vec![1.0, 2.0]).unwrap();
+
+        let left = &t + 5.0;
+        let right = 5.0 + &t;
+
+        assert_eq!(left.data[0], right.data[0]);
+        assert_eq!(left.data[1], right.data[1]);
+    }
+
+    #[test]
+    fn test_commutative_mul() {
+        let t = Tensor::new(vec![2], vec![3.0, 4.0]).unwrap();
+
+        let left = &t * 2.0;
+        let right = 2.0 * &t;
+
+        assert_eq!(left.data[0], right.data[0]);
+        assert_eq!(left.data[1], right.data[1]);
+    }
 }
 
 // =============================================================================

@@ -1,5 +1,5 @@
 use ndarray::IxDyn;
-use pyo3::{PyRef, PyRefMut, pyclass, pymethods};
+use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
 
 #[pyclass(unsendable)]
 pub struct TensorIter {

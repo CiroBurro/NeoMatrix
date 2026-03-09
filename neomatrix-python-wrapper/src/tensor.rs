@@ -1,12 +1,12 @@
 use neomatrix_core::tensor::Tensor;
-use numpy::{PyArrayDyn, PyReadonlyArrayDyn, prelude::*};
-use pyo3::Bound;
+use numpy::{prelude::*, PyArrayDyn, PyReadonlyArrayDyn};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
+use pyo3::Bound;
 
 use crate::tensor_iter::TensorIter;
 
-#[pyclass]
+#[pyclass(name = "Tensor")]
 #[derive(Clone, Debug)]
 pub struct PyTensor {
     pub inner: Tensor,
@@ -70,8 +70,24 @@ impl PyTensor {
     #[setter]
     fn set_data<'py>(&mut self, arr: PyReadonlyArrayDyn<'py, f32>) -> PyResult<()> {
         let owned = arr.as_array().to_owned();
+        self.inner.dimension = owned.ndim();
+        self.inner.shape = owned.shape().to_vec();
         self.inner.data = owned;
         Ok(())
+    }
+
+    pub fn to_numpy<'py>(&self, py: Python<'py>) -> Bound<'py, PyArrayDyn<f32>> {
+        self.inner.data.to_pyarray(py)
+    }
+
+    #[getter]
+    fn shape(&self) -> &Vec<usize> {
+        &self.inner.shape
+    }
+
+    #[getter]
+    fn ndim(&self) -> &usize {
+        &self.inner.dimension
     }
 
     #[pyo3(signature = (t))]
@@ -80,59 +96,6 @@ impl PyTensor {
         Ok(PyTensor {
             inner: inner.map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
         })
-    }
-
-    fn __add__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
-        match other {
-            TensorOrScalar::Tensor(t) => Ok(PyTensor {
-                inner: (&self.inner + &t.inner)
-                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
-            }),
-            TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
-                inner: &self.inner + scalar,
-            }),
-        }
-    }
-
-    fn __sub__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
-        match other {
-            TensorOrScalar::Tensor(t) => Ok(PyTensor {
-                inner: (&self.inner - &t.inner)
-                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
-            }),
-            TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
-                inner: &self.inner - scalar,
-            }),
-        }
-    }
-
-    fn __mul__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
-        match other {
-            TensorOrScalar::Tensor(t) => Ok(PyTensor {
-                inner: (&self.inner * &t.inner)
-                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
-            }),
-            TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
-                inner: &self.inner * scalar,
-            }),
-        }
-    }
-
-    fn __truediv__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
-        match other {
-            TensorOrScalar::Tensor(t) => Ok(PyTensor {
-                inner: (&self.inner / &t.inner)
-                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
-            }),
-            TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
-                inner: (&self.inner / scalar)
-                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
-            }),
-        }
-    }
-
-    pub fn length(&self) -> usize {
-        self.inner.length()
     }
 
     pub fn transpose(&self) -> PyResult<PyTensor> {
@@ -193,13 +156,12 @@ impl PyTensor {
         Ok(())
     }
 
+    #[staticmethod]
     #[pyo3(signature = (tensors, axis))]
-    pub fn cat(&self, tensors: Vec<PyRef<'_, PyTensor>>, axis: usize) -> PyResult<PyTensor> {
+    pub fn cat(tensors: Vec<PyRef<'_, PyTensor>>, axis: usize) -> PyResult<PyTensor> {
         let inner_tensors: Vec<Tensor> = tensors.iter().map(|t| t.inner.clone()).collect();
         Ok(PyTensor {
-            inner: self
-                .inner
-                .cat_inplace(inner_tensors, axis)
+            inner: Tensor::cat(inner_tensors, axis)
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
         })
     }
@@ -218,11 +180,147 @@ impl PyTensor {
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 
+    fn __add__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
+        match other {
+            TensorOrScalar::Tensor(t) => Ok(PyTensor {
+                inner: (&self.inner + &t.inner)
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            }),
+            TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
+                inner: &self.inner + scalar,
+            }),
+        }
+    }
+
+    fn __sub__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
+        match other {
+            TensorOrScalar::Tensor(t) => Ok(PyTensor {
+                inner: (&self.inner - &t.inner)
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            }),
+            TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
+                inner: &self.inner - scalar,
+            }),
+        }
+    }
+
+    fn __mul__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
+        match other {
+            TensorOrScalar::Tensor(t) => Ok(PyTensor {
+                inner: (&self.inner * &t.inner)
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            }),
+            TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
+                inner: &self.inner * scalar,
+            }),
+        }
+    }
+
+    fn __truediv__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
+        match other {
+            TensorOrScalar::Tensor(t) => Ok(PyTensor {
+                inner: (&self.inner / &t.inner)
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            }),
+            TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
+                inner: (&self.inner / scalar)
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            }),
+        }
+    }
+
+    fn __radd__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
+        // Addition is commutative: scalar + tensor = tensor + scalar
+        self.__add__(other)
+    }
+
+    fn __rsub__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
+        // scalar - tensor (NOT commutative)
+        match other {
+            TensorOrScalar::Tensor(t) => Ok(PyTensor {
+                inner: (&t.inner - &self.inner)
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            }),
+            TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
+                inner: scalar - &self.inner,
+            }),
+        }
+    }
+
+    fn __rmul__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
+        // Multiplication is commutative: scalar * tensor = tensor * scalar
+        self.__mul__(other)
+    }
+
+    fn __rtruediv__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
+        // scalar / tensor (NOT commutative)
+        match other {
+            TensorOrScalar::Tensor(t) => Ok(PyTensor {
+                inner: (&t.inner / &self.inner)
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            }),
+            TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
+                inner: (scalar / &self.inner)
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            }),
+        }
+    }
+
+    fn __neg__(&self) -> PyResult<PyTensor> {
+        Ok(PyTensor {
+            inner: &self.inner * -1.0,
+        })
+    }
+
+    fn __getitem__(&self, index: &Bound<'_, PyAny>) -> PyResult<f32> {
+        let indices: Vec<usize> = if let Ok(single) = index.extract::<usize>() {
+            vec![single]
+        } else if let Ok(tuple) = index.extract::<Vec<usize>>() {
+            tuple
+        } else {
+            return Err(PyRuntimeError::new_err(
+                "Index must be int or tuple of ints".to_string(),
+            ));
+        };
+
+        self.inner
+            .data
+            .get(indices.as_slice())
+            .copied()
+            .ok_or(PyRuntimeError::new_err("Index out of bounds".to_string()))
+    }
+
+    fn __setitem__(&mut self, index: &Bound<'_, PyAny>, value: f32) -> PyResult<()> {
+        let indices: Vec<usize> = if let Ok(single) = index.extract::<usize>() {
+            vec![single]
+        } else if let Ok(tuple) = index.extract::<Vec<usize>>() {
+            tuple
+        } else {
+            return Err(PyRuntimeError::new_err(
+                "Index must be int or tuple of ints".to_string(),
+            ));
+        };
+
+        self.inner
+            .data
+            .get_mut(indices.as_slice())
+            .ok_or(PyRuntimeError::new_err("Index out of bounds".to_string()))
+            .map(|item| *item = value)
+    }
+
+    fn __len__(&self) -> usize {
+        self.inner.length()
+    }
+
     fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<TensorIter>> {
         let iter = TensorIter {
             inner: slf.inner.data.clone().into_iter(),
         };
         Py::new(slf.py(), iter)
+    }
+
+    fn __str__(&self) -> String {
+        format!("{:?}", self.inner.data)
     }
 
     fn __repr__(&self) -> String {

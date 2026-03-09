@@ -182,6 +182,19 @@ impl Tensor {
             data: result.into_dyn(),
         })
     }
+
+    fn inverse_scalar_division(&self, scalar: f32) -> Result<Tensor, TensorError> {
+        if self.data.iter().any(|&x| x == 0.0) {
+            return Err(TensorError::CannotDivideByZero);
+        }
+
+        let result = scalar / &self.data;
+        Ok(Tensor {
+            dimension: result.ndim(),
+            shape: result.shape().to_vec(),
+            data: result.into_dyn(),
+        })
+    }
 }
 
 /// Add trait implementation for Tensor struct
@@ -326,7 +339,7 @@ impl Sub<Tensor> for f32 {
     type Output = Tensor;
 
     fn sub(self, rhs: Tensor) -> Self::Output {
-        let data = 1.0 - rhs.data;
+        let data = self - rhs.data;
         Tensor {
             dimension: data.ndim(),
             shape: data.shape().to_vec(),
@@ -338,7 +351,7 @@ impl Sub<&Tensor> for f32 {
     type Output = Tensor;
 
     fn sub(self, rhs: &Tensor) -> Self::Output {
-        let data = 1.0 - &rhs.data;
+        let data = self - &rhs.data;
         Tensor {
             dimension: data.ndim(),
             shape: data.shape().to_vec(),
@@ -350,7 +363,7 @@ impl Sub<&mut Tensor> for f32 {
     type Output = Tensor;
 
     fn sub(self, rhs: &mut Tensor) -> Self::Output {
-        let data = 1.0 - &rhs.data;
+        let data = self - &rhs.data;
         Tensor {
             dimension: data.ndim(),
             shape: data.shape().to_vec(),
@@ -501,20 +514,20 @@ impl Div<Tensor> for f32 {
     type Output = Result<Tensor, TensorError>;
 
     fn div(self, rhs: Tensor) -> Self::Output {
-        rhs.scalar_division(self)
+        rhs.inverse_scalar_division(self)
     }
 }
 impl Div<&Tensor> for f32 {
     type Output = Result<Tensor, TensorError>;
 
     fn div(self, rhs: &Tensor) -> Self::Output {
-        rhs.scalar_division(self)
+        rhs.inverse_scalar_division(self)
     }
 }
 impl Div<&mut Tensor> for f32 {
     type Output = Result<Tensor, TensorError>;
 
     fn div(self, rhs: &mut Tensor) -> Self::Output {
-        rhs.scalar_division(self)
+        rhs.inverse_scalar_division(self)
     }
 }
