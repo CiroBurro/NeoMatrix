@@ -16,6 +16,7 @@
 //! - `tensor`: Multi-dimensional array operations
 //! - `math`: Mathematical functions (activations, losses, matrix multiplication)
 //! - `layers`: Neural network building blocks
+//! - `optimizers`: Optimizers algorithms for model training
 //! - `errors`: Error types and handling
 //!
 //! ## Example
@@ -33,6 +34,7 @@ extern crate openblas_src;
 pub mod errors;
 pub mod layers;
 pub mod math;
+pub mod optimizers;
 pub mod tensor;
 
 #[cfg(test)]

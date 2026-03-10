@@ -8,7 +8,7 @@
 //! - **[`ReLu`]**: Rectified Linear Unit (caches **input** for derivative computation)
 //! - **[`Sigmoid`]**: Logistic sigmoid (caches **output** for efficient gradient computation)
 //! - **[`Tanh`]**: Hyperbolic tangent (caches **output** for efficient gradient computation)
-//! - **[`Softmax`]**: Softmax normalization (simplified gradient passthrough)
+//! - **[`Softmax`]**: Softmax normalization (caches **output** for efficient gradient computation)
 //!
 //! # Caching Strategy
 //!

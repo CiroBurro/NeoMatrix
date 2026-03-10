@@ -371,6 +371,20 @@ impl Sub<&mut Tensor> for f32 {
         }
     }
 }
+impl Sub<Tensor> for &mut Tensor {
+    type Output = Result<Tensor, TensorError>;
+
+    fn sub(self, rhs: Tensor) -> Self::Output {
+        self.tensor_subtraction(&rhs)
+    }
+}
+impl Sub<f32> for &mut Tensor {
+    type Output = Tensor;
+
+    fn sub(self, rhs: f32) -> Self::Output {
+        self.scalar_subtraction(rhs)
+    }
+}
 
 /// Mul trait implementation for Tensor struct
 impl Mul<Tensor> for Tensor {
