@@ -495,9 +495,11 @@ dependencies = [
 name = "neomatrix-python-wrapper"
 version = "0.1.0"
 dependencies = [
+ "blas-src",
  "ndarray 0.16.1",
  "neomatrix-core",
  "numpy",
+ "openblas-src",
  "pyo3",
  "rand",
 ]

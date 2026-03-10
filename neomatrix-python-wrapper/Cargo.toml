@@ -7,5 +7,7 @@ edition = "2024"
 pyo3 = { version = "*", features = ["extension-module"] }
 neomatrix_core = { path = "../neomatrix-core", package = "neomatrix-core" }
 numpy = "*"
-ndarray = "*"
+ndarray = { version = "*", features = ["rayon", "blas"] }
 rand = "*"
+openblas-src = { version = "*", features = ["static"] }
+blas-src = { version = "*", features = ["openblas"] }

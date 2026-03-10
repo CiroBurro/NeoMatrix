@@ -63,6 +63,12 @@ pub struct GradientDescent {
     pub learning_rate: f32,
 }
 
+impl GradientDescent {
+    pub fn new(learning_rate: f32) -> Self {
+        Self { learning_rate }
+    }
+}
+
 impl Optimizer for GradientDescent {
     /// Updates `weights` and `biases` in place:
     /// ```text

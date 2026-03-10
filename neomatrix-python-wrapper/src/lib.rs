@@ -1,7 +1,8 @@
-use pyo3::prelude::*;
+extern crate openblas_src;
 
 mod layer_bindings;
 mod losses_bindings;
+mod optimizer_bindings;
 mod tensor_bindings;
 
 use layer_bindings::activations::PyReLU;
@@ -14,7 +15,10 @@ use losses_bindings::{
     PyBinaryCrossEntropy, PyCategoricalCrossEntropy, PyHingeLoss, PyHuberLoss, PyMeanAbsoluteError,
     PyMeanSquaredError,
 };
+use pyo3::prelude::*;
 use tensor_bindings::PyTensor;
+
+use crate::optimizer_bindings::gradient_descent::PyGD;
 
 #[pymodule]
 fn _backend(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -31,5 +35,6 @@ fn _backend(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyCategoricalCrossEntropy>()?;
     m.add_class::<PyHuberLoss>()?;
     m.add_class::<PyHingeLoss>()?;
+    m.add_class::<PyGD>()?;
     Ok(())
 }
