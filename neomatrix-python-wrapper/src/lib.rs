@@ -19,6 +19,7 @@ use pyo3::prelude::*;
 use tensor_bindings::PyTensor;
 
 use crate::optimizer_bindings::gradient_descent::PyGD;
+use crate::optimizer_bindings::PyParametersRef;
 
 #[pymodule]
 fn _backend(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -36,5 +37,6 @@ fn _backend(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyHuberLoss>()?;
     m.add_class::<PyHingeLoss>()?;
     m.add_class::<PyGD>()?;
+    m.add_class::<PyParametersRef>()?;
     Ok(())
 }

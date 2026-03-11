@@ -1,6 +1,8 @@
 use crate::tensor_bindings::PyTensor;
 use neomatrix_core::math::losses::{self, LossFunction};
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
+use std::ops::Deref;
+use std::sync::{Arc, Mutex};
 
 #[pyclass(name = "MSE")]
 pub struct PyMeanSquaredError {
@@ -19,17 +21,40 @@ impl PyMeanSquaredError {
     fn call(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<f32> {
         Ok(self
             .inner
-            .function(&y_true.inner, &y_pred.inner)
+            .function(
+                y_true
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+                y_pred
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+            )
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?)
     }
 
     #[pyo3(signature = (y_true, y_pred))]
     fn backward(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .derivative(&y_true.inner, &y_pred.inner)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .derivative(
+                        y_true
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                        y_pred
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 }
@@ -51,17 +76,40 @@ impl PyMeanAbsoluteError {
     fn call(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<f32> {
         Ok(self
             .inner
-            .function(&y_true.inner, &y_pred.inner)
+            .function(
+                y_true
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+                y_pred
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+            )
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?)
     }
 
     #[pyo3(signature = (y_true, y_pred))]
     fn backward(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .derivative(&y_true.inner, &y_pred.inner)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .derivative(
+                        y_true
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                        y_pred
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 }
@@ -83,25 +131,59 @@ impl PyBinaryCrossEntropy {
     fn call(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<f32> {
         Ok(self
             .inner
-            .function(&y_true.inner, &y_pred.inner)
+            .function(
+                y_true
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+                y_pred
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+            )
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?)
     }
 
     #[pyo3(signature = (y_true, y_pred))]
     fn backward(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .derivative(&y_true.inner, &y_pred.inner)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .derivative(
+                        y_true
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                        y_pred
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
     #[pyo3(signature = (y_true, y_pred))]
     fn backward_optimized(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: (&y_pred.inner - &y_true.inner)
+            inner: Arc::new(Mutex::new(
+                (y_pred
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref()
+                    - y_true
+                        .inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref())
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 }
@@ -123,25 +205,59 @@ impl PyCategoricalCrossEntropy {
     fn call(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<f32> {
         Ok(self
             .inner
-            .function(&y_true.inner, &y_pred.inner)
+            .function(
+                y_true
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+                y_pred
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+            )
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?)
     }
 
     #[pyo3(signature = (y_true, y_pred))]
     fn backward(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .derivative(&y_true.inner, &y_pred.inner)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .derivative(
+                        y_true
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                        y_pred
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
     #[pyo3(signature = (y_true, y_pred))]
     fn backward_optimized(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: (&y_pred.inner - &y_true.inner)
+            inner: Arc::new(Mutex::new(
+                (y_pred
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref()
+                    - y_true
+                        .inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref())
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 }
@@ -174,17 +290,40 @@ impl PyHuberLoss {
     fn call(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<f32> {
         Ok(self
             .inner
-            .function(&y_true.inner, &y_pred.inner)
+            .function(
+                y_true
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+                y_pred
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+            )
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?)
     }
 
     #[pyo3(signature = (y_true, y_pred))]
     fn backward(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .derivative(&y_true.inner, &y_pred.inner)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .derivative(
+                        y_true
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                        y_pred
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 }
@@ -206,17 +345,40 @@ impl PyHingeLoss {
     fn call(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<f32> {
         Ok(self
             .inner
-            .function(&y_true.inner, &y_pred.inner)
+            .function(
+                y_true
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+                y_pred
+                    .inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+            )
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?)
     }
 
     #[pyo3(signature = (y_true, y_pred))]
     fn backward(&self, y_true: &PyTensor, y_pred: &PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .derivative(&y_true.inner, &y_pred.inner)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .derivative(
+                        y_true
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                        y_pred
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 }

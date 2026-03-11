@@ -61,6 +61,9 @@ pub enum TensorError {
 
     #[error("Cannot divide by zero")]
     CannotDivideByZero,
+
+    #[error("Memory error: {0}")]
+    MemoryError(String),
 }
 
 /// Errors that can occur during neural network layer operations.

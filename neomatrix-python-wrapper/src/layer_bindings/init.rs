@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use crate::tensor_bindings::PyTensor;
 use neomatrix_core::layers::init::Init;
 use pyo3::prelude::*;
@@ -49,7 +51,7 @@ impl PyInit {
             _ => None,
         };
         PyTensor {
-            inner: self.inner.init(in_feat, out_feat, rg),
+            inner: Arc::new(Mutex::new(self.inner.init(in_feat, out_feat, rg))),
         }
     }
 

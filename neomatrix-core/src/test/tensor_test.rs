@@ -718,11 +718,12 @@ mod tensor_concatenation {
     }
 
     #[test]
-    fn cat_inplace_concatenates() {
+    fn cat_concatenates() {
         let t1 = Tensor::new(vec![2], vec![1.0, 2.0]).unwrap();
         let t2 = Tensor::new(vec![2], vec![3.0, 4.0]).unwrap();
         let t3 = Tensor::new(vec![2], vec![5.0, 6.0]).unwrap();
-        let result = t1.cat_inplace(vec![t2, t3], 0).unwrap();
+
+        let result = Tensor::cat(vec![t1, t2, t3], 0).unwrap();
 
         assert_eq!(result.shape, vec![6]);
         assert_eq!(

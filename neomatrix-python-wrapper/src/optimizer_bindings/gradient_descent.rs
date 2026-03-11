@@ -1,11 +1,10 @@
-use neomatrix_core::optimizers::{Optimizer, gradient_descent::GradientDescent};
+use crate::optimizer_bindings::PyParametersRef;
+use neomatrix_core::optimizers::{gradient_descent::GradientDescent, Optimizer};
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
-
-use crate::tensor_bindings::PyTensor;
 
 #[pyclass(name = "GradientDescent")]
 pub struct PyGD {
-    inner: GradientDescent,
+    pub inner: GradientDescent,
 }
 
 #[pymethods]
@@ -13,26 +12,24 @@ impl PyGD {
     #[new]
     pub fn new(learning_rate: f32) -> Self {
         Self {
-            inner: GradientDescent::new(learning_rate),
+            inner: GradientDescent::new(learning_rate, Vec::new()),
         }
     }
 
-    fn update(
-        &mut self,
-        weights: &mut PyTensor,
-        biases: &mut PyTensor,
-        w_grads: &PyTensor,
-        b_grads: &PyTensor,
-        _step: usize,
-    ) -> PyResult<()> {
+    pub fn register_params(&mut self, params: Vec<Bound<'_, PyParametersRef>>) {
         self.inner
-            .update(
-                &mut weights.inner,
-                &mut biases.inner,
-                &w_grads.inner,
-                &b_grads.inner,
-                _step,
-            )
+            .register_params(params.iter().map(|p| p.borrow().inner.clone()).collect());
+    }
+
+    pub fn step(&mut self) -> PyResult<()> {
+        self.inner
+            .step()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+    }
+
+    pub fn zero_grad(&mut self) -> PyResult<()> {
+        self.inner
+            .zero_grad()
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 }

@@ -37,7 +37,17 @@
 
 pub mod gradient_descent;
 
+use std::sync::{Arc, Mutex};
+
 use crate::{errors::TensorError, tensor::Tensor};
+
+#[derive(Clone, Debug)]
+pub struct ParametersRef {
+    pub weights: Arc<Mutex<Tensor>>,
+    pub biases: Arc<Mutex<Tensor>>,
+    pub w_grads: Arc<Mutex<Tensor>>,
+    pub b_grads: Arc<Mutex<Tensor>>,
+}
 
 /// Common interface for all parameter update strategies.
 ///
@@ -85,4 +95,8 @@ pub trait Optimizer {
         b_grads: &Tensor,
         step: usize,
     ) -> Result<(), TensorError>;
+
+    fn register_params(&mut self, params: Vec<ParametersRef>);
+    fn step(&mut self) -> Result<(), TensorError>;
+    fn zero_grad(&mut self) -> Result<(), TensorError>;
 }

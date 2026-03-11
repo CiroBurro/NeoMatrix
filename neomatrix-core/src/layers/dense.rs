@@ -53,13 +53,15 @@
 //! let grad_x = hidden.backward(&grad_h).unwrap();
 //! ```
 
-use std::ops::Range;
+use std::ops::{Deref, Range};
+use std::sync::{Arc, Mutex};
 
 use ndarray::Axis;
 
-use crate::errors::LayerError;
+use crate::errors::{LayerError, TensorError};
 use crate::layers::init::Init;
 use crate::layers::Layer;
+use crate::optimizers::ParametersRef;
 use crate::tensor::Tensor;
 
 /// Fully-connected (dense) neural network layer.
@@ -108,19 +110,19 @@ pub struct Dense {
 
     /// Weight matrix with shape `[in_features, out_features]`.
     /// Initialized using the strategy specified in constructor.
-    weights: Tensor,
+    weights: Arc<Mutex<Tensor>>,
 
     /// Bias vector with shape `[out_features]`.
     /// Always initialized to zeros.
-    biases: Tensor,
+    biases: Arc<Mutex<Tensor>>,
 
     /// Gradient of the loss with respect to weights, computed during backward pass.
     /// Shape: `[in_features, out_features]`
-    weights_gradient: Option<Tensor>,
+    weights_gradient: Option<Arc<Mutex<Tensor>>>,
 
     /// Gradient of the loss with respect to biases, computed during backward pass.
     /// Shape: `[out_features]`
-    biases_gradient: Option<Tensor>,
+    biases_gradient: Option<Arc<Mutex<Tensor>>>,
 }
 
 impl Dense {
@@ -164,10 +166,12 @@ impl Dense {
     ) -> Self {
         Self {
             input_cache: None,
-            weights: init
-                .unwrap_or(Init::Xavier)
-                .init(in_feat, out_feat, rg.clone()),
-            biases: Tensor::zeros(vec![out_feat]),
+            weights: Arc::new(Mutex::new(init.unwrap_or(Init::Xavier).init(
+                in_feat,
+                out_feat,
+                rg.clone(),
+            ))),
+            biases: Arc::new(Mutex::new(Tensor::zeros(vec![out_feat]))),
             weights_gradient: None,
             biases_gradient: None,
         }
@@ -183,7 +187,17 @@ impl Layer for Dense {
 
         // Compute: output = input · weights + biases
         // Matrix multiplication followed by bias addition (broadcasted across batch dimension)
-        (&input.dot(&self.weights)? + &self.biases).map_err(LayerError::from)
+        (&input.dot(
+            self.weights
+                .lock()
+                .map_err(|e| LayerError::from(TensorError::MemoryError(e.to_string())))?
+                .deref(),
+        )? + self
+            .biases
+            .lock()
+            .map_err(|e| LayerError::from(TensorError::MemoryError(e.to_string())))?
+            .deref())
+        .map_err(LayerError::from)
     }
 
     fn backward(&mut self, output_gradient: &Tensor) -> Result<Tensor, LayerError> {
@@ -195,31 +209,42 @@ impl Layer for Dense {
 
         // Compute weight gradient: ∇W = Xᵀ · ∇Y
         // Shape: [in_features, batch_size] · [batch_size, out_features] = [in_features, out_features]
-        self.weights_gradient = Some(input.transpose()?.dot(output_gradient)?);
+        self.weights_gradient = Some(Arc::new(Mutex::new(
+            input.transpose()?.dot(output_gradient)?,
+        )));
 
         // Compute bias gradient: ∇b = sum(∇Y, axis=0)
         // Sum across batch dimension to get per-feature bias gradient
         let data = output_gradient.data.sum_axis(Axis(0)).into_dyn();
-        self.biases_gradient = Some(Tensor {
+        self.biases_gradient = Some(Arc::new(Mutex::new(Tensor {
             dimension: data.ndim(),
             shape: data.shape().to_vec(),
             data,
-        });
+        })));
 
         // Compute input gradient: ∇X = ∇Y · Wᵀ
         // This gradient is propagated to the previous layer
         output_gradient
-            .dot(&self.weights.transpose()?)
+            .dot(
+                &self
+                    .weights
+                    .lock()
+                    .map_err(|e| LayerError::from(TensorError::MemoryError(e.to_string())))?
+                    .deref()
+                    .transpose()?,
+            )
             .map_err(LayerError::from)
     }
 
-    fn get_params_and_grads(&mut self) -> Option<Vec<(&mut Tensor, &Tensor)>> {
+    fn get_parameters(&mut self) -> Option<ParametersRef> {
         // Return parameters only if gradients have been computed (i.e., after backward pass)
         if self.weights_gradient.is_some() && self.biases_gradient.is_some() {
-            Some(vec![
-                (&mut self.weights, self.weights_gradient.as_ref().unwrap()),
-                (&mut self.biases, self.biases_gradient.as_ref().unwrap()),
-            ])
+            Some(ParametersRef {
+                weights: self.weights.clone(),
+                biases: self.biases.clone(),
+                w_grads: self.weights_gradient.clone().unwrap(),
+                b_grads: self.biases_gradient.clone().unwrap(),
+            })
         } else {
             None
         }

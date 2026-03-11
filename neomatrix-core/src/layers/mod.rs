@@ -44,6 +44,7 @@ pub mod dense;
 pub mod init;
 
 use crate::errors::LayerError;
+use crate::optimizers::ParametersRef;
 use crate::tensor::Tensor;
 
 /// Core trait for all neural network layers.
@@ -136,7 +137,7 @@ pub trait Layer {
     ///     }
     /// }
     /// ```
-    fn get_params_and_grads(&mut self) -> Option<Vec<(&mut Tensor, &Tensor)>> {
+    fn get_parameters(&mut self) -> Option<ParametersRef> {
         None
     }
 }

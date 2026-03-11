@@ -1,3 +1,6 @@
+use std::ops::{Deref, DerefMut};
+use std::sync::{Arc, Mutex};
+
 use neomatrix_core::tensor::Tensor;
 use numpy::{prelude::*, PyArrayDyn, PyReadonlyArrayDyn};
 use pyo3::exceptions::PyRuntimeError;
@@ -10,7 +13,7 @@ use crate::tensor_bindings::tensor_iter::TensorIter;
 #[pyclass(name = "Tensor")]
 #[derive(Clone, Debug)]
 pub struct PyTensor {
-    pub inner: Tensor,
+    pub inner: Arc<Mutex<Tensor>>,
 }
 
 #[derive(FromPyObject)]
@@ -24,26 +27,31 @@ impl PyTensor {
     #[pyo3(signature = (shape, content))]
     #[new]
     pub fn new(shape: Vec<usize>, content: Vec<f32>) -> PyResult<PyTensor> {
-        let inner = Tensor::new(shape, content);
+        let inner =
+            Tensor::new(shape, content).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         Ok(PyTensor {
-            inner: inner.map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(inner)),
         })
     }
 
     #[staticmethod]
     #[pyo3(signature = (shape))]
-    pub fn zeros(shape: Vec<usize>) -> Self {
+    pub fn zeros(shape: Vec<usize>) -> PyResult<Self> {
         let inner = Tensor::zeros(shape);
-        PyTensor { inner }
+        Ok(PyTensor {
+            inner: Arc::new(Mutex::new(inner)),
+        })
     }
 
     #[staticmethod]
     #[pyo3(signature = (shape, start=-1.0, end=1.0))]
-    pub fn random(shape: Vec<usize>, start: Option<f32>, end: Option<f32>) -> Self {
+    pub fn random(shape: Vec<usize>, start: Option<f32>, end: Option<f32>) -> PyResult<Self> {
         let start = start.unwrap_or(-1.0);
         let end = end.unwrap_or(1.0);
         let inner = Tensor::random(shape, start..end);
-        PyTensor { inner }
+        Ok(PyTensor {
+            inner: Arc::new(Mutex::new(inner)),
+        })
     }
 
     #[staticmethod]
@@ -55,14 +63,21 @@ impl PyTensor {
             shape: owned.shape().to_vec(),
             data: owned,
         };
-        Ok(PyTensor { inner })
+        Ok(PyTensor {
+            inner: Arc::new(Mutex::new(inner)),
+        })
     }
 
     /// Getter method for the data field
     /// It converts the ndarray dynamic array into a numpy PyArrayDyn object for python
     #[getter]
-    fn get_data<'py>(&self, py: Python<'py>) -> Bound<'py, PyArrayDyn<f32>> {
-        self.inner.data.to_pyarray(py)
+    fn get_data<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArrayDyn<f32>>> {
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .data
+            .to_pyarray(py))
     }
 
     /// Setter method for the data field
@@ -70,45 +85,85 @@ impl PyTensor {
     #[setter]
     fn set_data<'py>(&mut self, arr: PyReadonlyArrayDyn<'py, f32>) -> PyResult<()> {
         let owned = arr.as_array().to_owned();
-        self.inner.dimension = owned.ndim();
-        self.inner.shape = owned.shape().to_vec();
-        self.inner.data = owned;
+        self.inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .dimension = owned.ndim();
+        self.inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .shape = owned.shape().to_vec();
+        self.inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .data = owned;
         Ok(())
     }
 
-    pub fn to_numpy<'py>(&self, py: Python<'py>) -> Bound<'py, PyArrayDyn<f32>> {
-        self.inner.data.to_pyarray(py)
+    pub fn to_numpy<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArrayDyn<f32>>> {
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .data
+            .to_pyarray(py))
     }
 
     #[getter]
-    fn shape(&self) -> &Vec<usize> {
-        &self.inner.shape
+    fn shape(&self) -> PyResult<Vec<usize>> {
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .shape
+            .clone())
     }
 
     #[getter]
-    fn ndim(&self) -> &usize {
-        &self.inner.dimension
+    fn ndim(&self) -> PyResult<usize> {
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .dimension)
     }
 
     #[pyo3(signature = (t))]
     pub fn dot(&self, t: &PyTensor) -> PyResult<PyTensor> {
-        let inner = self.inner.dot(&t.inner);
+        let inner = self
+            .inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .dot(
+                &t.inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+            )
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         Ok(PyTensor {
-            inner: inner.map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(inner)),
         })
     }
 
     pub fn transpose(&self) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .transpose()
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref()
+                    .transpose()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
     pub fn transpose_inplace(&mut self) -> PyResult<()> {
         self.inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .deref_mut()
             .transpose_inplace()
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
@@ -116,78 +171,139 @@ impl PyTensor {
     #[pyo3(signature = (shape))]
     pub fn reshape(&self, shape: Vec<usize>) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .reshape(shape)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref()
+                    .reshape(shape)
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
     pub fn reshape_inplace(&mut self, shape: Vec<usize>) -> PyResult<()> {
         self.inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .deref_mut()
             .reshape_inplace(shape)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 
     pub fn flatten(&self) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self.inner.flatten(),
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref()
+                    .flatten(),
+            )),
         })
     }
 
     pub fn flatten_inplace(&mut self) -> PyResult<()> {
-        Ok(self.inner.flatten_inplace())
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .deref_mut()
+            .flatten_inplace())
     }
 
     #[pyo3(signature = (t, axis))]
     pub fn push(&mut self, t: &PyTensor, axis: usize) -> PyResult<()> {
         self.inner
-            .push(&t.inner, axis)
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .deref_mut()
+            .push(
+                &t.inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+                axis,
+            )
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
-    }
-
-    #[pyo3(signature = (tensors, axis))]
-    pub fn cat_inplace(&mut self, tensors: Vec<PyRef<'_, PyTensor>>, axis: usize) -> PyResult<()> {
-        let inner_tensors: Vec<Tensor> = tensors.iter().map(|t| t.inner.clone()).collect();
-        self.inner = self
-            .inner
-            .cat_inplace(inner_tensors, axis)
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-        Ok(())
     }
 
     #[staticmethod]
     #[pyo3(signature = (tensors, axis))]
     pub fn cat(tensors: Vec<PyRef<'_, PyTensor>>, axis: usize) -> PyResult<PyTensor> {
-        let inner_tensors: Vec<Tensor> = tensors.iter().map(|t| t.inner.clone()).collect();
+        let inner_tensors: Vec<Tensor> = tensors
+            .iter()
+            .map(|t| -> PyResult<Tensor> {
+                Ok(t.inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref()
+                    .clone())
+            })
+            .collect::<PyResult<Vec<Tensor>>>()?;
+
         Ok(PyTensor {
-            inner: Tensor::cat(inner_tensors, axis)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                Tensor::cat(inner_tensors, axis)
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
     #[pyo3(signature = (t))]
     pub fn push_row(&mut self, t: &PyTensor) -> PyResult<()> {
         self.inner
-            .push_row(&t.inner)
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .deref_mut()
+            .push_row(
+                &t.inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+            )
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 
     #[pyo3(signature = (t))]
     pub fn push_column(&mut self, t: &PyTensor) -> PyResult<()> {
         self.inner
-            .push_column(&t.inner)
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .deref_mut()
+            .push_column(
+                &t.inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref(),
+            )
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 
     fn __add__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
         match other {
             TensorOrScalar::Tensor(t) => Ok(PyTensor {
-                inner: (&self.inner + &t.inner)
+                inner: Arc::new(Mutex::new(
+                    (self
+                        .inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref()
+                        + t.inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref())
                     .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+                )),
             }),
             TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
-                inner: &self.inner + scalar,
+                inner: Arc::new(Mutex::new(
+                    self.inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref()
+                        + scalar,
+                )),
             }),
         }
     }
@@ -195,11 +311,27 @@ impl PyTensor {
     fn __sub__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
         match other {
             TensorOrScalar::Tensor(t) => Ok(PyTensor {
-                inner: (&self.inner - &t.inner)
+                inner: Arc::new(Mutex::new(
+                    (self
+                        .inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref()
+                        - t.inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref())
                     .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+                )),
             }),
             TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
-                inner: &self.inner - scalar,
+                inner: Arc::new(Mutex::new(
+                    self.inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref()
+                        - scalar,
+                )),
             }),
         }
     }
@@ -207,11 +339,27 @@ impl PyTensor {
     fn __mul__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
         match other {
             TensorOrScalar::Tensor(t) => Ok(PyTensor {
-                inner: (&self.inner * &t.inner)
+                inner: Arc::new(Mutex::new(
+                    (self
+                        .inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref()
+                        * t.inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref())
                     .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+                )),
             }),
             TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
-                inner: &self.inner * scalar,
+                inner: Arc::new(Mutex::new(
+                    self.inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref()
+                        * scalar,
+                )),
             }),
         }
     }
@@ -219,12 +367,29 @@ impl PyTensor {
     fn __truediv__(&self, other: TensorOrScalar) -> PyResult<PyTensor> {
         match other {
             TensorOrScalar::Tensor(t) => Ok(PyTensor {
-                inner: (&self.inner / &t.inner)
+                inner: Arc::new(Mutex::new(
+                    (self
+                        .inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref()
+                        / t.inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref())
                     .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+                )),
             }),
             TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
-                inner: (&self.inner / scalar)
-                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+                inner: Arc::new(Mutex::new(
+                    (self
+                        .inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref()
+                        / scalar)
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+                )),
             }),
         }
     }
@@ -238,11 +403,28 @@ impl PyTensor {
         // scalar - tensor (NOT commutative)
         match other {
             TensorOrScalar::Tensor(t) => Ok(PyTensor {
-                inner: (&t.inner - &self.inner)
+                inner: Arc::new(Mutex::new(
+                    (t.inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref()
+                        - self
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref())
                     .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+                )),
             }),
             TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
-                inner: scalar - &self.inner,
+                inner: Arc::new(Mutex::new(
+                    scalar
+                        - self
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                )),
             }),
         }
     }
@@ -256,19 +438,41 @@ impl PyTensor {
         // scalar / tensor (NOT commutative)
         match other {
             TensorOrScalar::Tensor(t) => Ok(PyTensor {
-                inner: (&t.inner / &self.inner)
+                inner: Arc::new(Mutex::new(
+                    (t.inner
+                        .lock()
+                        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                        .deref()
+                        / self
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref())
                     .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+                )),
             }),
             TensorOrScalar::Scalar(scalar) => Ok(PyTensor {
-                inner: (scalar / &self.inner)
-                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+                inner: Arc::new(Mutex::new(
+                    scalar
+                        - self
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                )),
             }),
         }
     }
 
     fn __neg__(&self) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: &self.inner * -1.0,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .lock()
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                    .deref()
+                    * -1.0,
+            )),
         })
     }
 
@@ -284,6 +488,9 @@ impl PyTensor {
         };
 
         self.inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .deref()
             .data
             .get(indices.as_slice())
             .copied()
@@ -302,32 +509,63 @@ impl PyTensor {
         };
 
         self.inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .deref_mut()
             .data
             .get_mut(indices.as_slice())
             .ok_or(PyRuntimeError::new_err("Index out of bounds".to_string()))
             .map(|item| *item = value)
     }
 
-    fn __len__(&self) -> usize {
-        self.inner.length()
+    fn __len__(&self) -> PyResult<usize> {
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .deref()
+            .length())
     }
 
     fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<TensorIter>> {
         let iter = TensorIter {
-            inner: slf.inner.data.clone().into_iter(),
+            inner: slf
+                .inner
+                .lock()
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                .deref()
+                .data
+                .clone()
+                .into_iter(),
         };
         Py::new(slf.py(), iter)
     }
 
-    fn __str__(&self) -> String {
-        format!("{:?}", self.inner.data)
+    fn __str__(&self) -> PyResult<String> {
+        Ok(format!(
+            "{:?}",
+            self.inner
+                .lock()
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                .deref()
+                .data
+        ))
     }
 
-    fn __repr__(&self) -> String {
-        format!(
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!(
             "Tensor(shape={:?}, data={:?})",
-            self.inner.shape, self.inner.data
-        )
+            self.inner
+                .lock()
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                .deref()
+                .shape,
+            self.inner
+                .lock()
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                .deref()
+                .data
+        ))
     }
 
     #[pyo3(signature = (dtype=None, copy=None))]
@@ -346,7 +584,7 @@ impl PyTensor {
             }
         }
 
-        let numpy_array = self.to_numpy(py);
+        let numpy_array = self.to_numpy(py)?;
 
         if let Some(dtype_val) = dtype {
             let numpy_mod = py.import("numpy")?;

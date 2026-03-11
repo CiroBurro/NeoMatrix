@@ -373,26 +373,6 @@ impl Tensor {
         Ok(())
     }
 
-    /// Concatenates multiple tensors along a specified axis, without modifying the original.
-    ///
-    /// # Arguments
-    /// * `tensors` - Vector of tensors to concatenate with self
-    /// * `axis` - Axis along which to concatenate (0-indexed)
-    ///
-    /// # Returns
-    /// * `Result<Tensor, TensorError>` - Concatenated tensor, or error if dimensions are incompatible
-    ///
-    /// # Errors
-    /// Returns `TensorError::IncompatibleDimensionsForPushing` if shapes don't match
-    pub fn cat_inplace(&self, tensors: Vec<Tensor>, axis: usize) -> Result<Tensor, TensorError> {
-        let mut new_tensor = self.clone();
-        for t in tensors.iter() {
-            new_tensor.push(t, axis)?;
-        }
-
-        Ok(new_tensor)
-    }
-
     /// Concatenates multiple tensors along a specified axis (static method).
     ///
     /// # Arguments

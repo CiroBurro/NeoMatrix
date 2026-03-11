@@ -35,7 +35,15 @@
 //! // w is now [[0.995, 0.995, 0.995], [0.995, 0.995, 0.995]]
 //! ```
 
-use crate::{errors::TensorError, optimizers::Optimizer, tensor::Tensor};
+use std::ops::{Deref, DerefMut};
+
+use rayon::prelude::*;
+
+use crate::{
+    errors::TensorError,
+    optimizers::{Optimizer, ParametersRef},
+    tensor::Tensor,
+};
 
 /// Standard gradient descent optimizer with a fixed learning rate.
 ///
@@ -61,11 +69,15 @@ use crate::{errors::TensorError, optimizers::Optimizer, tensor::Tensor};
 pub struct GradientDescent {
     /// Step size for each parameter update. Must be non-negative.
     pub learning_rate: f32,
+    pub params: Vec<ParametersRef>,
 }
 
 impl GradientDescent {
-    pub fn new(learning_rate: f32) -> Self {
-        Self { learning_rate }
+    pub fn new(learning_rate: f32, params: Vec<ParametersRef>) -> Self {
+        Self {
+            learning_rate,
+            params,
+        }
     }
 }
 
@@ -100,6 +112,58 @@ impl Optimizer for GradientDescent {
         *weights = (&*weights - w_grads * self.learning_rate)?;
         // b_new = b - lr * grad_b
         *biases = (&*biases - b_grads * self.learning_rate)?;
+        Ok(())
+    }
+
+    fn register_params(&mut self, params: Vec<ParametersRef>) {
+        self.params = params;
+    }
+
+    fn step(&mut self) -> Result<(), TensorError> {
+        // Parallelize updates across layers using Rayon
+        // Each layer's parameters are updated independently
+        self.params.par_iter().try_for_each(|param| {
+            let mut weights = param
+                .weights
+                .lock()
+                .map_err(|e| TensorError::MemoryError(e.to_string()))?;
+            let mut biases = param
+                .biases
+                .lock()
+                .map_err(|e| TensorError::MemoryError(e.to_string()))?;
+            let w_grads = param
+                .w_grads
+                .lock()
+                .map_err(|e| TensorError::MemoryError(e.to_string()))?;
+            let b_grads = param
+                .b_grads
+                .lock()
+                .map_err(|e| TensorError::MemoryError(e.to_string()))?;
+
+            *weights = (weights.deref_mut() - w_grads.deref() * self.learning_rate)?;
+            *biases = (biases.deref_mut() - b_grads.deref() * self.learning_rate)?;
+
+            Ok::<(), TensorError>(())
+        })?;
+        Ok(())
+    }
+
+    fn zero_grad(&mut self) -> Result<(), TensorError> {
+        // Parallelize zeroing gradients across layers
+        self.params.par_iter().try_for_each(|param| {
+            let mut w_grads = param
+                .w_grads
+                .lock()
+                .map_err(|e| TensorError::MemoryError(e.to_string()))?;
+            let mut b_grads = param
+                .b_grads
+                .lock()
+                .map_err(|e| TensorError::MemoryError(e.to_string()))?;
+            *w_grads = Tensor::new(w_grads.shape.clone(), vec![0.0; w_grads.length()])?;
+            *b_grads = Tensor::new(b_grads.shape.clone(), vec![0.0; b_grads.length()])?;
+
+            Ok::<(), TensorError>(())
+        })?;
         Ok(())
     }
 }

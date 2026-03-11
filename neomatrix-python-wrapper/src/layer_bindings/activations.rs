@@ -1,5 +1,10 @@
+use std::{
+    ops::Deref,
+    sync::{Arc, Mutex},
+};
+
 use crate::tensor_bindings::PyTensor;
-use neomatrix_core::layers::{Layer, activations};
+use neomatrix_core::layers::{activations, Layer};
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 
 #[pyclass(name = "ReLU")]
@@ -17,19 +22,34 @@ impl PyReLU {
 
     pub fn forward(&mut self, input: PyTensor, training: bool) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .forward(&input.inner, training)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .forward(
+                        input
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                        training,
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
     pub fn backward(&mut self, output_gradient: PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .backward(&output_gradient.inner)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .backward(
+                        output_gradient
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
@@ -53,19 +73,34 @@ impl PySigmoid {
 
     pub fn forward(&mut self, input: PyTensor, training: bool) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .forward(&input.inner, training)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .forward(
+                        input
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                        training,
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
     pub fn backward(&mut self, output_gradient: PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .backward(&output_gradient.inner)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .backward(
+                        output_gradient
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
@@ -93,19 +128,34 @@ impl PyTanh {
 
     pub fn forward(&mut self, input: PyTensor, training: bool) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .forward(&input.inner, training)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .forward(
+                        input
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                        training,
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
     pub fn backward(&mut self, output_gradient: PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .backward(&output_gradient.inner)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .backward(
+                        output_gradient
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
@@ -129,19 +179,34 @@ impl PySoftmax {
 
     pub fn forward(&mut self, input: PyTensor, training: bool) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .forward(&input.inner, training)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .forward(
+                        input
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                        training,
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 
     pub fn backward(&mut self, output_gradient: PyTensor) -> PyResult<PyTensor> {
         Ok(PyTensor {
-            inner: self
-                .inner
-                .backward(&output_gradient.inner)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            inner: Arc::new(Mutex::new(
+                self.inner
+                    .backward(
+                        output_gradient
+                            .inner
+                            .lock()
+                            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                            .deref(),
+                    )
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )),
         })
     }
 

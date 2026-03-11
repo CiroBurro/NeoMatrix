@@ -30,7 +30,7 @@ mod gradient_descent_tests {
     /// w_new = w - lr * grad_w   (scalar case, easy to verify by hand)
     #[test]
     fn update_weights_simple() {
-        let mut gd = GradientDescent { learning_rate: 0.1 };
+        let mut gd = GradientDescent { learning_rate: 0.1, params: vec![] };
 
         let mut weights = tensor1d(&[1.0, 2.0, 3.0]);
         let mut biases = tensor1d(&[0.0]);
@@ -48,7 +48,7 @@ mod gradient_descent_tests {
 
     #[test]
     fn update_biases_simple() {
-        let mut gd = GradientDescent { learning_rate: 0.5 };
+        let mut gd = GradientDescent { learning_rate: 0.5, params: vec![] };
 
         let mut weights = tensor1d(&[0.0]);
         let mut biases = tensor1d(&[4.0, 6.0]);
@@ -74,7 +74,7 @@ mod gradient_descent_tests {
         let mut b_dummy = tensor1d(&[0.0]);
         let b_grads = tensor1d(&[0.0]);
 
-        let mut gd_small = GradientDescent { learning_rate: 0.01 };
+        let mut gd_small = GradientDescent { learning_rate: 0.01, params: vec![] };
         gd_small
             .update(&mut w_small, &mut b_dummy, &grads, &b_grads, 0)
             .unwrap();
@@ -82,7 +82,7 @@ mod gradient_descent_tests {
         let mut w_large = tensor1d(&[5.0, 5.0]);
         let mut b_dummy2 = tensor1d(&[0.0]);
 
-        let mut gd_large = GradientDescent { learning_rate: 1.0 };
+        let mut gd_large = GradientDescent { learning_rate: 1.0, params: vec![] };
         gd_large
             .update(&mut w_large, &mut b_dummy2, &grads, &b_grads, 0)
             .unwrap();
@@ -96,7 +96,7 @@ mod gradient_descent_tests {
     /// lr = 0 → no update at all.
     #[test]
     fn zero_lr_no_update() {
-        let mut gd = GradientDescent { learning_rate: 0.0 };
+        let mut gd = GradientDescent { learning_rate: 0.0, params: vec![] };
 
         let mut weights = tensor1d(&[3.0, -1.0]);
         let mut biases = tensor1d(&[2.0]);
@@ -116,7 +116,7 @@ mod gradient_descent_tests {
     /// Zero gradients → parameters must not change.
     #[test]
     fn zero_gradients_no_change() {
-        let mut gd = GradientDescent { learning_rate: 0.5 };
+        let mut gd = GradientDescent { learning_rate: 0.5, params: vec![] };
 
         let mut weights = tensor1d(&[1.0, 2.0, 3.0]);
         let mut biases = tensor1d(&[4.0, 5.0]);
@@ -138,7 +138,7 @@ mod gradient_descent_tests {
     /// Negative gradients → parameters increase.
     #[test]
     fn negative_gradients_increase_params() {
-        let mut gd = GradientDescent { learning_rate: 0.1 };
+        let mut gd = GradientDescent { learning_rate: 0.1, params: vec![] };
 
         let mut weights = tensor1d(&[1.0]);
         let mut biases = tensor1d(&[1.0]);
@@ -156,7 +156,7 @@ mod gradient_descent_tests {
 
     #[test]
     fn update_preserves_weight_shape() {
-        let mut gd = GradientDescent { learning_rate: 0.01 };
+        let mut gd = GradientDescent { learning_rate: 0.01, params: vec![] };
 
         let mut weights = tensor2d(3, 4, &[1.0; 12]);
         let mut biases = tensor1d(&[0.0; 4]);
@@ -172,7 +172,7 @@ mod gradient_descent_tests {
 
     #[test]
     fn update_preserves_bias_shape() {
-        let mut gd = GradientDescent { learning_rate: 0.01 };
+        let mut gd = GradientDescent { learning_rate: 0.01, params: vec![] };
 
         let mut weights = tensor2d(2, 3, &[0.0; 6]);
         let mut biases = tensor1d(&[1.0, 2.0, 3.0]);
@@ -191,7 +191,7 @@ mod gradient_descent_tests {
     /// Constant gradient → weight should converge monotonically toward 0.
     #[test]
     fn multiple_steps_reduces_weight() {
-        let mut gd = GradientDescent { learning_rate: 0.1 };
+        let mut gd = GradientDescent { learning_rate: 0.1, params: vec![] };
 
         let mut weights = tensor1d(&[10.0]);
         let mut biases = tensor1d(&[0.0]);
@@ -216,12 +216,12 @@ mod gradient_descent_tests {
         let grads = tensor1d(&[1.0, 1.0]);
         let b_grads = tensor1d(&[0.0]);
 
-        let mut gd0 = GradientDescent { learning_rate: 0.3 };
+        let mut gd0 = GradientDescent { learning_rate: 0.3, params: vec![] };
         let mut w0 = tensor1d(&[5.0, 5.0]);
         let mut b0 = tensor1d(&[0.0]);
         gd0.update(&mut w0, &mut b0, &grads, &b_grads, 0).unwrap();
 
-        let mut gd1000 = GradientDescent { learning_rate: 0.3 };
+        let mut gd1000 = GradientDescent { learning_rate: 0.3, params: vec![] };
         let mut w1000 = tensor1d(&[5.0, 5.0]);
         let mut b1000 = tensor1d(&[0.0]);
         gd1000
@@ -237,7 +237,7 @@ mod gradient_descent_tests {
 
     #[test]
     fn update_2d_weights_correct_values() {
-        let mut gd = GradientDescent { learning_rate: 1.0 };
+        let mut gd = GradientDescent { learning_rate: 1.0, params: vec![] };
 
         // weights: [[2, 4], [6, 8]]
         let mut weights = tensor2d(2, 2, &[2.0, 4.0, 6.0, 8.0]);

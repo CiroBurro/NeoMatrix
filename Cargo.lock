@@ -488,6 +488,7 @@ dependencies = [
  "ndarray-rand",
  "openblas-src",
  "rand",
+ "rayon",
  "thiserror",
 ]
 
