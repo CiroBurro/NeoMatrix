@@ -12,5 +12,5 @@ ndarray = { version = "*", features = ["rayon", "blas"] }
 ndarray-rand = "*"
 rand = "*"
 thiserror = "*"
-openblas-src = { version = "*", features = ["static"] }
+openblas-src = { version = "*", features = ["system"] }
 blas-src = { version = "*", features = ["openblas"] }

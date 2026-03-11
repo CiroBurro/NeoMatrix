@@ -9,5 +9,5 @@ neomatrix_core = { path = "../neomatrix-core", package = "neomatrix-core" }
 numpy = "*"
 ndarray = { version = "*", features = ["rayon", "blas"] }
 rand = "*"
-openblas-src = { version = "*", features = ["static"] }
+openblas-src = { version = "*", features = ["system"] }
 blas-src = { version = "*", features = ["openblas"] }

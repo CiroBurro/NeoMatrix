@@ -1,5 +1,5 @@
 use crate::tensor_bindings::PyTensor;
-use neomatrix_core::layers::{activations, Layer};
+use neomatrix_core::layers::{Layer, activations};
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 
 #[pyclass(name = "ReLU")]
@@ -69,7 +69,7 @@ impl PySigmoid {
         })
     }
 
-    pub fn backward_with_logits(&self, output_gradient: PyTensor) -> PyResult<PyTensor> {
+    pub fn backward_optimized(&self, output_gradient: PyTensor) -> PyResult<PyTensor> {
         Ok(output_gradient)
     }
 
@@ -145,7 +145,7 @@ impl PySoftmax {
         })
     }
 
-    pub fn backward_with_logits(&self, output_gradient: PyTensor) -> PyResult<PyTensor> {
+    pub fn backward_optimized(&self, output_gradient: PyTensor) -> PyResult<PyTensor> {
         Ok(output_gradient)
     }
 

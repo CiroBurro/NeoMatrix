@@ -1,11 +1,5 @@
-"""
-Module for dataset utilities and batching operations.
-
-Provides functions to split a tensor into smaller batch tensors.
-"""
-
-from neomatrix.core import Tensor
 import numpy as np
+from neomatrix import Tensor
 
 def get_batches(tensor: Tensor, batch_size: int) -> list[Tensor]:
     """
@@ -39,3 +33,5 @@ def get_batches(tensor: Tensor, batch_size: int) -> list[Tensor]:
         tensors.append(t)
     
     return tensors
+
+__all__ = [get_batches]
