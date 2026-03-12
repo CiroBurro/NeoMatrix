@@ -6,7 +6,7 @@ Dense layer and activation layers, plus weight initialization strategies.
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from neomatrix._backend import Tensor
+    from neomatrix._backend import Tensor, ParametersRef
 
 from neomatrix._backend import (
     Dense,
@@ -44,10 +44,10 @@ class Layer(Protocol):
 class TrainableLayer(Layer, Protocol):
     """Structural protocol for layers that hold learnable parameters (e.g. Dense).
 
-    Extends :class:`Layer` with ``get_params_and_grads``, which returns
+    Extends :class:`Layer` with ``get_parameters``, which returns
     ``[(weight, weight_grad), (bias, bias_grad)]`` after a backward pass.
     """
-    def get_params_and_grads(self) -> list[tuple[Tensor, Tensor]]: ...
+    def get_parameters(self) -> list[ParametersRef]: ...
 
 
 @runtime_checkable

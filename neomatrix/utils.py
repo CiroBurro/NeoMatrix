@@ -1,5 +1,5 @@
 import numpy as np
-from neomatrix import Tensor
+from neomatrix import Tensor, ParametersRef
 
 def get_batches(tensor: Tensor, batch_size: int) -> list[Tensor]:
     """

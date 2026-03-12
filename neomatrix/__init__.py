@@ -15,8 +15,9 @@ from neomatrix._backend import Tensor
 from neomatrix.layers import Dense, ReLU, Sigmoid, Tanh, Softmax, Init
 from neomatrix.losses import MSE, MAE, BCE, CCE, HuberLoss, HingeLoss
 from neomatrix.optimizers import GradientDescent, Optimizer
+from neomatrix.utils import ParametersRef
 
-from neomatrix import layers, losses, optimizers
+from neomatrix import layers, losses, optimizers, utils
 
 __all__ = [
     # Core

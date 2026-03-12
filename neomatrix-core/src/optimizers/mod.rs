@@ -66,36 +66,6 @@ pub struct ParametersRef {
 /// Returns a [`TensorError`] if the arithmetic operations on the tensors fail
 /// (e.g., incompatible shapes).
 pub trait Optimizer {
-    /// Updates `weights` and `biases` in place using the provided gradients.
-    ///
-    /// # Arguments
-    ///
-    /// - `weights`: Mutable reference to the layer's weight tensor.
-    /// - `biases`: Mutable reference to the layer's bias tensor.
-    /// - `w_grads`: Gradient of the loss w.r.t. the weights (same shape as `weights`).
-    /// - `b_grads`: Gradient of the loss w.r.t. the biases (same shape as `biases`).
-    /// - `step`: Current update step (0-indexed). Used by adaptive optimizers for
-    ///   bias correction; ignored by stateless ones.
-    ///
-    /// # Returns
-    ///
-    /// - `Ok(())` on success.
-    /// - `Err(TensorError)` if the update arithmetic fails.
-    ///
-    /// # Example
-    ///
-    /// ```rust,ignore
-    /// opt.update(&mut layer_weights, &mut layer_biases, &grad_w, &grad_b, step)?;
-    /// ```
-    fn update(
-        &mut self,
-        weights: &mut Tensor,
-        biases: &mut Tensor,
-        w_grads: &Tensor,
-        b_grads: &Tensor,
-        step: usize,
-    ) -> Result<(), TensorError>;
-
     fn register_params(&mut self, params: Vec<ParametersRef>);
     fn step(&mut self) -> Result<(), TensorError>;
     fn zero_grad(&mut self) -> Result<(), TensorError>;

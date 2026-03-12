@@ -22,11 +22,8 @@ __all__ = [
 
 class Model:
 
-    def __init__(self, layers: list[layers.Layer], loss_function: losses.LossFunction = None, optimizer: optimizers.Optimizer = None, metrics = None):
+    def __init__(self, layers: list[layers.Layer]):
         self.layers = layers
-        self.loss_function = loss_function
-        self.optimizer = optimizer
-        self.metrics = metrics or []
         self._use_optimize = None
 
     def _detect_optimization(self):
@@ -53,6 +50,16 @@ class Model:
         self.metrics = metrics or []
         self._use_optimize = self._detect_optimization()
 
+        params = []
+
+        for l in self.layers:
+            if hasattr(layer, 'get_parameters'):
+                p = layer.get_parameters()
+                if p:
+                    params.append(p)
+
+
+
     def predict(self, x: Tensor, training: bool = False) -> Tensor:
         for l in self.layers:
             x = l.forward(x, training)
@@ -71,12 +78,27 @@ class Model:
 
         return
     
-    def fit(self, training_x: Tensor, training_y: Tensor, val_x: Tensor, val_y: Tensor, epochs: int):
+    def fit(self, training_x: Tensor, training_y: Tensor, val_x: Tensor, val_y: Tensor, epochs: int, batch_size: int):
         
-        for epoch in range(epochs):
-            y_pred = self.predict(training_x, training=True)
+        if self.loss is None or self.optimizer is None:
+            raise ValueError("Call model.compile(loss_function=..., optimizer=...) first")
     
-            self.backward(training_y, y_pred)
+        for epoch in range(epochs):
+            epoch_loss = 0.0
+            batches_x = utils.get_batches(training_x, batch_size)
+            batches_y = utils.get_batches(training_y, batch_size)
+            
+            for i, (batch_x, batch_y) in enumerate((batches_x, batches_y)):
+
+                self.optimizer.zero_grad()
+                pred = self.forward(batch_x, parallel=True)
+                loss_val = self.loss.call(pred, batch_y)
+                grad = self.loss.backward(pred, batch_y)
+                self.backward(grad, parallel=True)
+
+                self.optimizer.step()
+                
+                epoch_loss += loss_val
             
 
         return

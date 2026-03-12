@@ -7,7 +7,7 @@ Available: GradientDescent (SGD with configurable learning rate).
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from neomatrix._backend import Tensor
+    from neomatrix._backend import Tensor, ParametersRef
 
 from neomatrix._backend import GradientDescent
 
@@ -33,16 +33,6 @@ class Optimizer(Protocol):
         step: Current training step (used by adaptive optimizers like Adam).
     """
 
-    def update(
-        self,
-        weights: "Tensor",
-        biases: "Tensor",
-        w_grads: "Tensor",
-        b_grads: "Tensor",
-        step: int,
-    ) -> None:
-        """Update parameters in-place using their gradients.
-
-        Parameters are modified directly (no return value).
-        """
-        ...
+    def register_params(self, params: list[ParametersRef]): ...
+    def step(self): ...
+    def zero_grad(self): ...

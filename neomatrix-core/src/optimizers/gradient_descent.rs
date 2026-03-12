@@ -82,39 +82,6 @@ impl GradientDescent {
 }
 
 impl Optimizer for GradientDescent {
-    /// Updates `weights` and `biases` in place:
-    /// ```text
-    /// weights = weights - learning_rate * w_grads
-    /// biases  = biases  - learning_rate * b_grads
-    /// ```
-    ///
-    /// # Arguments
-    ///
-    /// - `weights`: Weight tensor to update (mutated in place).
-    /// - `biases`: Bias tensor to update (mutated in place).
-    /// - `w_grads`: Gradient of the loss w.r.t. weights — same shape as `weights`.
-    /// - `b_grads`: Gradient of the loss w.r.t. biases — same shape as `biases`.
-    /// - `_step`: Ignored. Gradient descent is stateless and does not use iteration count.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`TensorError`] if the subtraction or scalar multiplication fails
-    /// due to incompatible shapes.
-    fn update(
-        &mut self,
-        weights: &mut Tensor,
-        biases: &mut Tensor,
-        w_grads: &Tensor,
-        b_grads: &Tensor,
-        _step: usize,
-    ) -> Result<(), TensorError> {
-        // w_new = w - lr * grad_w
-        *weights = (&*weights - w_grads * self.learning_rate)?;
-        // b_new = b - lr * grad_b
-        *biases = (&*biases - b_grads * self.learning_rate)?;
-        Ok(())
-    }
-
     fn register_params(&mut self, params: Vec<ParametersRef>) {
         self.params = params;
     }
