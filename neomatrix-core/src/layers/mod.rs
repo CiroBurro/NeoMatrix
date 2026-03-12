@@ -31,11 +31,11 @@
 //! let grad_output = Tensor::ones(&[1, 5]).unwrap();
 //! let grad_input = layer.backward(&grad_output).unwrap();
 //!
-//! // Access weights and gradients for optimization
-//! if let Some(params) = layer.get_params_and_grads() {
-//!     for (weight, gradient) in params {
-//!         // Update weights using gradient descent
-//!     }
+//! // Access parameters for optimizer registration
+//! if let Some(params) = layer.get_parameters() {
+//!     let weights = params.weights.lock().unwrap();
+//!     let w_grads = params.w_grads.lock().unwrap();
+//!     // Use with optimizer: optimizer.register_params(vec![params])
 //! }
 //! ```
 
@@ -63,9 +63,9 @@ use crate::tensor::Tensor;
 ///   given the gradient with respect to the output. For layers with learnable parameters,
 ///   this method should also compute and cache parameter gradients internally.
 ///
-/// - **[`get_params_and_grads`](Layer::get_params_and_grads)**: Returns mutable references to
-///   weights paired with their gradients. This allows optimizers to update parameters.
-///   Layers without learnable parameters (e.g., activation layers) return `None`.
+/// - **[`get_parameters`](Layer::get_parameters)**: Returns shared references to weights,
+///   biases, and their gradients wrapped in `ParametersRef`. This allows optimizers to
+///   register and update parameters. Layers without learnable parameters return `None`.
 ///
 /// # Design Notes
 ///
@@ -115,29 +115,53 @@ pub trait Layer {
     /// intermediate activations) to compute gradients correctly.
     fn backward(&mut self, output_gradient: &Tensor) -> Result<Tensor, LayerError>;
 
-    /// Retrieves mutable references to learnable parameters and their gradients.
+    /// Retrieves shared references to learnable parameters and their gradients.
     ///
-    /// This method provides access to the layer's trainable weights and their corresponding
-    /// gradients for use by optimization algorithms (SGD, Adam, etc.). Each tuple contains:
-    /// - `&mut Tensor`: Mutable reference to the parameter (weight or bias)
-    /// - `&Tensor`: Immutable reference to the gradient computed during backward pass
+    /// This method provides access to the layer's trainable weights, biases, and their
+    /// corresponding gradients wrapped in [`ParametersRef`]. The shared ownership pattern
+    /// (`Arc<Mutex<Tensor>>`) allows both the layer and optimizer to hold references to
+    /// the same underlying tensors.
     ///
     /// # Returns
     ///
-    /// - `Some(Vec<(&mut Tensor, &Tensor)>)`: For layers with learnable parameters (e.g., Dense layer)
+    /// - `Some(ParametersRef)`: For layers with learnable parameters (e.g., Dense layer).
+    ///   Contains `Arc<Mutex<Tensor>>` for weights, biases, and their gradients.
     /// - `None`: For layers without learnable parameters (e.g., ReLU, Softmax)
     ///
-    /// # Example Use Case
+    /// # Usage Pattern
+    ///
+    /// Typically used to register layer parameters with an optimizer before training:
     ///
     /// ```rust,ignore
-    /// // Gradient descent update
-    /// if let Some(params) = layer.get_params_and_grads() {
-    ///     for (weight, gradient) in params {
-    ///         *weight = weight - &(gradient * learning_rate);
-    ///     }
+    /// use neomatrix_core::optimizers::{gradient_descent::GradientDescent, Optimizer};
+    ///
+    /// // Collect parameters from all layers
+    /// let params: Vec<ParametersRef> = layers
+    ///     .iter_mut()
+    ///     .filter_map(|layer| layer.get_parameters())
+    ///     .collect();
+    ///
+    /// // Register with optimizer
+    /// let mut optimizer = GradientDescent::new(0.01, vec![]);
+    /// optimizer.register_params(params);
+    ///
+    /// // During training, optimizer.step() updates all registered parameters
+    /// ```
+    ///
+    /// # Accessing Individual Tensors
+    ///
+    /// ```rust,ignore
+    /// if let Some(params) = layer.get_parameters() {
+    ///     // Lock and access weights
+    ///     let weights = params.weights.lock().unwrap();
+    ///     println!("Weight shape: {:?}", weights.shape);
+    ///
+    ///     // Lock and access gradients
+    ///     let w_grads = params.w_grads.lock().unwrap();
+    ///     println!("Gradient norm: {:?}", w_grads.data.mapv(|x| x*x).sum());
     /// }
     /// ```
-    fn get_parameters(&mut self) -> Option<ParametersRef> {
+    fn get_parameters(&self) -> Option<ParametersRef> {
         None
     }
 }

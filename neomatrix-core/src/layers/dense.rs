@@ -118,11 +118,11 @@ pub struct Dense {
 
     /// Gradient of the loss with respect to weights, computed during backward pass.
     /// Shape: `[in_features, out_features]`
-    weights_gradient: Option<Arc<Mutex<Tensor>>>,
+    weights_gradient: Arc<Mutex<Tensor>>,
 
     /// Gradient of the loss with respect to biases, computed during backward pass.
     /// Shape: `[out_features]`
-    biases_gradient: Option<Arc<Mutex<Tensor>>>,
+    biases_gradient: Arc<Mutex<Tensor>>,
 }
 
 impl Dense {
@@ -164,16 +164,24 @@ impl Dense {
         init: Option<Init>,
         rg: Option<Range<f32>>,
     ) -> Self {
+        let weights = Arc::new(Mutex::new(init.unwrap_or(Init::Xavier).init(
+            in_feat,
+            out_feat,
+            rg.clone(),
+        )));
+
+        let biases: Arc<Mutex<Tensor>> = Arc::new(Mutex::new(Tensor::zeros(vec![out_feat])));
+
+        let w_grads: Arc<Mutex<Tensor>> =
+            Arc::new(Mutex::new(Tensor::zeros(vec![in_feat, out_feat])));
+        let b_grads: Arc<Mutex<Tensor>> = Arc::new(Mutex::new(Tensor::zeros(vec![out_feat])));
+
         Self {
             input_cache: None,
-            weights: Arc::new(Mutex::new(init.unwrap_or(Init::Xavier).init(
-                in_feat,
-                out_feat,
-                rg.clone(),
-            ))),
-            biases: Arc::new(Mutex::new(Tensor::zeros(vec![out_feat]))),
-            weights_gradient: None,
-            biases_gradient: None,
+            weights,
+            biases,
+            weights_gradient: w_grads,
+            biases_gradient: b_grads,
         }
     }
 }
@@ -209,18 +217,16 @@ impl Layer for Dense {
 
         // Compute weight gradient: ∇W = Xᵀ · ∇Y
         // Shape: [in_features, batch_size] · [batch_size, out_features] = [in_features, out_features]
-        self.weights_gradient = Some(Arc::new(Mutex::new(
-            input.transpose()?.dot(output_gradient)?,
-        )));
+        self.weights_gradient = Arc::new(Mutex::new(input.transpose()?.dot(output_gradient)?));
 
         // Compute bias gradient: ∇b = sum(∇Y, axis=0)
         // Sum across batch dimension to get per-feature bias gradient
         let data = output_gradient.data.sum_axis(Axis(0)).into_dyn();
-        self.biases_gradient = Some(Arc::new(Mutex::new(Tensor {
+        self.biases_gradient = Arc::new(Mutex::new(Tensor {
             dimension: data.ndim(),
             shape: data.shape().to_vec(),
             data,
-        })));
+        }));
 
         // Compute input gradient: ∇X = ∇Y · Wᵀ
         // This gradient is propagated to the previous layer
@@ -236,17 +242,13 @@ impl Layer for Dense {
             .map_err(LayerError::from)
     }
 
-    fn get_parameters(&mut self) -> Option<ParametersRef> {
+    fn get_parameters(&self) -> Option<ParametersRef> {
         // Return parameters only if gradients have been computed (i.e., after backward pass)
-        if self.weights_gradient.is_some() && self.biases_gradient.is_some() {
-            Some(ParametersRef {
-                weights: self.weights.clone(),
-                biases: self.biases.clone(),
-                w_grads: self.weights_gradient.clone().unwrap(),
-                b_grads: self.biases_gradient.clone().unwrap(),
-            })
-        } else {
-            None
-        }
+        Some(ParametersRef {
+            weights: self.weights.clone(),
+            biases: self.biases.clone(),
+            w_grads: self.weights_gradient.clone(),
+            b_grads: self.biases_gradient.clone(),
+        })
     }
 }
