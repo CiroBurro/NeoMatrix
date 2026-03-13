@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**NeoMatrix** is a Keras-inspired machine learning library that combines the computational performance of Rust with the simplicity and flexibility of Python for building and training neural networks.
+**NeoMatrix** is a Torch-inspired machine learning library that combines the computational performance of Rust with the simplicity and flexibility of Python for building and training neural networks.
 
 ## Architecture Overview
 
@@ -13,7 +13,7 @@ NeoMatrix is structured as a multi-layered system:
 ```
 ┌─────────────────────────────────────────┐
 │   Python API (neomatrix)                │  ← High-level model building
-│   • NeuralNetwork, Layer, Optimizer     │     ⚠️ Has Known Issues
+│   • NeuralNetwork, Layer, Optimizer     │     ⚠️ Work in progress
 └─────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────┐
@@ -48,13 +48,12 @@ The computational engine of NeoMatrix, written in pure Rust with comprehensive d
   - Xavier/Glorot (optimal for Sigmoid/Tanh)
   - He (optimal for ReLU)
   - Random uniform
+- **Optimizer**: Stateful optimization algorithms for updating model parameters
 - **Parallel Computing**: Rayon-powered matrix multiplication for multi-core performance
 - **Error Handling**: Comprehensive `Result`-based error types (no panics in library code)
 
 
 #### 2. **neomatrix-python-wrapper** (PyO3 Bindings) ✅
-
-*Status: Fully Implemented*
 
 Python bindings exposing the Rust core to Python via PyO3. All core types are exposed:
 
@@ -62,27 +61,20 @@ Python bindings exposing the Rust core to Python via PyO3. All core types are ex
 - **Tensor**: Full NumPy interoperability via `__array__` protocol, `to_numpy()`, `from_numpy()`
 - **Layers**: `Dense` (with `get_parameters()`), `ReLU`, `Sigmoid`, `Tanh`, `Softmax`
 - **Optimizers**: `GradientDescent` with `register_params()`, `step()`, `zero_grad()`
-- **Loss Functions**: MSE, MAE, BCE, CCE, Huber, Hinge (all with `backward_optimized()` support)
-- **Initialization**: `Init` enum (Xavier, He, LeCun, Random)
+- **Loss Functions**: MSE, MAE, BCE, CCE, Huber, Hinge (BCE and CCE with `backward_optimized()` support)
+- **Initialization**: `Init` enum (Xavier, He, Random)
 - **Parameter Management**: `ParametersRef` for shared ownership between layers and optimizers
 
 
 #### 3. **neomatrix** (Python Package) ⚠️
 
-*Status: Implemented with Known Issues*
-
-High-level Python API inspired by Keras, built on top of the Rust backend. Provides:
+High-level Python API inspired by Torch and Keras, built on top of the Rust backend. Provides:
 - ✅ `Model`: Sequential model container with `compile()` and `fit()` methods
 - ✅ `Layer`: Re-exports for Dense, ReLU, Sigmoid, Tanh, Softmax
 - ✅ `Optimizer`: Re-exports for GradientDescent (stateful optimizer)
 - ✅ `LossFunction`: Re-exports for all 6 loss functions
 - ✅ Dataset utilities: `get_batches()` for batch processing
 
-**⚠️ Known Issues in `model.py`:**
-- 12 documented bugs preventing training loop from working correctly
-- Missing `optimizer.register_params()` call in `compile()`
-- Missing `optimizer.step()` call in training loop
-- Various typos and incorrect API usage
 ---
 
 ## Features
@@ -209,8 +201,8 @@ NeoMatrix/
 │   │   ├── optimizer_bindings/ # GradientDescent, ParametersRef
 │   │   └── losses_bindings.rs # All 6 loss functions
 │   └── Cargo.toml
-├── neomatrix/              # ⚠️ Python package (HAS KNOWN ISSUES)
-│   ├── model.py            # Model class (12 documented bugs)
+├── neomatrix/              # ⚠️ Python package (WORKING)
+│   ├── model.py            # Model class
 │   ├── layers.py           # Layer re-exports
 │   ├── optimizers.py       # Optimizer re-exports
 │   ├── losses.py           # Loss function re-exports
@@ -243,16 +235,11 @@ NeoMatrix/
 
 ### In Progress 🚧
 
-- [ ] PyO3 Python bindings (`neomatrix-python-wrapper`)
-  - [x] Basic Tensor class (760 lines, iterator support)
-  - [ ] Layer, Dense, Activation bindings
-  - [ ] Loss function bindings
-  - [ ] NumPy interoperability
 - [ ] High-level Python API (`neomatrix` package)
   - [ ] NeuralNetwork class
-  - [ ] Optimizer implementations
+  - [X] Optimizer implementations
+  - [ ] Metrics and callbacks
   - [ ] Model save/load
-  - [ ] Dataset utilities
 
 ### Planned 📋
 
@@ -323,8 +310,6 @@ This project is licensed under the MIT License.
 
 **Architecture**: Shared ownership via `Arc<Mutex<Tensor>>` enables parallel updates across layers with negligible lock overhead (<0.1% total time).
 
-**Test Configuration**: AMD Ryzen / Intel i7 class CPU, 1000-element tensors per layer.
-
 ## Roadmap
 
 ### Phase 1: Core Implementation ✅ (COMPLETE)
@@ -335,11 +320,10 @@ This project is licensed under the MIT License.
 - Weight initialization strategies
 - Parallel computation support
 
-### Phase 2: Python Integration 🚧 (IN PROGRESS)
+### Phase 2: Python Integration ✅ (COMPLETE)
 - Complete PyO3 bindings for all Rust types
 - NumPy interoperability
 - High-level Python API
-- Model persistence (save/load)
 
 ### Phase 3: Advanced Features 📋 (PLANNED)
 - Additional optimizers (Adam, RMSprop, etc.)

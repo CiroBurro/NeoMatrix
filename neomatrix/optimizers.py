@@ -7,13 +7,13 @@ Available: GradientDescent (SGD with configurable learning rate).
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from neomatrix._backend import Tensor, ParametersRef
+    from neomatrix._backend import ParametersRef
 
-from neomatrix._backend import GradientDescent
+from neomatrix._backend import GradientDescent, ParametersRef
 
 __all__ = [
     "GradientDescent",
-    # Protocols
+    "ParametersRef",
     "Optimizer",
 ]
 

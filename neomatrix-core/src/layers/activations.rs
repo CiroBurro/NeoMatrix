@@ -78,17 +78,15 @@ impl Layer for ReLu {
     fn backward(&mut self, output_gradient: &Tensor) -> Result<Tensor, LayerError> {
         // Element-wise multiply: ∇L/∂x = ∇L/∂y · f'(x)
         // where f'(x) = 1 if x > 0, else 0
-        output_gradient
-            .dot(
-                &self
-                    .inner
-                    .derivative(
-                        self.input_cache
-                            .as_ref()
-                            .ok_or(LayerError::NotInitialized)?,
-                    )
-                    .map_err(LayerError::from)?,
-            )
+        (output_gradient
+            * &self
+                .inner
+                .derivative(
+                    self.input_cache
+                        .as_ref()
+                        .ok_or(LayerError::NotInitialized)?,
+                )
+                .map_err(LayerError::from)?)
             .map_err(LayerError::from)
     }
 }

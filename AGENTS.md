@@ -24,7 +24,7 @@ NeoMatrix/
 │       │   ├── dense.rs     # Fully-connected layer with backprop
 │       │   ├── activations.rs # ReLU, Sigmoid, Tanh, Softmax layers
 │       │   └── init.rs      # Xavier, He, LeCun weight initialization
-│       ├── optimizers/      # ⭐ NEW: Stateful optimizer architecture
+│       ├── optimizers/      # Stateful optimizer architecture
 │       │   ├── mod.rs       # Optimizer trait + ParametersRef (Arc<Mutex<Tensor>>)
 │       │   └── gradient_descent.rs # GradientDescent with register_params/step/zero_grad
 │       ├── errors.rs        # All error types (thiserror)
@@ -40,7 +40,7 @@ NeoMatrix/
 │       │   ├── dense.rs     # PyDense with get_parameters() → PyParametersRef
 │       │   ├── activations.rs # PyReLU, PySigmoid, PyTanh, PySoftmax
 │       │   └── init.rs      # PyInit enum
-│       ├── optimizer_bindings/ # ⭐ NEW: Optimizer Python wrappers
+│       ├── optimizer_bindings/ # Optimizer Python wrappers
 │       │   ├── mod.rs       # PyParametersRef struct
 │       │   └── gradient_descent.rs # PyGradientDescent with step/zero_grad
 │       ├── losses_bindings.rs # All loss functions (MSE, MAE, BCE, CCE, Huber, Hinge)
@@ -53,9 +53,6 @@ NeoMatrix/
 │   ├── utils.py             # get_batches utility
 │   └── __init__.py          # Package entry point
 ├── examples/                # LinearRegression.py, NeuralNetwork.py
-├── test.py                  # Ad-hoc integration test at root
-├── test_optimizer_refactor.py # Test new optimizer pattern
-├── benchmark_parallel_optimizer.py # Performance benchmark (Rayon speedup)
 ├── Cargo.toml               # Workspace (members: -core, -python-wrapper)
 └── pyproject.toml           # maturin build, module=neomatrix._backend
 ```
@@ -71,12 +68,12 @@ NeoMatrix/
 | Activation layers (Layer trait) | `neomatrix-core/src/layers/activations.rs` |
 | Layer trait | `neomatrix-core/src/layers/mod.rs` |
 | Weight initialization | `neomatrix-core/src/layers/init.rs` |
-| **⭐ Optimizer trait + ParametersRef** | `neomatrix-core/src/optimizers/mod.rs` |
-| **⭐ GradientDescent implementation** | `neomatrix-core/src/optimizers/gradient_descent.rs` |
+| Optimizer trait + ParametersRef** | `neomatrix-core/src/optimizers/mod.rs` |
+| GradientDescent implementation** | `neomatrix-core/src/optimizers/gradient_descent.rs` |
 | All Rust error types | `neomatrix-core/src/errors.rs` |
 | Python Tensor class | `neomatrix-python-wrapper/src/tensor_bindings/tensor.rs` |
 | Python layer bindings | `neomatrix-python-wrapper/src/layer_bindings/` |
-| **⭐ Python optimizer bindings** | `neomatrix-python-wrapper/src/optimizer_bindings/` |
+| Python optimizer bindings** | `neomatrix-python-wrapper/src/optimizer_bindings/` |
 | Python loss bindings | `neomatrix-python-wrapper/src/losses_bindings.rs` |
 | Register Python types | `neomatrix-python-wrapper/src/lib.rs` |
 | Model class (compile/fit) | `neomatrix/model.py` |
@@ -84,7 +81,7 @@ NeoMatrix/
 | Layer re-exports | `neomatrix/layers.py` |
 | Loss re-exports | `neomatrix/losses.py` |
 | Rust unit tests (tensors) | `neomatrix-core/src/test/tensor_test.rs` |
-| **⭐ Rust unit tests (optimizers)** | `neomatrix-core/src/test/optimizers_test.rs` |
+| Rust unit tests (optimizers)** | `neomatrix-core/src/test/optimizers_test.rs` |
 | Usage examples | `examples/NeuralNetwork.py` |
 
 ## COMMANDS
@@ -122,8 +119,8 @@ Python user code
 - **Layers**: Dense, ReLU, Sigmoid, Tanh, Softmax (all with `forward`, `backward`, `backward_with_logits`)
 - **Init Strategies**: Xavier, He, LeCun, Random
 - **Loss Functions**: MSE, MAE, BCE, CCE, Huber, Hinge (all registered in `lib.rs`)
-- **⭐ Optimizers**: GradientDescent with `register_params()`, `step()`, `zero_grad()` (NEW)
-- **⭐ ParametersRef**: Shared ownership wrapper for weights/biases/gradients (NEW)
+- **Optimizers**: GradientDescent with `register_params()`, `step()`, `zero_grad()` (NEW)
+- **ParametersRef**: Shared ownership wrapper for weights/biases/gradients (NEW)
 
 ### ⚠️ Missing (Non-Critical)
 - **Docstrings**: Zero Python documentation (no `help()` output)
@@ -136,28 +133,6 @@ Python user code
 - API pythonic with properties (`tensor.shape`, `tensor.data`)
 - Parallel optimization via Rayon (~2-4x speedup on 10+ layers)
 - Main gap: lack of docstrings for UX
-
-## KNOWN BUGS
-
-### Rust Core ✅
-None currently identified. Previous bugs have been fixed:
-- `transpose_inplace`, `random` range, `cat_inplace` semantics (fixed)
-- `f32 - Tensor` used hardcoded `1.0` instead of `self` (fixed in tensor_ops.rs L329)
-- `f32 / Tensor` called `scalar_division` computing `Tensor / f32` instead of `f32 / Tensor` (fixed via `inverse_scalar_division`)
-- Typo `PyParameteresRef` → `PyParametersRef` (fixed in 4 files)
-
-### Python API ⚠️
-`neomatrix/model.py` has multiple bugs (not yet fixed):
-1. **Line 27**: Typo `_use_optimize` should be `_use_optimized` (inconsistent naming)
-2. **Line 43**: References `self._use_optimized` but property is `_use_optimize`
-3. **Line 56**: Variable `layer` not defined (should be `l`)
-4. **Line 59**: Missing `optimizer.register_params(params)` call
-5. **Line 76**: `self.layers.reverse()` returns `None` (should be `reversed(self.layers)`)
-6. **Line 83**: References `self.loss` but attr is `self.loss_function`
-7. **Line 91**: Wrong `zip` usage — `enumerate((batches_x, batches_y))` should be `zip(batches_x, batches_y)`
-8. **Line 94**: Calls `self.forward()` but method is `self.predict()`
-9. **Line 97**: Calls `self.backward(grad, ...)` but signature is `backward(y_true, y_pred)`
-10. **Missing `optimizer.step()`** call after backward pass
 
 ## MATHEMATICAL OPTIMIZATIONS
 
@@ -229,7 +204,7 @@ None currently identified. Previous bugs have been fixed:
   - CCE and BCE have `backward_optimized()` for fused softmax/sigmoid + loss gradient
   - All 6 loss functions registered in `lib.rs`
 
-## OPTIMIZER ARCHITECTURE ⭐ NEW
+## OPTIMIZER ARCHITECTURE
 
 ### Core (Rust)
 
@@ -338,32 +313,25 @@ optimizer.step()                # 6. Update weights
 - **Core Rust tests**: 236 total
   - Tensor tests: 224 (tensor_test.rs)
   - Optimizer tests: 12 (optimizers_test.rs)
-- **Python integration**: `test_optimizer_refactor.py` validates new pattern
-- **Benchmarks**: `benchmark_parallel_optimizer.py` measures Rayon speedup
 
 ## NEXT STEPS / ROADMAP
 
 ### Immediate (Ready to Implement)
-1. **Fix `neomatrix/model.py` bugs** (10 issues documented above)
-2. **Implement fused gradient optimization detection** in `Model.compile()`:
-   - Detect Softmax + CCE → use `loss.backward_optimized()` + `activation.backward_with_logits()`
-   - Detect Sigmoid + BCE → same pattern
-3. **Add Metrics class** (Accuracy, MAE, etc.) for `Model.fit()` reporting
-4. **Add Callbacks class** (EarlyStopping, ModelCheckpoint, LearningRateScheduler)
+1. **Add Metrics class** (Accuracy, MAE, etc.) for `Model.fit()` reporting
+2. **Add Callbacks class** (EarlyStopping, ModelCheckpoint, LearningRateScheduler)
 
 ### Short-term (Easy After Refactor)
-5. **Implement Adam optimizer**:
+3. **Implement Adam optimizer**:
    - Clone `GradientDescent` struct
    - Add `m_weights`, `v_weights`, `m_biases`, `v_biases` fields (one Vec per registered param)
    - Initialize in `register_params()`
    - Update `step()` with Adam formula using internal state
-6. **Add pytest suite** (replace ad-hoc `test.py` script)
-7. **Add Python docstrings** to all PyO3 classes via `#[doc = "..."]`
+4. **Add pytest suite** (replace ad-hoc `test.py` script)
+5. **Add Python docstrings** to all PyO3 classes via `#[doc = "..."]`
 
 ### Long-term (Architectural Changes)
-8. **Regularization**: L1/L2 penalties (add to optimizer `step()` or loss `backward()`)
-9. **Dropout layer**: Requires random mask generation + training mode handling
-10. **BatchNorm layer**: Requires running mean/variance tracking
-11. **Conv2D / MaxPool2D**: Image processing layers
-12. **LSTM / GRU**: Sequence modeling layers
-13. **GPU acceleration**: CUDA/Metal/Vulkan backends
+6. **Regularization**: L1/L2 penalties (add to optimizer `step()` or loss `backward()`)
+7. **Dropout layer**: Requires random mask generation + training mode handling
+8. **BatchNorm layer**: Requires running mean/variance tracking
+9. **Conv2D / MaxPool2D**: Image processing layers
+10. **GPU acceleration**: CUDA/Metal/Vulkan backends

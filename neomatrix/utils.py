@@ -1,5 +1,6 @@
 import numpy as np
-from neomatrix import Tensor, ParametersRef
+from neomatrix._backend import Tensor
+
 
 def get_batches(tensor: Tensor, batch_size: int) -> list[Tensor]:
     """
@@ -18,7 +19,7 @@ def get_batches(tensor: Tensor, batch_size: int) -> list[Tensor]:
 
     total_samples = tensor.shape[0]
     num_batches = total_samples // batch_size
-    
+
     try:
         subarrays = np.array_split(array, num_batches, axis=0)
     except ValueError:
@@ -26,12 +27,13 @@ def get_batches(tensor: Tensor, batch_size: int) -> list[Tensor]:
 
     tensors = []
     for arr in subarrays:
-        t = Tensor.from_numpy(array= arr)
+        t = Tensor.from_numpy(array=arr)
         if t.dimension == 1:
             length = t.length()
             t.reshape([length, 1])
         tensors.append(t)
-    
+
     return tensors
+
 
 __all__ = [get_batches]

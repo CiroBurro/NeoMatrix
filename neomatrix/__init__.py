@@ -12,17 +12,19 @@ Or via submodules for better organisation:
 
 from neomatrix._backend import Tensor
 
+from neomatrix.model import Model
 from neomatrix.layers import Dense, ReLU, Sigmoid, Tanh, Softmax, Init
 from neomatrix.losses import MSE, MAE, BCE, CCE, HuberLoss, HingeLoss
-from neomatrix.optimizers import GradientDescent, Optimizer
-from neomatrix.utils import ParametersRef
+from neomatrix.optimizers import GradientDescent, Optimizer, ParametersRef
 
-from neomatrix import layers, losses, optimizers, utils
+from neomatrix import model, layers, losses, optimizers, utils
 
 __all__ = [
     # Core
     "Tensor",
+    "Model",
     # Submodules
+    "model",
     "layers",
     "losses",
     "optimizers",
@@ -44,4 +46,5 @@ __all__ = [
     # Optimizers (flat re-export)
     "GradientDescent",
     "Optimizer",
+    "ParametersRef",
 ]

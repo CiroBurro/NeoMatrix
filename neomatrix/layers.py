@@ -376,7 +376,7 @@ class TrainableLayer(Layer, Protocol):
 class FusedLayer(Layer, Protocol):
     """Structural protocol for activation layers that support fused loss gradients.
 
-    ``Sigmoid`` and ``Softmax`` expose ``backward_with_logits``, which skips
+    ``Sigmoid`` and ``Softmax`` expose ``backward_optimized``, which skips
     the full Jacobian and directly returns the optimised gradient
     ``activation(z) - y_true`` when combined with BCE or CCE loss.
     """
