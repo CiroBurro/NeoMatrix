@@ -6,10 +6,12 @@ Module for ML models. It provides classes for the most common ML algorithms:
 - Softmax Regression
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
+from loguru import logger
 
 if TYPE_CHECKING:
-    from neomatrix import layers, losses, optimizers, utils
+    from neomatrix import layers, losses, metrics, optimizers, utils
     from neomatrix._backend import Tensor
 
 
@@ -127,7 +129,8 @@ class Model:
         self,
         loss_function: losses.LossFunction,
         optimizer: optimizers.Optimizer,
-        metrics=None,
+        metrics: Optional[list[metrics.Metric]] = None,
+        logger_enabled: bool = True,
     ):
         """
         Configure the model for training.
@@ -140,14 +143,17 @@ class Model:
         **Parameters:**
             - `loss_function` (LossFunction): Loss function instance (MSE, CCE, BCE, etc.)
             - `optimizer` (Optimizer): Optimizer instance (GradientDescent, Adam, etc.)
-            - `metrics` (list, optional): List of metric functions to track during training
+            - `metrics` (list, optional): List of metric instances to track (Accuracy, MSE, etc.)
+            - `logger_enabled` (bool): Enable logging during training. Default: True.
 
         **Example:**
             ```python
+            from neomatrix.metrics import Accuracy, MSE
+
             model.compile(
                 loss_function=losses.CCE(),
                 optimizer=optimizers.GradientDescent(learning_rate=0.01),
-                metrics=[]  # Future: [Accuracy(), F1Score()]
+                metrics=[Accuracy(), MSE()]
             )
             ```
 
@@ -159,6 +165,7 @@ class Model:
         self.loss_function = loss_function
         self.optimizer = optimizer
         self.metrics = metrics or []
+        self._logger_enabled = logger_enabled
         self._detect_optimization()
 
         params = []
@@ -250,13 +257,13 @@ class Model:
         Train the model on provided data.
 
         Automatically handles batching, forward pass, loss computation, backpropagation,
-        and parameter updates for the specified number of epochs.
+        parameter updates, and metric tracking for the specified number of epochs.
 
         **Parameters:**
             - `training_x` (Tensor): Training input data
             - `training_y` (Tensor): Training labels (ground truth)
-            - `val_x` (Tensor): Validation input data (currently unused)
-            - `val_y` (Tensor): Validation labels (currently unused)
+            - `val_x` (Tensor, optional): Validation input data
+            - `val_y` (Tensor, optional): Validation labels
             - `epochs` (int): Number of training epochs
             - `batch_size` (int): Number of samples per batch
 
@@ -265,9 +272,12 @@ class Model:
 
         **Example:**
             ```python
+            from neomatrix.metrics import Accuracy, MSE
+
             model.compile(
                 loss_function=losses.MSE(),
-                optimizer=optimizers.GradientDescent(learning_rate=0.01)
+                optimizer=optimizers.GradientDescent(learning_rate=0.01),
+                metrics=[Accuracy(), MSE()]
             )
 
             model.fit(
@@ -288,12 +298,14 @@ class Model:
                 - Compute loss
                 - Backward pass (compute gradients)
                 - Update parameters (optimizer.step)
-            3. Accumulate epoch loss
+            3. Compute training metrics
+            4. If validation data provided: compute validation metrics
+            5. Log epoch results
 
-        **Current Limitations:**
-            - No progress reporting or logging
-            - No early stopping or callbacks
-            - No metrics computation
+        **Logging:**
+            - Training logs show epoch, train_loss, and metrics
+            - Validation logs show val_loss and validation metrics
+            - Disable with `logger_enabled=False` in compile()
         """
 
         if self.loss_function is None or self.optimizer is None:
@@ -305,11 +317,19 @@ class Model:
             training_x = training_x.reshape([1, len(training_x)])
             training_y = training_y.reshape([1, len(training_y)])
 
+        if self._logger_enabled:
+            logger.info("Training started:")
+            logger.info(f"  Epochs: {epochs}")
+            logger.info(f"  Batch size: {batch_size}")
+
         for epoch in range(epochs):
             epoch_loss = 0
             epoch_val_loss = 0
             batches_x = utils.get_batches(training_x, batch_size)
             batches_y = utils.get_batches(training_y, batch_size)
+
+            for metric in self.metrics:
+                metric.reset()
 
             for i, (batch_x, batch_y) in enumerate(zip(batches_x, batches_y)):
                 self.optimizer.zero_grad()
@@ -319,8 +339,16 @@ class Model:
                 self.optimizer.step()
 
                 epoch_loss += loss
+                for metric in self.metrics:
+                    metric.update(batch_y, pred)
 
-            if val_x is not None:
+            train_loss = epoch_loss / len(batches_x) if batches_x else 0
+            train_metrics = {m.__class__.__name__: m.compute() for m in self.metrics}
+
+            for metric in self.metrics:
+                metric.reset()
+
+            if val_x is not None and val_y is not None:
                 batches_x = utils.get_batches(val_x, batch_size)
                 batches_y = utils.get_batches(val_y, batch_size)
 
@@ -328,6 +356,23 @@ class Model:
                     pred = self.predict(x=batch_x, training=False)
                     val_loss = self.loss_function.call(y_true=batch_y, y_pred=pred)
                     epoch_val_loss += val_loss
+                    for metric in self.metrics:
+                        metric.update(batch_y, pred)
+            else:
+                val_metrics = {}
+
+            val_loss = epoch_val_loss / len(batches_x) if batches_x else 0
+            val_metrics = {m.__class__.__name__: m.compute() for m in self.metrics}
+
+            if self._logger_enabled:
+                msg = f"Epoch {epoch + 1}/{epochs} | train_loss: {train_loss:.4f}"
+                for name, value in train_metrics.items():
+                    msg += f" | {name}: {value:.4f}"
+                if val_x is not None and val_y is not None:
+                    msg += f" | val_loss: {val_loss:.4f}"
+                    for name, value in val_metrics.items():
+                        msg += f" | val_{name}: {value:.4f}"
+                logger.info(msg)
 
         return
 
@@ -380,8 +425,26 @@ class LinearRegression(Model):
 
 
 class LogisticRegression(Model):
-    """
-    A class representing a logistic regression model.
+    """Logistic regression model for binary classification.
+
+    A single Dense layer with Sigmoid activation and BCE loss.
+    Equivalent to: Sigmoid(Dense(1, input_nodes)) with BCE loss.
+
+    **Constructor:**
+        ```python
+        LogisticRegression(input_nodes: int, learning_rate: float)
+        ```
+
+    **Parameters:**
+        - `input_nodes` (int): Number of input features
+        - `learning_rate` (float): Learning rate for gradient descent
+
+    **Example:**
+        ```python
+        from neomatrix.model import LogisticRegression
+
+        model = LogisticRegression(input_nodes=10, learning_rate=0.01)
+        ```
     """
 
     def __init__(self, input_nodes: int, learning_rate: float):
@@ -393,8 +456,27 @@ class LogisticRegression(Model):
 
 
 class SoftmaxRegression(Model):
-    """
-    A class representing a softmax regression model.
+    """Softmax regression model for multi-class classification.
+
+    A Dense layer followed by Softmax activation with CCE loss.
+    Equivalent to: Softmax(Dense(output_nodes, input_nodes)) with CCE loss.
+
+    **Constructor:**
+        ```python
+        SoftmaxRegression(input_nodes: int, output_nodes: int, learning_rate: float)
+        ```
+
+    **Parameters:**
+        - `input_nodes` (int): Number of input features
+        - `output_nodes` (int): Number of output classes
+        - `learning_rate` (float): Learning rate for gradient descent
+
+    **Example:**
+        ```python
+        from neomatrix.model import SoftmaxRegression
+
+        model = SoftmaxRegression(input_nodes=784, output_nodes=10, learning_rate=0.01)
+        ```
     """
 
     def __init__(self, input_nodes: int, output_nodes: int, learning_rate: float):

@@ -1,15 +1,19 @@
 import numpy as np
+
 from neomatrix._backend import Tensor
+
+__all__ = ["get_batches"]
 
 
 def get_batches(tensor: Tensor, batch_size: int) -> list[Tensor]:
-    """
-    Split a tensor into smaller batches of the specified size.
+    """Split a tensor into smaller batches of the specified size.
 
-    :param: tensor (core.Tensor): The tensor to be split.
-    :param: batch_size (int): Number of samples per batch.
+    Args:
+        tensor: The tensor to split
+        batch_size: Number of samples per batch
 
-    :return list[core.Tensor]: A list of tensor batches.
+    Returns:
+        List of tensor batches
     """
 
     if batch_size == tensor.length():
@@ -34,6 +38,3 @@ def get_batches(tensor: Tensor, batch_size: int) -> list[Tensor]:
         tensors.append(t)
 
     return tensors
-
-
-__all__ = [get_batches]

@@ -17,7 +17,7 @@ from neomatrix.layers import Dense, ReLU, Sigmoid, Tanh, Softmax, Init
 from neomatrix.losses import MSE, MAE, BCE, CCE, HuberLoss, HingeLoss
 from neomatrix.optimizers import GradientDescent, Optimizer, ParametersRef
 
-from neomatrix import model, layers, losses, optimizers, utils
+from neomatrix import model, layers, losses, optimizers, utils, metrics
 
 __all__ = [
     # Core
@@ -29,6 +29,7 @@ __all__ = [
     "losses",
     "optimizers",
     "utils",
+    "metrics",
     # Layers (flat re-export)
     "Dense",
     "ReLU",

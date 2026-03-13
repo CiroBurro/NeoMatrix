@@ -10,6 +10,7 @@ dependencies = [
     "dataclasses",
     "numpy",
     "pandas",
+    "loguru",
 ]
 classifiers = [
     "Programming Language :: Rust",
