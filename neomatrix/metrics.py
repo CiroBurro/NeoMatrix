@@ -65,16 +65,10 @@ class Accuracy(Metric):
 
 
 class Precision(Metric):
-    """Classification precision metric (macro-averaged).
-
-    Precision = tp / (tp + fp) for each class, then averaged.
-    Measures how many positive predictions are correct.
-    """
-
     def __init__(self):
-        super().__init__()
         self.tp_per_class: dict[int, int] = {}
         self.fp_per_class: dict[int, int] = {}
+        super().__init__()
 
     def reset(self):
         self.tp_per_class.clear()
@@ -108,16 +102,10 @@ class Precision(Metric):
 
 
 class Recall(Metric):
-    """Classification recall metric (macro-averaged).
-
-    Recall = tp / (tp + fn) for each class, then averaged.
-    Measures how many actual positives are correctly identified.
-    """
-
     def __init__(self):
-        super().__init__()
         self.tp_per_class: dict[int, int] = {}
         self.fn_per_class: dict[int, int] = {}
+        super().__init__()
 
     def reset(self):
         self.tp_per_class.clear()
@@ -151,17 +139,11 @@ class Recall(Metric):
 
 
 class F1Score(Metric):
-    """Classification F1 score metric (macro-averaged).
-
-    F1 = 2 * precision * recall / (precision + recall) for each class, then averaged.
-    Harmonic mean of precision and recall.
-    """
-
     def __init__(self):
-        super().__init__()
         self.tp_per_class: dict[int, int] = {}
         self.fp_per_class: dict[int, int] = {}
         self.fn_per_class: dict[int, int] = {}
+        super().__init__()
 
     def reset(self):
         self.tp_per_class.clear()
@@ -194,9 +176,12 @@ class F1Score(Metric):
             fp = self.fp_per_class.get(cls, 0)
             fn = self.fn_per_class.get(cls, 0)
             if tp + fp + fn > 0:
-                precision = tp / (tp + fp)
-                recall = tp / (tp + fn)
-                f1_scores.append(2 * precision * recall / (precision + recall))
+                precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+                recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+                if precision + recall > 0:
+                    f1_scores.append(2 * precision * recall / (precision + recall))
+                else:
+                    f1_scores.append(0.0)
             else:
                 f1_scores.append(0.0)
 

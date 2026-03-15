@@ -10,8 +10,9 @@ from typing import TYPE_CHECKING, Optional
 
 from loguru import logger
 
+from neomatrix import layers, losses, metrics, optimizers, utils
+
 if TYPE_CHECKING:
-    from neomatrix import layers, losses, metrics, optimizers, utils
     from neomatrix._backend import Tensor
 
 
@@ -175,7 +176,6 @@ class Model:
                 if p:
                     params.append(p)
 
-        # Register parameters with optimizer
         self.optimizer.register_params(params)
 
     def predict(self, x: Tensor, training: bool = False) -> Tensor:

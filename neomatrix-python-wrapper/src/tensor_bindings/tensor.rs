@@ -70,11 +70,11 @@ use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 
 use neomatrix_core::tensor::Tensor;
-use numpy::{prelude::*, PyArrayDyn, PyReadonlyArrayDyn};
+use numpy::{PyArrayDyn, PyReadonlyArrayDyn, prelude::*};
+use pyo3::Bound;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
-use pyo3::Bound;
 
 use crate::tensor_bindings::tensor_iter::TensorIter;
 
@@ -996,18 +996,14 @@ impl PyTensor {
     /// print(repr(t))  # "Tensor(dimension=2, shape=[2, 3])"
     /// ```
     fn __repr__(&self) -> PyResult<String> {
+        let inner = self
+            .inner
+            .lock()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         Ok(format!(
             "Tensor(shape={:?}, data={:?})",
-            self.inner
-                .lock()
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
-                .deref()
-                .shape,
-            self.inner
-                .lock()
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
-                .deref()
-                .data
+            inner.deref().shape,
+            inner.deref().data
         ))
     }
 

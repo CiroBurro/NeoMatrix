@@ -217,16 +217,19 @@ impl Layer for Dense {
 
         // Compute weight gradient: ∇W = Xᵀ · ∇Y
         // Shape: [in_features, batch_size] · [batch_size, out_features] = [in_features, out_features]
-        self.weights_gradient = Arc::new(Mutex::new(input.transpose()?.dot(output_gradient)?));
+        let weights_gradient: Tensor = input.transpose()?.dot(output_gradient)?;
+        self.weights_gradient
+            .lock()
+            .map_err(|e| LayerError::from(TensorError::MemoryError(e.to_string())))?
+            .data = weights_gradient.data;
 
         // Compute bias gradient: ∇b = sum(∇Y, axis=0)
         // Sum across batch dimension to get per-feature bias gradient
         let data = output_gradient.data.sum_axis(Axis(0)).into_dyn();
-        self.biases_gradient = Arc::new(Mutex::new(Tensor {
-            dimension: data.ndim(),
-            shape: data.shape().to_vec(),
-            data,
-        }));
+        self.biases_gradient
+            .lock()
+            .map_err(|e| LayerError::from(TensorError::MemoryError(e.to_string())))?
+            .data = data;
 
         // Compute input gradient: ∇X = ∇Y · Wᵀ
         // This gradient is propagated to the previous layer
