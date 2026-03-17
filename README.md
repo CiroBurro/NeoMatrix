@@ -88,7 +88,7 @@ High-level Python API inspired by Torch and Keras, built on top of the Rust back
 - [x] **Type Safety**: `Result`-based error handling throughout
 - [x] **Operator Overloading**: Pythonic tensor arithmetic (`+`, `-`, `*`, `/`)
 - [x] **Iterator Support**: Tensors implement Rust's `Iterator` trait
-- [x] **240 Unit Tests**: Comprehensive test coverage for all modules
+- [x] **243 Unit Tests**: Comprehensive test coverage for all modules
 
 ### Activation Functions
 
@@ -206,6 +206,7 @@ NeoMatrix/
 │   ├── layers.py           # Layer re-exports
 │   ├── optimizers.py       # Optimizer re-exports
 │   ├── losses.py           # Loss function re-exports
+│   ├── metrics.py          # Evaluation metrics
 │   ├── utils.py            # get_batches utility
 │   └── __init__.py         # Package entry point
 ├── examples/               # Usage examples
@@ -236,15 +237,15 @@ NeoMatrix/
 ### In Progress 🚧
 
 - [ ] High-level Python API (`neomatrix` package)
-  - [ ] NeuralNetwork class
+  - [X] Model class
   - [X] Optimizer implementations
-  - [ ] Metrics and callbacks
+  - [X] Evaluation metrics: Accuracy, Precision, Recall, F1-score
+  - [ ] Callbacks
   - [ ] Model save/load
 
 ### Planned 📋
 
 - [ ] Additional optimizers: Adam, RMSprop, Adagrad
-- [ ] Evaluation metrics: Accuracy, Precision, Recall, F1-score
 - [ ] Regularization: L1, L2, Dropout
 - [ ] Batch normalization layer
 - [ ] Convolutional layers (Conv2D, MaxPool2D)
