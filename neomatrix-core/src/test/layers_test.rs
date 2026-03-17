@@ -1,3 +1,4 @@
+use crate::layers::activations::Softmax;
 use crate::layers::{dense::Dense, init::Init, Layer};
 use crate::tensor::Tensor;
 use std::sync::Arc;
@@ -242,5 +243,79 @@ mod dense_tests {
 
             assert_eq!(grad_input.shape, vec![batch_size, 4]);
         }
+    }
+}
+
+#[cfg(test)]
+mod softmax_tests {
+    use super::*;
+
+    #[test]
+    fn softmax_backward_standalone() {
+        let input = Tensor::new(vec![3], vec![1.0, 2.0, 3.0]).unwrap();
+
+        let mut softmax = Softmax::new();
+        let output = softmax.forward(&input, true).unwrap();
+
+        let sum: f32 = output.data.iter().sum();
+        assert!((sum - 1.0).abs() < 1e-6);
+
+        let grad_output = Tensor::new(vec![3], vec![0.5, -0.3, 0.1]).unwrap();
+        let grad_input = softmax.backward(&grad_output).unwrap();
+
+        let sigma = output.data.as_slice().unwrap();
+        let d_l_dsigma = grad_output.data.as_slice().unwrap();
+
+        let weighted: Vec<f32> = sigma
+            .iter()
+            .zip(d_l_dsigma.iter())
+            .map(|(s, g)| s * g)
+            .collect();
+        let sum_weighted: f32 = weighted.iter().sum();
+
+        let expected: Vec<f32> = sigma
+            .iter()
+            .zip(d_l_dsigma.iter())
+            .map(|(s, g)| s * (g - sum_weighted))
+            .collect();
+
+        let computed = grad_input.data.as_slice().unwrap();
+        for (c, e) in computed.iter().zip(expected.iter()) {
+            assert!((c - e).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn softmax_backward_with_uniform_gradient() {
+        let input = Tensor::new(vec![3], vec![0.5, 1.0, 1.5]).unwrap();
+
+        let mut softmax = Softmax::new();
+        let _output = softmax.forward(&input, true).unwrap();
+
+        let grad_output = Tensor::new(vec![3], vec![1.0, 1.0, 1.0]).unwrap();
+        let grad_input = softmax.backward(&grad_output).unwrap();
+
+        let computed = grad_input.data.as_slice().unwrap();
+        let sum: f32 = computed.iter().sum();
+
+        assert!(sum.abs() < 1e-6);
+    }
+
+    #[test]
+    fn softmax_backward_2d_batch() {
+        let input = Tensor::new(vec![2, 3], vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+
+        let mut softmax = Softmax::new();
+        let output = softmax.forward(&input, true).unwrap();
+
+        let row0_sum: f32 = output.data.iter().take(3).sum();
+        let row1_sum: f32 = output.data.iter().skip(3).sum();
+        assert!((row0_sum - 1.0).abs() < 1e-6);
+        assert!((row1_sum - 1.0).abs() < 1e-6);
+
+        let grad_output = Tensor::new(vec![2, 3], vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6]).unwrap();
+        let grad_input = softmax.backward(&grad_output).unwrap();
+
+        assert_eq!(grad_input.shape, vec![2, 3]);
     }
 }

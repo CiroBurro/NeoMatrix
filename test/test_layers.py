@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from neomatrix import layers
 from neomatrix._backend import Tensor
@@ -111,10 +110,6 @@ class TestSoftmax:
         sums = output.to_numpy().sum(axis=1)
         assert np.allclose(sums, 1.0)
 
-    @pytest.mark.xfail(
-        reason="Softmax backward requires 3D Jacobian dot product not yet supported in Rust core",
-        strict=True,
-    )
     def test_backward_shape(self, softmax_activation, tensor_batch):
         softmax_activation.forward(tensor_batch, training=True)
         grad = Tensor.from_numpy(np.random.randn(32, 10).astype(np.float32))

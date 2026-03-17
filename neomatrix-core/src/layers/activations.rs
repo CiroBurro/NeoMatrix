@@ -34,6 +34,8 @@
 //! let input_grad = relu_layer.backward(&grad).unwrap();
 //! ```
 
+use ndarray::Axis;
+
 use crate::{
     errors::LayerError,
     layers::Layer,
@@ -117,14 +119,14 @@ impl Sigmoid {
 }
 impl Layer for Sigmoid {
     fn forward(&mut self, input: &Tensor, training: bool) -> Result<Tensor, LayerError> {
-        let output = self.inner.function(input).map_err(LayerError::from);
+        let output = self.inner.function(input).map_err(LayerError::from)?;
 
         // Cache output for computing derivative during backward pass
         if training {
-            self.output_cache = Some(output?);
+            self.output_cache = Some(output.clone());
         }
 
-        self.inner.function(input).map_err(LayerError::from)
+        Ok(output)
     }
 
     fn backward(&mut self, output_gradient: &Tensor) -> Result<Tensor, LayerError> {
@@ -165,14 +167,14 @@ impl Tanh {
 }
 impl Layer for Tanh {
     fn forward(&mut self, input: &Tensor, training: bool) -> Result<Tensor, LayerError> {
-        let output = self.inner.function(input).map_err(LayerError::from);
+        let output = self.inner.function(input).map_err(LayerError::from)?;
 
         // Cache output for computing derivative during backward pass
         if training {
-            self.output_cache = Some(output?);
+            self.output_cache = Some(output.clone());
         }
 
-        self.inner.function(input).map_err(LayerError::from)
+        Ok(output)
     }
 
     fn backward(&mut self, output_gradient: &Tensor) -> Result<Tensor, LayerError> {
@@ -195,7 +197,7 @@ impl Layer for Tanh {
 /// # Derivative
 ///
 /// The Jacobian matrix of softmax is:
-/// - Diagonal: `s_i(1 - s_i)`  
+/// - Diagonal: `s_i(1 - s_i)`
 /// - Off-diagonal: `-s_i · s_j`
 ///
 /// This implementation computes the full Jacobian-vector product during backpropagation.
@@ -235,11 +237,26 @@ impl Layer for Softmax {
             .as_ref()
             .ok_or(LayerError::NotInitialized)?;
 
-        let jacobian = self
-            .inner
-            .derivative(softmax_output)
-            .map_err(LayerError::from)?;
+        // Softmax sum axis depends on dimensionality:
+        // - 1D: sum all elements (Axis(0))
+        // - 2D: sum along features axis (Axis(1)), keeping batch dimension
+        let axis = if softmax_output.dimension == 1 {
+            Axis(0)
+        } else {
+            Axis(1)
+        };
 
-        jacobian.dot(output_gradient).map_err(LayerError::from)
+        let sum_weighted_grads = (softmax_output * output_gradient)
+            .map_err(LayerError::from)?
+            .data
+            .sum_axis(axis);
+        let grad_input =
+            &softmax_output.data * (&output_gradient.data - &sum_weighted_grads.insert_axis(axis));
+
+        Ok(Tensor {
+            dimension: grad_input.ndim(),
+            shape: grad_input.shape().to_vec(),
+            data: grad_input.into_owned(),
+        })
     }
 }

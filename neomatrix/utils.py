@@ -1,5 +1,3 @@
-import numpy as np
-
 from neomatrix._backend import Tensor
 
 __all__ = ["get_batches"]
