@@ -10,6 +10,7 @@ use pyo3::prelude::*;
 use crate::tensor_bindings::PyTensor;
 
 pub mod gradient_descent;
+pub mod momentum_gd;
 
 /// Python wrapper for ParametersRef - shared parameter container.
 ///
@@ -66,6 +67,34 @@ impl PyParametersRef {
                 w_grads: w_grads.inner,
                 b_grads: b_grads.inner,
             },
+        }
+    }
+
+    #[getter]
+    pub fn weights(&self) -> PyTensor {
+        PyTensor {
+            inner: self.inner.weights.clone(),
+        }
+    }
+
+    #[getter]
+    pub fn biases(&self) -> PyTensor {
+        PyTensor {
+            inner: self.inner.biases.clone(),
+        }
+    }
+
+    #[getter]
+    pub fn w_grads(&self) -> PyTensor {
+        PyTensor {
+            inner: self.inner.w_grads.clone(),
+        }
+    }
+
+    #[getter]
+    pub fn b_grads(&self) -> PyTensor {
+        PyTensor {
+            inner: self.inner.b_grads.clone(),
         }
     }
 }

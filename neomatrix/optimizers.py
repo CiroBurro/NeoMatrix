@@ -4,15 +4,13 @@ Optimizer types exposed by the NeoMatrix Rust backend.
 Available: GradientDescent (SGD with configurable learning rate).
 """
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
-if TYPE_CHECKING:
-    from neomatrix._backend import ParametersRef
-
-from neomatrix._backend import GradientDescent, ParametersRef
+from neomatrix._backend import GradientDescent, MomentumGD, ParametersRef
 
 __all__ = [
     "GradientDescent",
+    "MomentumGD",
     "ParametersRef",
     "Optimizer",
 ]
@@ -41,7 +39,7 @@ Stochastic Gradient Descent (SGD) optimizer.
 **Algorithm:**
     For each parameter θ (weights, biases):
         θ ← θ - η·∇θ
-    
+
     Where:
     - η = learning_rate
     - ∇θ = gradient computed during backpropagation
@@ -67,21 +65,21 @@ Stochastic Gradient Descent (SGD) optimizer.
     from neomatrix import optimizers, layers
     from neomatrix._backend import Tensor
     import numpy as np
-    
+
     # Create optimizer
     opt = optimizers.GradientDescent(learning_rate=0.01)
-    
+
     # Create layers
     layer1 = layers.Dense(128, 784, layers.Init.He)
     layer2 = layers.Dense(10, 128, layers.Init.Xavier)
-    
+
     # Register parameters (REQUIRED before training)
     params = [
         layer1.get_parameters(),
         layer2.get_parameters(),
     ]
     opt.register_params(params)
-    
+
     # Training loop (single step)
     opt.zero_grad()                              # 1. Reset gradients
     y_pred = layer2.forward(layer1.forward(x, True), True)  # 2. Forward pass
@@ -126,12 +124,12 @@ Stochastic Gradient Descent (SGD) optimizer.
     # Parameters are shared between layer and optimizer
     dense = layers.Dense(10, 5)
     params_ref = dense.get_parameters()
-    
+
     # Both point to same memory (Arc<Mutex<Tensor>> in Rust)
     print(params_ref.weights.shape)  # [5, 10]
-    
+
     opt.register_params([params_ref])
-    
+
     # Calling dense.backward() modifies params_ref.w_grads
     # Calling opt.step() modifies params_ref.weights
     # No copying — all operations on shared tensors

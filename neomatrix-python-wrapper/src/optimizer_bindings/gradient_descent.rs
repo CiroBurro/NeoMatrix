@@ -63,7 +63,7 @@ impl PyGD {
     #[pyo3(signature = (learning_rate))]
     pub fn new(learning_rate: f32) -> Self {
         Self {
-            inner: GradientDescent::new(learning_rate, Vec::new()),
+            inner: GradientDescent::new(learning_rate),
         }
     }
 

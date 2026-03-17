@@ -33,6 +33,7 @@
 //! | Struct | Description | State |
 //! |--------|-------------|-------|
 //! | [`gradient_descent::GradientDescent`] | Standard gradient descent with fixed learning rate | Stateful (stores params) |
+//! | [`momentum_gd::MomentumGD`] | Momentum gradient descent - accelerates convergence by accumulating velocity | Stateful (stores params + velocities) |
 //!
 //! # Example
 //!
@@ -67,6 +68,7 @@
 //! ```
 
 pub mod gradient_descent;
+pub mod momentum_gd;
 
 use std::sync::{Arc, Mutex};
 

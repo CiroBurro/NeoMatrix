@@ -68,16 +68,16 @@
 //! // Training loop
 //! for epoch in 0..100 {
 //!     optimizer.zero_grad().unwrap();  // 1. Reset gradients
-//!     
+//!
 //!     // 2. Forward pass
 //!     let hidden = layer1.forward(&input, true).unwrap();
 //!     let output = layer2.forward(&hidden, true).unwrap();
-//!     
+//!
 //!     // 3. Compute loss and backward pass
 //!     let loss_grad = compute_loss_gradient(&output, &target);
 //!     let grad_hidden = layer2.backward(&loss_grad).unwrap();
 //!     layer1.backward(&grad_hidden).unwrap();
-//!     
+//!
 //!     // 4. Update all parameters
 //!     optimizer.step().unwrap();
 //! }
@@ -182,10 +182,10 @@ impl GradientDescent {
     /// let optimizer = GradientDescent::new(0.01, vec![]);
     /// // Call optimizer.register_params(...) before training
     /// ```
-    pub fn new(learning_rate: f32, params: Vec<ParametersRef>) -> Self {
+    pub fn new(learning_rate: f32) -> Self {
         Self {
             learning_rate,
-            params,
+            params: Vec::new(),
         }
     }
 }

@@ -119,8 +119,8 @@ Python user code
 - **Layers**: Dense, ReLU, Sigmoid, Tanh, Softmax (all with `forward`, `backward`, `backward_with_logits`)
 - **Init Strategies**: Xavier, He, LeCun, Random
 - **Loss Functions**: MSE, MAE, BCE, CCE, Huber, Hinge (all registered in `lib.rs`)
-- **Optimizers**: GradientDescent with `register_params()`, `step()`, `zero_grad()` (NEW)
-- **ParametersRef**: Shared ownership wrapper for weights/biases/gradients (NEW)
+- **Optimizers**: GradientDescent, MomentumGD (with `register_params()`, `step()`, `zero_grad()`)
+- **ParametersRef**: Shared ownership wrapper with getters for weights/biases/gradients (NEW - 2026-03-17)
 
 ### ⚠️ Missing (Non-Critical)
 - **Docstrings**: Zero Python documentation (no `help()` output)
@@ -310,9 +310,12 @@ optimizer.step()                # 6. Update weights
 - Lock overhead: <0.1% of total time (negligible)
 
 ### Test Coverage
-- **Core Rust tests**: 236 total
+- **Core Rust tests**: 251 total (as of 2026-03-17)
   - Tensor tests: 224 (tensor_test.rs)
-  - Optimizer tests: 12 (optimizers_test.rs)
+  - Layers tests: 11 (layers_test.rs) - includes Softmax backward tests
+  - Optimizer tests: 20 (optimizers_test.rs) - 12 GradientDescent + 8 MomentumGD
+  - Init tests: various (init_test.rs)
+  - Matmul tests: various (matmul_test.rs)
 
 ## NEXT STEPS / ROADMAP
 
@@ -321,13 +324,19 @@ optimizer.step()                # 6. Update weights
 2. **Add Callbacks class** (EarlyStopping, ModelCheckpoint, LearningRateScheduler)
 
 ### Short-term (Easy After Refactor)
-3. **Implement Adam optimizer**:
-   - Clone `GradientDescent` struct
+3. **~~Implement MomentumGD optimizer~~** ✅ **COMPLETED** (2026-03-17):
+   - Rust implementation: `neomatrix-core/src/optimizers/momentum_gd.rs`
+   - Python bindings: `neomatrix-python-wrapper/src/optimizer_bindings/momentum_gd.rs`
+   - 8 comprehensive tests in `optimizers_test.rs`
+   - Velocity accumulation formula: `v = β·v + (1-β)·∇θ, θ = θ - α·v`
+   - End-to-end training verified
+4. **Implement Adam optimizer**:
+   - Clone `MomentumGD` struct
    - Add `m_weights`, `v_weights`, `m_biases`, `v_biases` fields (one Vec per registered param)
    - Initialize in `register_params()`
    - Update `step()` with Adam formula using internal state
-4. **Add pytest suite** (replace ad-hoc `test.py` script)
-5. **Add Python docstrings** to all PyO3 classes via `#[doc = "..."]`
+5. **Add pytest suite** (replace ad-hoc `test.py` script)
+6. **Add Python docstrings** to all PyO3 classes via `#[doc = "..."]`
 
 ### Long-term (Architectural Changes)
 6. **Regularization**: L1/L2 penalties (add to optimizer `step()` or loss `backward()`)
