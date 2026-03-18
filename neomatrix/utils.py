@@ -16,7 +16,7 @@ def get_batches(tensor: Tensor, batch_size: int) -> list[Tensor]:
         t = Tensor.from_numpy(batch_arr)
         if t.ndim == 1:
             length = len(t)
-            t.reshape([length, 1])
+            t.reshape_inplace([length, 1])
         batches.append(t)
 
     return batches
