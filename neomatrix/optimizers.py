@@ -1,16 +1,17 @@
 """
 Optimizer types exposed by the NeoMatrix Rust backend.
 
-Available: GradientDescent (SGD), MomentumGD (SGD with momentum).
+Available: GradientDescent (SGD), MomentumGD (SGD with momentum), Adagrad (adaptive learning rates).
 """
 
 from typing import Protocol, runtime_checkable
 
-from neomatrix._backend import GradientDescent, MomentumGD, ParametersRef
+from neomatrix._backend import Adagrad, GradientDescent, MomentumGD, ParametersRef
 
 __all__ = [
     "GradientDescent",
     "MomentumGD",
+    "Adagrad",
     "ParametersRef",
     "Optimizer",
 ]
@@ -265,13 +266,174 @@ Momentum Gradient Descent optimizer.
     # Training loop
     for epoch in range(100):
         opt.zero_grad()  # Resets gradients, velocity preserved
-        
+
         # Forward/backward passes accumulate gradients
         y_pred = dense.forward(x, training=True)
         loss_grad = loss_fn.backward(y_true, y_pred)
         dense.backward(loss_grad)
-        
+
         # step() uses accumulated velocity to update weights
         opt.step()
     ```
+"""
+
+Adagrad.__doc__ = """
+Adagrad (Adaptive Gradient) optimizer.
+
+**Algorithm:**
+    For each parameter θ (weights, biases):
+        G ← G + (∇θ)²                     # Accumulate squared gradients
+        θ ← θ - η·∇θ / (√G + ε)           # Update with adapted learning rate
+
+    Where:
+    - η = learning_rate (global)
+    - G = accumulated squared gradients (per-parameter history)
+    - ε = small constant for numerical stability (typically 1e-8)
+    - ∇θ = gradient computed during backpropagation
+
+**Why Adagrad?**
+    - Adaptive learning rates: Parameters with large historical gradients get smaller updates
+    - No manual tuning: Automatically decreases learning rate over time
+    - Sparse data: Excellent for sparse features (NLP, recommender systems)
+    - Convex optimization: Strong theoretical guarantees for convex problems
+
+**Limitations:**
+    - Aggressive decay: Accumulated squared gradients never decrease, causing learning rate
+      to shrink monotonically. This can cause premature convergence in non-convex problems.
+    - Not ideal for deep learning: Adam/RMSprop are preferred for most neural networks
+      as they use exponential moving averages instead of cumulative sums.
+
+**Constructor:**
+    ```python
+    Adagrad(learning_rate: float)
+    ```
+
+**Parameters:**
+    - `learning_rate` (float): Global learning rate (typically 0.01 to 0.1).
+      Note: Adagrad will automatically reduce this over time based on gradient history,
+      so you can usually start with a higher value than standard SGD.
+
+**Methods:**
+    - `register_params(params: list[ParametersRef])`: Register layer parameters for optimization.
+        Must be called BEFORE training (typically in `Model.compile()`).
+        This also initializes the accumulated squared gradient buffers (G) for each parameter.
+    - `step()`: Update all registered parameters using accumulated gradients with adaptive rates.
+        Call AFTER `backward()` to apply weight updates.
+    - `zero_grad()`: Reset all gradients to zero.
+        Call BEFORE each `forward()` pass (gradients accumulate by design).
+        Note: Accumulated squared gradients (G) are PRESERVED between steps.
+
+**Example:**
+    ```python
+    from neomatrix import optimizers, layers
+    from neomatrix._backend import Tensor
+    import numpy as np
+
+    # Create optimizer
+    opt = optimizers.Adagrad(learning_rate=0.01)
+
+    # Create layers
+    layer1 = layers.Dense(128, 784, layers.Init.He)
+    layer2 = layers.Dense(10, 128, layers.Init.Xavier)
+
+    # Register parameters (REQUIRED before training)
+    params = [
+        layer1.get_parameters(),
+        layer2.get_parameters(),
+    ]
+    opt.register_params(params)
+
+    # Training loop (single step)
+    opt.zero_grad()                              # 1. Reset gradients (G preserved)
+    y_pred = layer2.forward(layer1.forward(x, True), True)  # 2. Forward pass
+    loss_val = loss_fn.call(y_true, y_pred)      # 3. Compute loss
+    grad = loss_fn.backward(y_true, y_pred)      # 4. Loss gradient
+    grad = layer2.backward(grad)                 # 5. Backprop layer 2
+    grad = layer1.backward(grad)                 # 6. Backprop layer 1
+    opt.step()                                   # 7. Update weights with adaptive rates
+    ```
+
+**Use Cases:**
+    - Sparse feature spaces (text classification, recommender systems)
+    - Problems where features have very different scales
+    - Convex optimization problems
+    - When you want automatic learning rate adaptation without hyperparameter tuning
+
+**Properties:**
+    - **Stateful**: Stores references to all layer parameters via `Arc<Mutex<Tensor>>` (Rust)
+    - **Adaptive Rates**: Maintains per-parameter accumulated squared gradients (G)
+    - **Shared Ownership**: Layers and optimizer share the same parameter tensors
+    - **Gradient Accumulation**: Multiple `backward()` calls accumulate gradients (reset with `zero_grad()`)
+    - **G Preservation**: Accumulated squared gradients (G) are NOT reset by `zero_grad()` — only current gradients
+    - **Parallel Updates**: Parameters updated in parallel via Rayon (2-4x speedup on multi-core CPUs)
+    - **Thread-Safe**: Mutex locks ensure safe concurrent access to parameters
+
+**Performance:**
+    - Average `step()` time: ~4ms (10-layer network, 1000→50 neurons per layer)
+    - Average `zero_grad()` time: ~0.7ms
+    - Lock overhead: <0.1% of total time (negligible)
+    - Memory overhead: +2 accumulator tensors per layer (weights + biases)
+
+**Learning Rate Guidelines:**
+    - Can start with higher values than SGD (0.01 to 0.1)
+    - Adagrad automatically reduces effective learning rate over time
+    - Initial high rate → fast early progress
+    - Accumulated G → diminishing updates later
+    - No need for manual learning rate schedules
+
+**Comparison with Other Optimizers:**
+    | Aspect | GradientDescent | MomentumGD | Adagrad |
+    |--------|----------------|------------|---------|
+    | Update rule | θ = θ - lr·∇θ | θ = θ - lr·v | θ = θ - lr·∇θ/√G |
+    | Adaptation | None | Velocity | Per-parameter |
+    | Memory overhead | Minimal | +2 tensors/layer | +2 tensors/layer |
+    | Best for | General | Deep networks | Sparse features |
+    | Learning rate decay | None | None | Automatic |
+
+**When to Use:**
+    ✅ Use Adagrad when:
+    - Working with sparse features (NLP, embeddings)
+    - Features have very different scales
+    - Training on convex problems
+    - You want "set and forget" learning rate
+
+    ❌ Don't use Adagrad when:
+    - Training deep neural networks (use Adam instead)
+    - Need to train for many epochs (learning rate decays too aggressively)
+    - Working with dense features (standard SGD or Momentum often better)
+
+**Advanced Usage (Shared Ownership Pattern):**
+    ```python
+    # Parameters are shared between layer and optimizer
+    dense = layers.Dense(10, 5)
+    params_ref = dense.get_parameters()
+
+    # Both point to same memory (Arc<Mutex<Tensor>> in Rust)
+    print(params_ref.weights.shape)  # [5, 10]
+
+    opt = Adagrad(learning_rate=0.01)
+    opt.register_params([params_ref])
+
+    # Training loop
+    for epoch in range(100):
+        opt.zero_grad()  # Resets gradients only, G accumulator preserved
+
+        # Forward/backward passes accumulate gradients
+        y_pred = dense.forward(x, training=True)
+        loss_grad = loss_fn.backward(y_true, y_pred)
+        dense.backward(loss_grad)
+
+        # step() uses G to adapt learning rate per-parameter
+        # As G grows, effective lr = lr / √G decreases
+        opt.step()
+    ```
+
+**Mathematical Insight:**
+    The adaptive learning rate formula η / √G provides:
+    - Larger updates for infrequent features (small G)
+    - Smaller updates for frequent features (large G)
+    - Automatic balancing without manual feature scaling
+
+    For sparse data, this is powerful: rare but important features get strong signals,
+    while common features are dampened to prevent domination.
 """

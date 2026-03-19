@@ -43,6 +43,7 @@ use pyo3::prelude::*;
 use tensor_bindings::PyTensor;
 
 use crate::optimizer_bindings::PyParametersRef;
+use crate::optimizer_bindings::adagrad::PyAdagrad;
 use crate::optimizer_bindings::gradient_descent::PyGD;
 use crate::optimizer_bindings::momentum_gd::PyMomentumGD;
 
@@ -76,6 +77,7 @@ fn _backend(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyHingeLoss>()?;
     m.add_class::<PyGD>()?;
     m.add_class::<PyMomentumGD>()?;
+    m.add_class::<PyAdagrad>()?;
     m.add_class::<PyParametersRef>()?;
     Ok(())
 }

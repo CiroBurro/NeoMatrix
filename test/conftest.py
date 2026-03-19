@@ -227,6 +227,18 @@ def optimizer():
     return optimizers.GradientDescent(learning_rate=0.01)
 
 
+@pytest.fixture
+def momentum_optimizer():
+    """MomentumGD optimizer with lr=0.01 and momentum=0.9."""
+    return optimizers.MomentumGD(learning_rate=0.01, momentum=0.9)
+
+
+@pytest.fixture
+def adagrad_optimizer():
+    """Adagrad optimizer with lr=0.01."""
+    return optimizers.Adagrad(learning_rate=0.01)
+
+
 # ============================================================================
 # Metric Fixtures
 # ============================================================================

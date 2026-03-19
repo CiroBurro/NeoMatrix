@@ -9,6 +9,7 @@ use pyo3::prelude::*;
 
 use crate::tensor_bindings::PyTensor;
 
+pub mod adagrad;
 pub mod gradient_descent;
 pub mod momentum_gd;
 
