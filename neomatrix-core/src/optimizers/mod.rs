@@ -67,6 +67,7 @@
 //! optimizer.step().unwrap();                    // 4. Update parameters
 //! ```
 
+pub mod adagrad;
 pub mod gradient_descent;
 pub mod momentum_gd;
 
