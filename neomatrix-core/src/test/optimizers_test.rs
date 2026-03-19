@@ -58,7 +58,7 @@ fn register_params_stores_references() {
         b_grads: b_grads.clone(),
     };
 
-    optimizer.register_params(vec![param_ref]);
+    optimizer.register_params(vec![param_ref]).unwrap();
 
     assert_eq!(optimizer.params.len(), 1);
 }
@@ -78,12 +78,14 @@ fn step_updates_weights_single_layer() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[0.1, 0.2, 0.3])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.05])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     optimizer.step().unwrap();
 
@@ -116,20 +118,22 @@ fn step_updates_multiple_layers() {
     let w2_grads = Arc::new(Mutex::new(tensor1d(&[0.3, 0.4])));
     let b2_grads = Arc::new(Mutex::new(tensor1d(&[0.1])));
 
-    optimizer.register_params(vec![
-        ParametersRef {
-            weights: w1.clone(),
-            biases: b1.clone(),
-            w_grads: w1_grads.clone(),
-            b_grads: b1_grads.clone(),
-        },
-        ParametersRef {
-            weights: w2.clone(),
-            biases: b2.clone(),
-            w_grads: w2_grads.clone(),
-            b_grads: b2_grads.clone(),
-        },
-    ]);
+    optimizer
+        .register_params(vec![
+            ParametersRef {
+                weights: w1.clone(),
+                biases: b1.clone(),
+                w_grads: w1_grads.clone(),
+                b_grads: b1_grads.clone(),
+            },
+            ParametersRef {
+                weights: w2.clone(),
+                biases: b2.clone(),
+                w_grads: w2_grads.clone(),
+                b_grads: b2_grads.clone(),
+            },
+        ])
+        .unwrap();
 
     optimizer.step().unwrap();
 
@@ -157,12 +161,14 @@ fn zero_grad_resets_gradients() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[0.1, 0.2])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.05])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     optimizer.zero_grad().unwrap();
 
@@ -189,12 +195,14 @@ fn gradients_accumulate_without_zero_grad() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[0.1])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.05])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     {
         let mut w_grad = w_grads.lock().unwrap();
@@ -220,12 +228,14 @@ fn multiple_steps_converge() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[1.0])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.5])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     for _ in 0..10 {
         optimizer.step().unwrap();
@@ -262,7 +272,8 @@ fn learning_rate_affects_update() {
         biases: biases1.clone(),
         w_grads: w_grads1,
         b_grads: b_grads1,
-    }]);
+    }])
+    .unwrap();
 
     let mut opt2 = GradientDescent {
         learning_rate: 0.1,
@@ -273,7 +284,8 @@ fn learning_rate_affects_update() {
         biases: biases2.clone(),
         w_grads: w_grads2,
         b_grads: b_grads2,
-    }]);
+    }])
+    .unwrap();
 
     opt1.step().unwrap();
     opt2.step().unwrap();
@@ -299,12 +311,14 @@ fn step_preserves_shapes() {
     let w_grads = Arc::new(Mutex::new(tensor2d(2, 3, &[0.1, 0.2, 0.3, 0.4, 0.5, 0.6])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.05, 0.1])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     optimizer.step().unwrap();
 
@@ -330,12 +344,14 @@ fn zero_grad_enables_fresh_backward() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[0.1])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.05])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     optimizer.step().unwrap();
     let w1 = weights.lock().unwrap().data[0];
@@ -388,12 +404,14 @@ fn zero_learning_rate_no_update() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[0.1, 0.2])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.05])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     optimizer.step().unwrap();
 
@@ -417,12 +435,14 @@ fn negative_gradients_increase_weights() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[-0.5])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[-0.1])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     optimizer.step().unwrap();
 
@@ -448,12 +468,14 @@ fn momentum_register_params_initializes_velocities() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[0.1, 0.2, 0.3])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.05])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     assert_eq!(optimizer.w_velocities.len(), 1);
     assert_eq!(optimizer.b_velocities.len(), 1);
@@ -473,12 +495,14 @@ fn momentum_step_updates_velocity_and_weights() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[0.1])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.05])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     optimizer.step().unwrap();
 
@@ -513,12 +537,14 @@ fn momentum_accumulates_across_steps() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[0.1])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.05])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     optimizer.step().unwrap();
     let v1 = optimizer.w_velocities[0].data[0];
@@ -548,19 +574,23 @@ fn momentum_zero_coefficient_equals_vanilla_gd() {
     let w_grads2 = Arc::new(Mutex::new(tensor1d(&[0.1, 0.2])));
     let b_grads2 = Arc::new(Mutex::new(tensor1d(&[0.05])));
 
-    momentum_opt.register_params(vec![ParametersRef {
-        weights: w1.clone(),
-        biases: b1.clone(),
-        w_grads: w_grads1,
-        b_grads: b_grads1,
-    }]);
+    momentum_opt
+        .register_params(vec![ParametersRef {
+            weights: w1.clone(),
+            biases: b1.clone(),
+            w_grads: w_grads1,
+            b_grads: b_grads1,
+        }])
+        .unwrap();
 
-    vanilla_opt.register_params(vec![ParametersRef {
-        weights: w2.clone(),
-        biases: b2.clone(),
-        w_grads: w_grads2,
-        b_grads: b_grads2,
-    }]);
+    vanilla_opt
+        .register_params(vec![ParametersRef {
+            weights: w2.clone(),
+            biases: b2.clone(),
+            w_grads: w_grads2,
+            b_grads: b_grads2,
+        }])
+        .unwrap();
 
     momentum_opt.step().unwrap();
     vanilla_opt.step().unwrap();
@@ -581,12 +611,14 @@ fn momentum_velocity_builds_up_over_time() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[1.0])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.5])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads,
-        b_grads: b_grads,
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads,
+            b_grads: b_grads,
+        }])
+        .unwrap();
 
     optimizer.step().unwrap();
     let v1 = optimizer.w_velocities[0].data[0];
@@ -610,12 +642,14 @@ fn momentum_zero_grad_resets_gradients() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[0.1, 0.2])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.05])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     optimizer.zero_grad().unwrap();
 
@@ -636,12 +670,14 @@ fn momentum_preserves_velocity_across_zero_grad() {
     let w_grads = Arc::new(Mutex::new(tensor1d(&[0.1])));
     let b_grads = Arc::new(Mutex::new(tensor1d(&[0.05])));
 
-    optimizer.register_params(vec![ParametersRef {
-        weights: weights.clone(),
-        biases: biases.clone(),
-        w_grads: w_grads.clone(),
-        b_grads: b_grads.clone(),
-    }]);
+    optimizer
+        .register_params(vec![ParametersRef {
+            weights: weights.clone(),
+            biases: biases.clone(),
+            w_grads: w_grads.clone(),
+            b_grads: b_grads.clone(),
+        }])
+        .unwrap();
 
     optimizer.step().unwrap();
     let v_before = optimizer.w_velocities[0].data[0];
@@ -667,19 +703,23 @@ fn momentum_high_coefficient_smooths_updates() {
     let w_grads2 = Arc::new(Mutex::new(tensor1d(&[1.0])));
     let b_grads2 = Arc::new(Mutex::new(tensor1d(&[0.5])));
 
-    low_momentum.register_params(vec![ParametersRef {
-        weights: w1.clone(),
-        biases: b1.clone(),
-        w_grads: w_grads1.clone(),
-        b_grads: b_grads1.clone(),
-    }]);
+    low_momentum
+        .register_params(vec![ParametersRef {
+            weights: w1.clone(),
+            biases: b1.clone(),
+            w_grads: w_grads1.clone(),
+            b_grads: b_grads1.clone(),
+        }])
+        .unwrap();
 
-    high_momentum.register_params(vec![ParametersRef {
-        weights: w2.clone(),
-        biases: b2.clone(),
-        w_grads: w_grads2.clone(),
-        b_grads: b_grads2.clone(),
-    }]);
+    high_momentum
+        .register_params(vec![ParametersRef {
+            weights: w2.clone(),
+            biases: b2.clone(),
+            w_grads: w_grads2.clone(),
+            b_grads: b_grads2.clone(),
+        }])
+        .unwrap();
 
     low_momentum.step().unwrap();
     high_momentum.step().unwrap();
@@ -712,7 +752,7 @@ fn test_adagrad_basic_update() {
         b_grads: std::sync::Arc::new(std::sync::Mutex::new(b_grads)),
     };
 
-    optimizer.register_params(vec![params]);
+    optimizer.register_params(vec![params]).unwrap();
 
     // First step: g_sums = [0, 0] + [1, 1]² = [1, 1]
     // w_update = grad / sqrt(1) = [1, 1]
@@ -768,7 +808,7 @@ fn test_adagrad_accumulates_gradient_sums() {
         b_grads: std::sync::Arc::new(std::sync::Mutex::new(b_grads)),
     };
 
-    optimizer.register_params(vec![params]);
+    optimizer.register_params(vec![params]).unwrap();
 
     // After first step: g_sum = 0 + 0.5² = 0.25
     optimizer.step().unwrap();
@@ -815,7 +855,7 @@ fn test_adagrad_learning_rate_decay() {
         b_grads: std::sync::Arc::new(std::sync::Mutex::new(b_grads)),
     };
 
-    optimizer.register_params(vec![params]);
+    optimizer.register_params(vec![params]).unwrap();
 
     // Step 1: g_sum = 1, lr_eff = 1/√1 = 1, weight = -1
     optimizer.step().unwrap();
@@ -868,7 +908,7 @@ fn test_adagrad_zero_grad_preserves_g_sums() {
         b_grads: std::sync::Arc::new(std::sync::Mutex::new(b_grads)),
     };
 
-    optimizer.register_params(vec![params]);
+    optimizer.register_params(vec![params]).unwrap();
 
     optimizer.step().unwrap();
     let g_sum_before = optimizer.w_g_sums[0].data[[0]];

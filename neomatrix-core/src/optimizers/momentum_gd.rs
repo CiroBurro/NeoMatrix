@@ -229,24 +229,35 @@ impl Optimizer for MomentumGD {
     ///
     /// Must be called before any training begins. The optimizer holds references to
     /// layer parameters, so layers must not be dropped while the optimizer is in use.
-    fn register_params(&mut self, params: Vec<ParametersRef>) {
+    fn register_params(&mut self, params: Vec<ParametersRef>) -> Result<(), TensorError> {
         self.w_velocities.clear();
         self.b_velocities.clear();
 
         for param in &params {
-            let w_shape = param.weights.lock().unwrap().shape.clone();
-            let b_shape = param.biases.lock().unwrap().shape.clone();
+            let w_shape = param
+                .weights
+                .lock()
+                .map_err(|e| TensorError::MemoryError(e.to_string()))?
+                .shape
+                .clone();
+            let b_shape = param
+                .biases
+                .lock()
+                .map_err(|e| TensorError::MemoryError(e.to_string()))?
+                .shape
+                .clone();
 
             let w_len = w_shape.iter().product();
             let b_len = b_shape.iter().product();
 
             self.w_velocities
-                .push(Tensor::new(w_shape, vec![0.0; w_len]).unwrap());
+                .push(Tensor::new(w_shape, vec![0.0; w_len])?);
             self.b_velocities
-                .push(Tensor::new(b_shape, vec![0.0; b_len]).unwrap());
+                .push(Tensor::new(b_shape, vec![0.0; b_len])?);
         }
 
         self.params = params;
+        Ok(())
     }
 
     /// Update all registered parameters using accumulated gradients and velocity.

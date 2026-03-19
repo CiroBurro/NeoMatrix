@@ -215,7 +215,7 @@ pub trait Optimizer {
     /// Adaptive optimizers (Adam, RMSprop) initialize their internal state
     /// (momentum, velocity) in this method based on the shapes of the registered
     /// parameters.
-    fn register_params(&mut self, params: Vec<ParametersRef>);
+    fn register_params(&mut self, params: Vec<ParametersRef>) -> Result<(), TensorError>;
 
     /// Update all registered parameters using accumulated gradients.
     ///

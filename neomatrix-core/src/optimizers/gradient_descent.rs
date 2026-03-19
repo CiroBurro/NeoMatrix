@@ -201,8 +201,9 @@ impl Optimizer for GradientDescent {
     /// For gradient descent, this simply stores the references. Adaptive optimizers
     /// (Adam, RMSprop) would also initialize their internal state here (momentum,
     /// velocity vectors) based on parameter shapes.
-    fn register_params(&mut self, params: Vec<ParametersRef>) {
+    fn register_params(&mut self, params: Vec<ParametersRef>) -> Result<(), TensorError> {
         self.params = params;
+        Ok(())
     }
 
     /// Update all registered parameters using accumulated gradients.

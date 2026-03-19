@@ -5,7 +5,7 @@
 //! updates them in parallel during the `step()` call.
 
 use crate::optimizer_bindings::PyParametersRef;
-use neomatrix_core::optimizers::{gradient_descent::GradientDescent, Optimizer};
+use neomatrix_core::optimizers::{Optimizer, gradient_descent::GradientDescent};
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 
 /// Python wrapper for the GradientDescent optimizer.
@@ -85,9 +85,10 @@ impl PyGD {
     /// optimizer.register_params(params)
     /// ```
     #[pyo3(signature = (params))]
-    pub fn register_params(&mut self, params: Vec<Bound<'_, PyParametersRef>>) {
+    pub fn register_params(&mut self, params: Vec<Bound<'_, PyParametersRef>>) -> PyResult<()> {
         self.inner
-            .register_params(params.iter().map(|p| p.borrow().inner.clone()).collect());
+            .register_params(params.iter().map(|p| p.borrow().inner.clone()).collect())
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 
     /// Apply parameter updates using accumulated gradients.

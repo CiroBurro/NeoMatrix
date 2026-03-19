@@ -5,7 +5,7 @@
 //! and dampen oscillations in high-curvature directions.
 
 use crate::optimizer_bindings::PyParametersRef;
-use neomatrix_core::optimizers::{momentum_gd::MomentumGD, Optimizer};
+use neomatrix_core::optimizers::{Optimizer, momentum_gd::MomentumGD};
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 
 /// Python wrapper for the MomentumGD optimizer.
@@ -102,13 +102,15 @@ impl PyMomentumGD {
     /// optimizer.register_params(params)
     /// ```
     #[pyo3(signature = (params))]
-    pub fn register_params(&mut self, params: Vec<Bound<'_, PyParametersRef>>) {
-        self.inner.register_params(
-            params
-                .into_iter()
-                .map(|p| p.borrow().inner.clone())
-                .collect(),
-        );
+    pub fn register_params(&mut self, params: Vec<Bound<'_, PyParametersRef>>) -> PyResult<()> {
+        self.inner
+            .register_params(
+                params
+                    .into_iter()
+                    .map(|p| p.borrow().inner.clone())
+                    .collect(),
+            )
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 
     /// Apply parameter updates using accumulated gradients and velocity.

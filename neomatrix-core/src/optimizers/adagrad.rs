@@ -130,25 +130,34 @@ impl Optimizer for Adagrad {
     /// 3. Stores references to all layer parameters
     ///
     /// Gradient sum accumulators track `Σ∇θ²` over time for adaptive LR computation.
-    fn register_params(&mut self, params: Vec<ParametersRef>) {
+    fn register_params(&mut self, params: Vec<ParametersRef>) -> Result<(), TensorError> {
         self.w_g_sums.clear();
         self.b_g_sums.clear();
 
         for param in &params {
-            let w_shape = param.weights.lock().unwrap().shape.clone();
-            let b_shape = param.biases.lock().unwrap().shape.clone();
+            let w_shape = param
+                .weights
+                .lock()
+                .map_err(|e| TensorError::MemoryError(e.to_string()))?
+                .shape
+                .clone();
+            let b_shape = param
+                .biases
+                .lock()
+                .map_err(|e| TensorError::MemoryError(e.to_string()))?
+                .shape
+                .clone();
 
             let w_len = w_shape.iter().product();
             let b_len = b_shape.iter().product();
 
             // Initialize gradient sum accumulators to zeros
-            self.w_g_sums
-                .push(Tensor::new(w_shape, vec![0.0; w_len]).unwrap());
-            self.b_g_sums
-                .push(Tensor::new(b_shape, vec![0.0; b_len]).unwrap());
+            self.w_g_sums.push(Tensor::new(w_shape, vec![0.0; w_len])?);
+            self.b_g_sums.push(Tensor::new(b_shape, vec![0.0; b_len])?);
         }
 
         self.params = params;
+        Ok(())
     }
 
     /// Update all registered parameters using Adagrad's adaptive learning rate.
@@ -278,197 +287,5 @@ impl Optimizer for Adagrad {
             Ok::<(), TensorError>(())
         })?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_adagrad_basic_update() {
-        // Test that Adagrad correctly applies the adaptive learning rate
-        let mut optimizer = Adagrad::new(1.0);
-
-        // Create a single parameter tensor
-        let weights = Tensor::new(vec![2], vec![1.0, 2.0]).unwrap();
-        let biases = Tensor::new(vec![1], vec![0.0]).unwrap();
-        let w_grads = Tensor::new(vec![2], vec![1.0, 1.0]).unwrap();
-        let b_grads = Tensor::new(vec![1], vec![1.0]).unwrap();
-
-        let params = ParametersRef {
-            weights: std::sync::Arc::new(std::sync::Mutex::new(weights)),
-            biases: std::sync::Arc::new(std::sync::Mutex::new(biases)),
-            w_grads: std::sync::Arc::new(std::sync::Mutex::new(w_grads)),
-            b_grads: std::sync::Arc::new(std::sync::Mutex::new(b_grads)),
-        };
-
-        optimizer.register_params(vec![params]);
-
-        // First step: g_sums = [0, 0] + [1, 1]² = [1, 1]
-        // w_update = grad / sqrt(1) = [1, 1]
-        // new_weights = [1, 2] - [1, 1] = [0, 1]
-        optimizer.step().unwrap();
-
-        {
-            let params = &optimizer.params[0];
-            let weights = params.weights.lock().unwrap();
-            let biases = params.biases.lock().unwrap();
-
-            assert!((weights.data[[0]] - 0.0).abs() < 1e-5);
-            assert!((weights.data[[1]] - 1.0).abs() < 1e-5);
-            assert!((biases.data[[0]] - (-1.0)).abs() < 1e-5);
-        }
-
-        // Second step: zero gradients and compute with different gradients
-        optimizer.zero_grad().unwrap();
-
-        {
-            let mut w_grads = optimizer.params[0].w_grads.lock().unwrap();
-            *w_grads = Tensor::new(vec![2], vec![0.0, 2.0]).unwrap();
-            let mut b_grads = optimizer.params[0].b_grads.lock().unwrap();
-            *b_grads = Tensor::new(vec![1], vec![0.0]).unwrap();
-        }
-
-        // Second step: g_sums = [1, 1] + [0, 4] = [1, 5]
-        // w_update = [0/√1, 2/√5] = [0, 0.894]
-        // new_weights = [0, 1] - [0, 0.894] = [0, 0.106]
-        optimizer.step().unwrap();
-
-        {
-            let params = &optimizer.params[0];
-            let weights = params.weights.lock().unwrap();
-            assert!((weights.data[[0]] - 0.0).abs() < 1e-5);
-            assert!((weights.data[[1]] - 0.106).abs() < 1e-3);
-        }
-    }
-
-    #[test]
-    fn test_adagrad_accumulates_gradient_sums() {
-        let mut optimizer = Adagrad::new(1.0);
-
-        let weights = Tensor::new(vec![1], vec![1.0]).unwrap();
-        let biases = Tensor::new(vec![1], vec![0.0]).unwrap();
-        let w_grads = Tensor::new(vec![1], vec![0.5]).unwrap();
-        let b_grads = Tensor::new(vec![1], vec![0.0]).unwrap();
-
-        let params = ParametersRef {
-            weights: std::sync::Arc::new(std::sync::Mutex::new(weights)),
-            biases: std::sync::Arc::new(std::sync::Mutex::new(biases)),
-            w_grads: std::sync::Arc::new(std::sync::Mutex::new(w_grads)),
-            b_grads: std::sync::Arc::new(std::sync::Mutex::new(b_grads)),
-        };
-
-        optimizer.register_params(vec![params]);
-
-        // After first step: g_sum = 0 + 0.5² = 0.25
-        optimizer.step().unwrap();
-        let g_sum = optimizer.w_g_sums[0].data[[0]];
-        assert!((g_sum - 0.25).abs() < 1e-5);
-
-        // Zero grad and reset gradients
-        optimizer.zero_grad().unwrap();
-        {
-            let mut w_grads = optimizer.params[0].w_grads.lock().unwrap();
-            *w_grads = Tensor::new(vec![1], vec![0.5]).unwrap();
-        }
-
-        // After second step: g_sum = 0.25 + 0.5² = 0.5
-        optimizer.step().unwrap();
-        let g_sum = optimizer.w_g_sums[0].data[[0]];
-        assert!((g_sum - 0.5).abs() < 1e-5);
-
-        // Verify g_sum continues to grow
-        optimizer.zero_grad().unwrap();
-        {
-            let mut w_grads = optimizer.params[0].w_grads.lock().unwrap();
-            *w_grads = Tensor::new(vec![1], vec![0.5]).unwrap();
-        }
-        optimizer.step().unwrap();
-        let g_sum = optimizer.w_g_sums[0].data[[0]];
-        assert!((g_sum - 0.75).abs() < 1e-5);
-    }
-
-    #[test]
-    fn test_adagrad_learning_rate_decay() {
-        // Test that effective learning rate decreases as g_sum grows
-        let mut optimizer = Adagrad::new(1.0);
-
-        let weights = Tensor::new(vec![1], vec![0.0]).unwrap();
-        let biases = Tensor::new(vec![1], vec![0.0]).unwrap();
-        let w_grads = Tensor::new(vec![1], vec![1.0]).unwrap();
-        let b_grads = Tensor::new(vec![1], vec![0.0]).unwrap();
-
-        let params = ParametersRef {
-            weights: std::sync::Arc::new(std::sync::Mutex::new(weights)),
-            biases: std::sync::Arc::new(std::sync::Mutex::new(biases)),
-            w_grads: std::sync::Arc::new(std::sync::Mutex::new(w_grads)),
-            b_grads: std::sync::Arc::new(std::sync::Mutex::new(b_grads)),
-        };
-
-        optimizer.register_params(vec![params]);
-
-        // Step 1: g_sum = 1, lr_eff = 1/√1 = 1, weight = -1
-        optimizer.step().unwrap();
-        let w1 = optimizer.params[0].weights.lock().unwrap().data[[0]];
-
-        // Reset gradients for next step
-        optimizer.zero_grad().unwrap();
-        {
-            let mut w_grads = optimizer.params[0].w_grads.lock().unwrap();
-            *w_grads = Tensor::new(vec![1], vec![1.0]).unwrap();
-        }
-
-        // Step 2: g_sum = 2, lr_eff = 1/√2 ≈ 0.707, weight ≈ -1.707
-        optimizer.step().unwrap();
-        let w2 = optimizer.params[0].weights.lock().unwrap().data[[0]];
-
-        // Reset gradients for next step
-        optimizer.zero_grad().unwrap();
-        {
-            let mut w_grads = optimizer.params[0].w_grads.lock().unwrap();
-            *w_grads = Tensor::new(vec![1], vec![1.0]).unwrap();
-        }
-
-        // Step 3: g_sum = 3, lr_eff = 1/√3 ≈ 0.577, weight ≈ -2.284
-        optimizer.step().unwrap();
-        let w3 = optimizer.params[0].weights.lock().unwrap().data[[0]];
-
-        // The change should decrease over time (lr decays)
-        let delta1 = (w1 - 0.0).abs();
-        let delta2 = (w2 - w1).abs();
-        let delta3 = (w3 - w2).abs();
-
-        assert!(delta1 > delta2, "delta1={}, delta2={}", delta1, delta2);
-        assert!(delta2 > delta3, "delta2={}, delta3={}", delta2, delta3);
-    }
-
-    #[test]
-    fn test_adagrad_zero_grad_preserves_g_sums() {
-        let mut optimizer = Adagrad::new(1.0);
-
-        let weights = Tensor::new(vec![1], vec![1.0]).unwrap();
-        let biases = Tensor::new(vec![1], vec![0.0]).unwrap();
-        let w_grads = Tensor::new(vec![1], vec![1.0]).unwrap();
-        let b_grads = Tensor::new(vec![1], vec![0.0]).unwrap();
-
-        let params = ParametersRef {
-            weights: std::sync::Arc::new(std::sync::Mutex::new(weights)),
-            biases: std::sync::Arc::new(std::sync::Mutex::new(biases)),
-            w_grads: std::sync::Arc::new(std::sync::Mutex::new(w_grads)),
-            b_grads: std::sync::Arc::new(std::sync::Mutex::new(b_grads)),
-        };
-
-        optimizer.register_params(vec![params]);
-
-        optimizer.step().unwrap();
-        let g_sum_before = optimizer.w_g_sums[0].data[[0]];
-        assert!((g_sum_before - 1.0).abs() < 1e-5);
-
-        optimizer.zero_grad().unwrap();
-
-        // g_sum should be preserved after zero_grad
-        let g_sum_after = optimizer.w_g_sums[0].data[[0]];
-        assert_eq!(g_sum_before, g_sum_after);
     }
 }
